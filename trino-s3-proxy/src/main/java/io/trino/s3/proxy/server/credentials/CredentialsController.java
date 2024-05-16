@@ -11,15 +11,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.trino.s3.proxy.server;
+package io.trino.s3.proxy.server.credentials;
 
-import org.junit.jupiter.api.Test;
+import java.util.Optional;
 
-public class DummyTest
+public interface CredentialsController
 {
-    @Test
-    public void testDummy()
-    {
-        // stub test for now
-    }
+    Optional<Credentials> credentials(String emulatedAccessKey);
 }
