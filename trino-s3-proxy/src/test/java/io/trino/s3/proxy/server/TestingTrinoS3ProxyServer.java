@@ -14,14 +14,18 @@
 package io.trino.s3.proxy.server;
 
 import com.google.common.collect.ImmutableList;
+import com.google.inject.Injector;
 import com.google.inject.Module;
 import io.airlift.bootstrap.Bootstrap;
 import io.airlift.event.client.EventModule;
+import io.airlift.http.server.testing.TestingHttpServer;
 import io.airlift.http.server.testing.TestingHttpServerModule;
 import io.airlift.jaxrs.JaxrsModule;
 import io.airlift.json.JsonModule;
 import io.airlift.log.Logger;
 import io.airlift.node.testing.TestingNodeModule;
+import io.trino.s3.proxy.server.credentials.Credentials;
+import io.trino.s3.proxy.server.credentials.Credentials.Credential;
 
 public final class TestingTrinoS3ProxyServer
 {
@@ -31,8 +35,18 @@ public final class TestingTrinoS3ProxyServer
 
     public static void main(String[] args)
     {
+        if (args.length != 4) {
+            System.err.println("Usage: TestingTrinoS3ProxyServer <emulatedAccessKey> <emulatedSecretKey> <realAccessKey> <realSecretKey>");
+            System.exit(1);
+        }
+
+        String emulatedAccessKey = args[0];
+        String emulatedSecretKey = args[1];
+        String realAccessKey = args[2];
+        String realSecretKey = args[3];
+
         ImmutableList.Builder<Module> modules = ImmutableList.<Module>builder()
-                .add(new TrinoS3ProxyServerModule())
+                .add(new TestingTrinoS3ProxyServerModule())
                 .add(new TestingNodeModule())
                 .add(new EventModule())
                 .add(new TestingHttpServerModule())
@@ -40,8 +54,16 @@ public final class TestingTrinoS3ProxyServer
                 .add(new JaxrsModule());
 
         Bootstrap app = new Bootstrap(modules.build());
-        app.initialize();
+        Injector injector = app.initialize();
+
+        TestingCredentialsController credentialsController = injector.getInstance(TestingCredentialsController.class);
+        credentialsController.addCredentials(new Credentials(new Credential(emulatedAccessKey, emulatedSecretKey), new Credential(realAccessKey, realSecretKey)));
 
         log.info("======== TESTING SERVER STARTED ========");
+
+        TestingHttpServer httpServer = injector.getInstance(TestingHttpServer.class);
+        log.info("");
+        log.info("Endpoint: %s", httpServer.getBaseUrl());
+        log.info("");
     }
 }

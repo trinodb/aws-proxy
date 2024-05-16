@@ -13,14 +13,15 @@
  */
 package io.trino.s3.proxy.server.credentials;
 
+import com.google.common.base.Splitter;
 import com.google.inject.Inject;
-import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.core.MultivaluedMap;
-import jakarta.ws.rs.core.Response;
 
 import java.net.URI;
 import java.time.Duration;
+import java.util.List;
 import java.util.Optional;
+import java.util.function.Function;
 
 import static java.util.Objects.requireNonNull;
 
@@ -36,19 +37,56 @@ public class SigningController
         maxClockDrift = signingControllerConfig.getMaxClockDrift().toJavaTime();
     }
 
-    public String signRequest(
+    public Optional<SigningMetadata> signingMetadataFromRequest(
+            Function<Credentials, Credentials.Credential> credentialsSupplier,
             URI requestURI,
             MultivaluedMap<String, String> requestHeaders,
             MultivaluedMap<String, String> queryParameters,
             String httpMethod,
-            String encodedPath,
-            String region,
-            String accessKey)
+            String encodedPath)
     {
+        String authorization = requestHeaders.getFirst("Authorization");
+        if (authorization == null) {
+            return Optional.empty();
+        }
+
+        List<String> authorizationParts = Splitter.on(",").trimResults().splitToList(authorization);
+        if (authorizationParts.isEmpty()) {
+            return Optional.empty();
+        }
+
+        String credential = authorizationParts.getFirst();
+        List<String> credentialParts = Splitter.on("=").splitToList(credential);
+        if (credentialParts.size() < 2) {
+            return Optional.empty();
+        }
+
+        String credentialValue = credentialParts.get(1);
+        List<String> credentialValueParts = Splitter.on("/").splitToList(credentialValue);
+        if (credentialValueParts.size() < 3) {
+            return Optional.empty();
+        }
+
+        String emulatedAccessKey = credentialValueParts.getFirst();
+        String region = credentialValueParts.get(2);
+
         Optional<String> session = Optional.ofNullable(requestHeaders.getFirst("x-amz-security-token"));
 
-        Credentials credentials = credentialsController.credentials(accessKey, session)
-                .orElseThrow(() -> new WebApplicationException(Response.Status.UNAUTHORIZED));
+        return credentialsController.credentials(emulatedAccessKey, session)
+                .map(credentials -> new SigningMetadata(credentials, session, region))
+                .filter(metadata -> isValidAuthorization(metadata, credentialsSupplier, authorization, requestURI, requestHeaders, queryParameters, httpMethod, encodedPath));
+    }
+
+    public String signRequest(
+            SigningMetadata metadata,
+            Function<Credentials, Credentials.Credential> credentialsSupplier,
+            URI requestURI,
+            MultivaluedMap<String, String> requestHeaders,
+            MultivaluedMap<String, String> queryParameters,
+            String httpMethod,
+            String encodedPath)
+    {
+        Credentials.Credential credential = credentialsSupplier.apply(metadata.credentials());
 
         return Signer.sign(
                 "s3",
@@ -57,10 +95,24 @@ public class SigningController
                 queryParameters,
                 httpMethod,
                 encodedPath,
-                region,
-                accessKey,
-                credentials.emulated().secretKey(),
+                metadata.region(),
+                credential.accessKey(),
+                credential.secretKey(),
                 maxClockDrift,
                 Optional.empty());
+    }
+
+    private boolean isValidAuthorization(
+            SigningMetadata metadata,
+            Function<Credentials, Credentials.Credential> credentialsSupplier,
+            String authorizationHeader,
+            URI requestURI,
+            MultivaluedMap<String, String> requestHeaders,
+            MultivaluedMap<String, String> queryParameters,
+            String httpMethod,
+            String encodedPath)
+    {
+        String expectedAuthorization = signRequest(metadata, credentialsSupplier, requestURI, requestHeaders, queryParameters, httpMethod, encodedPath);
+        return authorizationHeader.equals(expectedAuthorization);
     }
 }

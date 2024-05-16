@@ -11,12 +11,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.trino.s3.proxy.server.rest;
+package io.trino.s3.proxy.server.credentials;
 
-public final class TrinoS3ProxyRestConstants
+import java.util.Optional;
+
+import static java.util.Objects.requireNonNull;
+
+public record SigningMetadata(Credentials credentials, Optional<String> session, String region)
 {
-    private TrinoS3ProxyRestConstants() {}
-
-    public static final String BASE_PATH = "/api/v1/s3Proxy/";
-    public static final String S3_PATH = BASE_PATH + "s3";
+    public SigningMetadata
+    {
+        requireNonNull(credentials, "credentials is null");
+        requireNonNull(session, "session is null");
+        requireNonNull(region, "region is null");
+    }
 }

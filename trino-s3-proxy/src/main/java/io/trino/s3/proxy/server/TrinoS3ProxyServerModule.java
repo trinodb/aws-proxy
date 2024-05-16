@@ -15,20 +15,36 @@ package io.trino.s3.proxy.server;
 
 import com.google.inject.Binder;
 import com.google.inject.Module;
+import com.google.inject.Scopes;
+import io.trino.s3.proxy.server.credentials.SigningController;
 import io.trino.s3.proxy.server.credentials.SigningControllerConfig;
+import io.trino.s3.proxy.server.rest.TrinoS3ProxyClient;
+import io.trino.s3.proxy.server.rest.TrinoS3ProxyClient.ForProxyClient;
 import io.trino.s3.proxy.server.rest.TrinoS3ProxyResource;
 
 import static io.airlift.configuration.ConfigBinder.configBinder;
+import static io.airlift.http.client.HttpClientBinder.httpClientBinder;
 import static io.airlift.jaxrs.JaxrsBinder.jaxrsBinder;
 
 public class TrinoS3ProxyServerModule
         implements Module
 {
     @Override
-    public void configure(Binder binder)
+    public final void configure(Binder binder)
     {
         jaxrsBinder(binder).bind(TrinoS3ProxyResource.class);
-
         configBinder(binder).bindConfig(SigningControllerConfig.class);
+        binder.bind(SigningController.class).in(Scopes.SINGLETON);
+
+        // TODO config, etc.
+        httpClientBinder(binder).bindHttpClient("ProxyClient", ForProxyClient.class);
+        binder.bind(TrinoS3ProxyClient.class).in(Scopes.SINGLETON);
+
+        moduleSpecificBinding(binder);
+    }
+
+    protected void moduleSpecificBinding(Binder binder)
+    {
+        // default does nothing
     }
 }
