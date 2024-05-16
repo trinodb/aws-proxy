@@ -31,12 +31,12 @@ public class TestSigningController
 {
     private static final Credentials CREDENTIALS = new Credentials(new Credential("THIS_IS_AN_ACCESS_KEY", "THIS_IS_A_SECRET_KEY"), new Credential("dummy", "dummy"));
 
+    private final CredentialsController credentialsController = (emulatedAccessKey, session) -> Optional.of(CREDENTIALS);
+    private final SigningController signingController = new SigningController(credentialsController, new SigningControllerConfig().setMaxClockDrift(new Duration(99999, TimeUnit.DAYS)));
+
     @Test
     public void testRootLs()
     {
-        CredentialsController credentialsController = (accessKey, session) -> Optional.of(CREDENTIALS);
-        SigningController signingController = new SigningController(credentialsController, new SigningControllerConfig().setMaxClockDrift(new Duration(99999, TimeUnit.DAYS)));
-
         // values discovered from an AWS CLI request sent to a dummy local HTTP server
         MultivaluedMap<String, String> requestHeaders = new MultivaluedHashMap<>();
         requestHeaders.putSingle("X-Amz-Date", "20240516T024511Z");
@@ -47,13 +47,13 @@ public class TestSigningController
         requestHeaders.putSingle("Accept-Encoding", "identity");
 
         String signature = signingController.signRequest(
+                new SigningMetadata(CREDENTIALS, Optional.empty(), "us-east-1"),
+                Credentials::emulated,
                 URI.create("http://localhost:10064"),
                 requestHeaders,
                 new MultivaluedHashMap<>(),
                 "GET",
-                "/",
-                "us-east-1",
-                "THIS_IS_AN_ACCESS_KEY");
+                "/");
 
         assertThat(signature).isEqualTo("AWS4-HMAC-SHA256 Credential=THIS_IS_AN_ACCESS_KEY/20240516/us-east-1/s3/aws4_request, SignedHeaders=host;x-amz-content-sha256;x-amz-date;x-amz-security-token, Signature=9a19c251bf4e1533174e80da59fa57c65b3149b611ec9a4104f6944767c25704");
     }
@@ -61,7 +61,6 @@ public class TestSigningController
     @Test
     public void testRootExpiredClock()
     {
-        CredentialsController credentialsController = (accessKey, session) -> Optional.of(CREDENTIALS);
         SigningController signingController = new SigningController(credentialsController, new SigningControllerConfig().setMaxClockDrift(new Duration(1, TimeUnit.MINUTES)));
 
         // values discovered from an AWS CLI request sent to a dummy local HTTP server
@@ -74,21 +73,18 @@ public class TestSigningController
         requestHeaders.putSingle("Accept-Encoding", "identity");
 
         assertThatThrownBy(() -> signingController.signRequest(
+                new SigningMetadata(CREDENTIALS, Optional.empty(), "us-east-1"),
+                Credentials::emulated,
                 URI.create("http://localhost:10064"),
                 requestHeaders,
                 new MultivaluedHashMap<>(),
                 "GET",
-                "/",
-                "us-east-1",
-                "THIS_IS_AN_ACCESS_KEY")).isInstanceOf(WebApplicationException.class);
+                "/")).isInstanceOf(WebApplicationException.class);
     }
 
     @Test
     public void testBucketLs()
     {
-        CredentialsController credentialsController = (accessKey, session) -> Optional.of(CREDENTIALS);
-        SigningController signingController = new SigningController(credentialsController, new SigningControllerConfig().setMaxClockDrift(new Duration(99999, TimeUnit.DAYS)));
-
         // values discovered from an AWS CLI request sent to a dummy local HTTP server
         MultivaluedMap<String, String> requestHeaders = new MultivaluedHashMap<>();
         requestHeaders.putSingle("X-Amz-Date", "20240516T034003Z");
@@ -105,13 +101,13 @@ public class TestSigningController
         queryParameters.putSingle("encoding-type", "url");
 
         String signature = signingController.signRequest(
+                new SigningMetadata(CREDENTIALS, Optional.empty(), "us-east-1"),
+                Credentials::emulated,
                 URI.create("http://localhost:10064"),
                 requestHeaders,
                 queryParameters,
                 "GET",
-                "/mybucket",
-                "us-east-1",
-                "THIS_IS_AN_ACCESS_KEY");
+                "/mybucket");
 
         assertThat(signature).isEqualTo("AWS4-HMAC-SHA256 Credential=THIS_IS_AN_ACCESS_KEY/20240516/us-east-1/s3/aws4_request, SignedHeaders=host;x-amz-content-sha256;x-amz-date;x-amz-security-token, Signature=222d7b7fcd4d5560c944e8fecd9424ee3915d131c3ad9e000d65db93e87946c4");
     }

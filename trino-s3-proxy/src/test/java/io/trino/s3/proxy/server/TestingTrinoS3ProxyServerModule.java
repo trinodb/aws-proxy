@@ -11,12 +11,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.trino.s3.proxy.server.rest;
+package io.trino.s3.proxy.server;
 
-public final class TrinoS3ProxyRestConstants
+import com.google.inject.Binder;
+import com.google.inject.Scopes;
+import io.trino.s3.proxy.server.credentials.CredentialsController;
+
+public class TestingTrinoS3ProxyServerModule
+        extends TrinoS3ProxyServerModule
 {
-    private TrinoS3ProxyRestConstants() {}
-
-    public static final String BASE_PATH = "/api/v1/s3Proxy/";
-    public static final String S3_PATH = BASE_PATH + "s3";
+    @Override
+    protected void moduleSpecificBinding(Binder binder)
+    {
+        binder.bind(CredentialsController.class).to(TestingCredentialsController.class).in(Scopes.SINGLETON);
+        binder.bind(TestingCredentialsController.class).in(Scopes.SINGLETON);
+    }
 }
