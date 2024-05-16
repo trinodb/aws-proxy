@@ -14,10 +14,12 @@
 package io.trino.s3.proxy.server;
 
 import com.google.common.collect.ImmutableList;
+import com.google.inject.Injector;
 import com.google.inject.Module;
 import io.airlift.bootstrap.Bootstrap;
 import io.airlift.event.client.EventModule;
 import io.airlift.http.server.HttpServerModule;
+import io.airlift.http.server.testing.TestingHttpServer;
 import io.airlift.jaxrs.JaxrsModule;
 import io.airlift.json.JsonModule;
 import io.airlift.log.Logger;
@@ -39,8 +41,13 @@ public final class TrinoS3ProxyServer
                 .add(new JaxrsModule());
 
         Bootstrap app = new Bootstrap(modules.build());
-        app.initialize();
+        Injector injector = app.initialize();
 
         log.info("======== SERVER STARTED ========");
+
+        TestingHttpServer httpServer = injector.getInstance(TestingHttpServer.class);
+        log.info("");
+        log.info("Endpoint: %s", httpServer.getBaseUrl());
+        log.info("");
     }
 }
