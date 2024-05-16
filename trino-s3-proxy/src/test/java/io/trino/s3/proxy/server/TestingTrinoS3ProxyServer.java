@@ -14,7 +14,9 @@
 package io.trino.s3.proxy.server;
 
 import com.google.common.collect.ImmutableList;
+import com.google.inject.Injector;
 import com.google.inject.Module;
+import com.google.inject.Scopes;
 import io.airlift.bootstrap.Bootstrap;
 import io.airlift.event.client.EventModule;
 import io.airlift.http.server.testing.TestingHttpServerModule;
@@ -22,6 +24,9 @@ import io.airlift.jaxrs.JaxrsModule;
 import io.airlift.json.JsonModule;
 import io.airlift.log.Logger;
 import io.airlift.node.testing.TestingNodeModule;
+import io.trino.s3.proxy.server.credentials.Credentials;
+import io.trino.s3.proxy.server.credentials.Credentials.CredentialsEntry;
+import io.trino.s3.proxy.server.credentials.CredentialsController;
 
 public final class TestingTrinoS3ProxyServer
 {
@@ -37,10 +42,17 @@ public final class TestingTrinoS3ProxyServer
                 .add(new EventModule())
                 .add(new TestingHttpServerModule())
                 .add(new JsonModule())
-                .add(new JaxrsModule());
+                .add(new JaxrsModule())
+                .add(binder -> {
+                    binder.bind(CredentialsController.class).to(TestingCredentialsController.class).in(Scopes.SINGLETON);
+                    binder.bind(TestingCredentialsController.class).in(Scopes.SINGLETON);
+                });
 
         Bootstrap app = new Bootstrap(modules.build());
-        app.initialize();
+        Injector injector = app.initialize();
+
+        TestingCredentialsController credentialsController = injector.getInstance(TestingCredentialsController.class);
+        credentialsController.upsertCredentials(new Credentials(new CredentialsEntry("THIS_IS_AN_ACCESS_KEY", "THIS_IS_A_SECRET_KEY")));
 
         log.info("======== TESTING SERVER STARTED ========");
     }

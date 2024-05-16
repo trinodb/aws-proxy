@@ -14,8 +14,10 @@
 package io.trino.s3.proxy.server;
 
 import io.trino.s3.proxy.server.credentials.Credentials;
+import io.trino.s3.proxy.server.credentials.Credentials.CredentialsEntry;
 import io.trino.s3.proxy.server.credentials.CredentialsController;
 import io.trino.s3.proxy.server.credentials.SigningController;
+import io.trino.s3.proxy.server.credentials.SigningController.Scope;
 import jakarta.ws.rs.core.MultivaluedHashMap;
 import jakarta.ws.rs.core.MultivaluedMap;
 import org.junit.jupiter.api.Test;
@@ -27,12 +29,26 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 public class TestSigningController
 {
-    private static final Credentials CREDENTIALS = new Credentials("THIS_IS_AN_ACCESS_KEY", "THIS_IS_A_SECRET_KEY");
+    private static final Credentials CREDENTIALS = new Credentials(new CredentialsEntry("THIS_IS_AN_ACCESS_KEY", "THIS_IS_A_SECRET_KEY"));
+
+    private final CredentialsController credentialsController = new CredentialsController()
+    {
+        @Override
+        public Optional<Credentials> credentials(String emulatedAccessKey)
+        {
+            return Optional.of(CREDENTIALS);
+        }
+
+        @Override
+        public void upsertCredentials(Credentials credentials)
+        {
+            throw new UnsupportedOperationException();
+        }
+    };
 
     @Test
     public void testRootLs()
     {
-        CredentialsController credentialsController = accessKey -> Optional.of(CREDENTIALS);
         SigningController signingController = new SigningController(credentialsController);
 
         // values discovered from an AWS CLI request sent to a dummy local HTTP server
@@ -44,7 +60,7 @@ public class TestSigningController
         requestHeaders.putSingle("User-Agent", "aws-cli/2.15.16 Python/3.11.7 Darwin/22.6.0 source/x86_64 prompt/off command/s3.ls");
         requestHeaders.putSingle("Accept-Encoding", "identity");
 
-        Map<String, String> signedHeaders = signingController.signedRequestHeaders("GET", requestHeaders, "/", "", "us-east-1", "THIS_IS_AN_ACCESS_KEY");
+        Map<String, String> signedHeaders = signingController.signedRequestHeaders(new Scope("dummy", "THIS_IS_AN_ACCESS_KEY", "us-east-1"), "GET", requestHeaders, "/", "");
 
         assertThat(signedHeaders).contains(Map.entry("Authorization", "AWS4-HMAC-SHA256 Credential=THIS_IS_AN_ACCESS_KEY/20240516/us-east-1/s3/aws4_request, SignedHeaders=host;x-amz-content-sha256;x-amz-date;x-amz-security-token, Signature=9a19c251bf4e1533174e80da59fa57c65b3149b611ec9a4104f6944767c25704"));
     }
@@ -52,7 +68,6 @@ public class TestSigningController
     @Test
     public void testBucketLs()
     {
-        CredentialsController credentialsController = accessKey -> Optional.of(CREDENTIALS);
         SigningController signingController = new SigningController(credentialsController);
 
         // values discovered from an AWS CLI request sent to a dummy local HTTP server
@@ -64,7 +79,7 @@ public class TestSigningController
         requestHeaders.putSingle("User-Agent", "aws-cli/2.15.16 Python/3.11.7 Darwin/22.6.0 source/x86_64 prompt/off command/s3.ls");
         requestHeaders.putSingle("Accept-Encoding", "identity");
 
-        Map<String, String> signedHeaders = signingController.signedRequestHeaders("GET", requestHeaders, "/mybucket", "list-type=2&prefix=foo%2Fbar&delimiter=%2F&encoding-type=url", "us-east-1", "THIS_IS_AN_ACCESS_KEY");
+        Map<String, String> signedHeaders = signingController.signedRequestHeaders(new Scope("dummy", "THIS_IS_AN_ACCESS_KEY", "us-east-1"), "GET", requestHeaders, "/mybucket", "list-type=2&prefix=foo%2Fbar&delimiter=%2F&encoding-type=url");
 
         assertThat(signedHeaders).contains(Map.entry("Authorization", "AWS4-HMAC-SHA256 Credential=THIS_IS_AN_ACCESS_KEY/20240516/us-east-1/s3/aws4_request, SignedHeaders=host;x-amz-content-sha256;x-amz-date;x-amz-security-token, Signature=222d7b7fcd4d5560c944e8fecd9424ee3915d131c3ad9e000d65db93e87946c4"));
     }

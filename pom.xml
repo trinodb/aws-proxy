@@ -47,6 +47,7 @@
 
         <dep.airlift.version>245</dep.airlift.version>
         <dep.aws-sdk.version>2.25.32</dep.aws-sdk.version>
+        <dep.jersey.version>3.1.6</dep.jersey.version>
     </properties>
 
     <dependencyManagement>
@@ -65,6 +66,12 @@
                 <version>${dep.aws-sdk.version}</version>
                 <type>pom</type>
                 <scope>import</scope>
+            </dependency>
+
+            <dependency>
+                <groupId>org.glassfish.jersey.core</groupId>
+                <artifactId>jersey-server</artifactId>
+                <version>${dep.jersey.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>

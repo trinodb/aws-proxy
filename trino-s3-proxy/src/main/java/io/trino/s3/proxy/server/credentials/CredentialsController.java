@@ -18,4 +18,6 @@ import java.util.Optional;
 public interface CredentialsController
 {
     Optional<Credentials> credentials(String emulatedAccessKey);
+
+    void upsertCredentials(Credentials credentials);
 }
