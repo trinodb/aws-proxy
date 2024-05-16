@@ -1,4 +1,6 @@
 /*
+ * MinIO Java SDK for Amazon S3 Compatible Cloud Storage, (C) 2015 MinIO, Inc.
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -11,15 +13,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.trino.s3.proxy.server;
 
-import org.junit.jupiter.api.Test;
+package io.trino.s3.proxy.server.minio;
 
-public class DummyTest
-{
-    @Test
-    public void testDummy()
-    {
-        // stub test for now
-    }
+/**
+ * Thrown to indicate that unexpected internal library error occured while processing given request.
+ */
+public class InternalException extends MinioException {
+  private static final long serialVersionUID = 138336287983212416L;
+
+  /** Constructs a new InternalException with given error message. */
+  public InternalException(String message, String httpTrace) {
+    super(message, httpTrace);
+  }
 }
