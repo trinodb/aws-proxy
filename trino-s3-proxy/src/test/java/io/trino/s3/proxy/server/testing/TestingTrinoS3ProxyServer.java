@@ -27,6 +27,7 @@ import io.airlift.node.testing.TestingNodeModule;
 import io.trino.s3.proxy.server.credentials.Credentials;
 
 import java.io.Closeable;
+import java.util.Collection;
 
 public final class TestingTrinoS3ProxyServer
         implements Closeable
@@ -57,6 +58,7 @@ public final class TestingTrinoS3ProxyServer
     public static class Builder
     {
         private final ImmutableSet.Builder<Credentials> credentials = ImmutableSet.builder();
+        private final ImmutableSet.Builder<Module> modules = ImmutableSet.builder();
 
         private Builder() {}
 
@@ -66,9 +68,15 @@ public final class TestingTrinoS3ProxyServer
             return this;
         }
 
+        public Builder addModule(Module module)
+        {
+            this.modules.add(module);
+            return this;
+        }
+
         public TestingTrinoS3ProxyServer buildAndStart()
         {
-            TestingTrinoS3ProxyServer trinoS3ProxyServer = start();
+            TestingTrinoS3ProxyServer trinoS3ProxyServer = start(modules.build());
 
             TestingCredentialsController credentialsController = trinoS3ProxyServer.injector.getInstance(TestingCredentialsController.class);
             credentials.build().forEach(credentialsController::addCredentials);
@@ -77,7 +85,7 @@ public final class TestingTrinoS3ProxyServer
         }
     }
 
-    private static TestingTrinoS3ProxyServer start()
+    private static TestingTrinoS3ProxyServer start(Collection<Module> extraModules)
     {
         ImmutableList.Builder<Module> modules = ImmutableList.<Module>builder()
                 .add(new TestingTrinoS3ProxyServerModule())
@@ -86,6 +94,8 @@ public final class TestingTrinoS3ProxyServer
                 .add(new TestingHttpServerModule())
                 .add(new JsonModule())
                 .add(new JaxrsModule());
+
+        extraModules.forEach(modules::add);
 
         Bootstrap app = new Bootstrap(modules.build());
         Injector injector = app.initialize();
