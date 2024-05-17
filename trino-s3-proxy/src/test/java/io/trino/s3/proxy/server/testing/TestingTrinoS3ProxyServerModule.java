@@ -17,6 +17,7 @@ import com.google.inject.Binder;
 import com.google.inject.Scopes;
 import io.trino.s3.proxy.server.TrinoS3ProxyServerModule;
 import io.trino.s3.proxy.server.credentials.CredentialsController;
+import io.trino.s3.proxy.server.rest.S3EndpointBuilder;
 
 public class TestingTrinoS3ProxyServerModule
         extends TrinoS3ProxyServerModule
@@ -26,5 +27,8 @@ public class TestingTrinoS3ProxyServerModule
     {
         binder.bind(CredentialsController.class).to(TestingCredentialsController.class).in(Scopes.SINGLETON);
         binder.bind(TestingCredentialsController.class).in(Scopes.SINGLETON);
+
+        binder.bind(S3EndpointBuilder.class).to(TestingS3EndpointBuilder.class).in(Scopes.SINGLETON);
+        binder.bind(TestingS3EndpointBuilder.class).in(Scopes.SINGLETON);
     }
 }

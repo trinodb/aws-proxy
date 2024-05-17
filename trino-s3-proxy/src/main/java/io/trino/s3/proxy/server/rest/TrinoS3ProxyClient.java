@@ -47,6 +47,7 @@ public class TrinoS3ProxyClient
 {
     private final HttpClient httpClient;
     private final SigningController signingController;
+    private final S3EndpointBuilder endpointBuilder;
     private final ExecutorService executorService = Executors.newVirtualThreadPerTaskExecutor();
 
     @Retention(RUNTIME)
@@ -55,10 +56,11 @@ public class TrinoS3ProxyClient
     public @interface ForProxyClient {}
 
     @Inject
-    public TrinoS3ProxyClient(@ForProxyClient HttpClient httpClient, SigningController signingController)
+    public TrinoS3ProxyClient(@ForProxyClient HttpClient httpClient, SigningController signingController, S3EndpointBuilder endpointBuilder)
     {
         this.httpClient = requireNonNull(httpClient, "httpClient is null");
         this.signingController = requireNonNull(signingController, "signingController is null");
+        this.endpointBuilder = requireNonNull(endpointBuilder, "endpointBuilder is null");
     }
 
     @PreDestroy
@@ -73,13 +75,7 @@ public class TrinoS3ProxyClient
     {
         String realPath = rewriteRequestPath(request, bucket);
 
-        String realHost = buildRealHost(bucket, signingMetadata.region());
-        URI realUri = request.getUriInfo().getRequestUriBuilder()
-                .host(realHost)
-                .port(-1)
-                .scheme("https")
-                .replacePath(realPath)
-                .build();
+        URI realUri = endpointBuilder.buildEndpoint(request.getUriInfo().getRequestUriBuilder(), realPath, bucket, signingMetadata.region());
 
         Request.Builder realRequestBuilder = new Request.Builder()
                 .setMethod(request.getMethod())
@@ -95,7 +91,7 @@ public class TrinoS3ProxyClient
         // we don't use sessions when making the real AWS call
         realRequestHeaders.remove("X-Amz-Security-Token");
         // replace source host with the real AWS host
-        realRequestHeaders.putSingle("Host", realHost);
+        realRequestHeaders.putSingle("Host", realUri.getHost());
 
         // set the new signed request auth header
         String encodedPath = firstNonNull(realUri.getRawPath(), "");
@@ -135,13 +131,5 @@ public class TrinoS3ProxyClient
         }
 
         return path;
-    }
-
-    private String buildRealHost(String bucket, String region)
-    {
-        if (bucket.isEmpty()) {
-            return "s3.%s.amazonaws.com".formatted(region);
-        }
-        return "%s.s3.%s.amazonaws.com".formatted(bucket, region);
     }
 }
