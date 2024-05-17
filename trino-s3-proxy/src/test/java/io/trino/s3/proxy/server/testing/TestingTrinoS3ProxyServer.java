@@ -14,37 +14,71 @@
 package io.trino.s3.proxy.server.testing;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableSet;
 import com.google.inject.Injector;
 import com.google.inject.Module;
 import io.airlift.bootstrap.Bootstrap;
+import io.airlift.bootstrap.LifeCycleManager;
 import io.airlift.event.client.EventModule;
-import io.airlift.http.server.testing.TestingHttpServer;
 import io.airlift.http.server.testing.TestingHttpServerModule;
 import io.airlift.jaxrs.JaxrsModule;
 import io.airlift.json.JsonModule;
-import io.airlift.log.Logger;
 import io.airlift.node.testing.TestingNodeModule;
 import io.trino.s3.proxy.server.credentials.Credentials;
-import io.trino.s3.proxy.server.credentials.Credentials.Credential;
+
+import java.io.Closeable;
 
 public final class TestingTrinoS3ProxyServer
+        implements Closeable
 {
-    private static final Logger log = Logger.get(TestingTrinoS3ProxyServer.class);
+    private final Injector injector;
 
-    private TestingTrinoS3ProxyServer() {}
-
-    public static void main(String[] args)
+    private TestingTrinoS3ProxyServer(Injector injector)
     {
-        if (args.length != 4) {
-            System.err.println("Usage: TestingTrinoS3ProxyServer <emulatedAccessKey> <emulatedSecretKey> <realAccessKey> <realSecretKey>");
-            System.exit(1);
+        this.injector = injector;
+    }
+
+    @Override
+    public void close()
+    {
+        injector.getInstance(LifeCycleManager.class).stop();
+    }
+
+    public Injector getInjector()
+    {
+        return injector;
+    }
+
+    public static Builder builder()
+    {
+        return new Builder();
+    }
+
+    public static class Builder
+    {
+        private final ImmutableSet.Builder<Credentials> credentials = ImmutableSet.builder();
+
+        private Builder() {}
+
+        public Builder addCredentials(Credentials credentials)
+        {
+            this.credentials.add(credentials);
+            return this;
         }
 
-        String emulatedAccessKey = args[0];
-        String emulatedSecretKey = args[1];
-        String realAccessKey = args[2];
-        String realSecretKey = args[3];
+        public TestingTrinoS3ProxyServer buildAndStart()
+        {
+            TestingTrinoS3ProxyServer trinoS3ProxyServer = start();
 
+            TestingCredentialsController credentialsController = trinoS3ProxyServer.injector.getInstance(TestingCredentialsController.class);
+            credentials.build().forEach(credentialsController::addCredentials);
+
+            return trinoS3ProxyServer;
+        }
+    }
+
+    private static TestingTrinoS3ProxyServer start()
+    {
         ImmutableList.Builder<Module> modules = ImmutableList.<Module>builder()
                 .add(new TestingTrinoS3ProxyServerModule())
                 .add(new TestingNodeModule())
@@ -55,15 +89,6 @@ public final class TestingTrinoS3ProxyServer
 
         Bootstrap app = new Bootstrap(modules.build());
         Injector injector = app.initialize();
-
-        TestingCredentialsController credentialsController = injector.getInstance(TestingCredentialsController.class);
-        credentialsController.addCredentials(new Credentials(new Credential(emulatedAccessKey, emulatedSecretKey), new Credential(realAccessKey, realSecretKey)));
-
-        log.info("======== TESTING SERVER STARTED ========");
-
-        TestingHttpServer httpServer = injector.getInstance(TestingHttpServer.class);
-        log.info("");
-        log.info("Endpoint: %s", httpServer.getBaseUrl());
-        log.info("");
+        return new TestingTrinoS3ProxyServer(injector);
     }
 }
