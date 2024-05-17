@@ -11,10 +11,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.trino.s3.proxy.server;
+package io.trino.s3.proxy.server.testing;
 
 import com.google.inject.Binder;
 import com.google.inject.Scopes;
+import io.trino.s3.proxy.server.TrinoS3ProxyServerModule;
 import io.trino.s3.proxy.server.credentials.CredentialsController;
 
 public class TestingTrinoS3ProxyServerModule
