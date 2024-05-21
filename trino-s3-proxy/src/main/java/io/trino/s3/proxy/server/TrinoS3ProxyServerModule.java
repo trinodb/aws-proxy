@@ -15,8 +15,10 @@ package io.trino.s3.proxy.server;
 
 import com.google.inject.Binder;
 import com.google.inject.Module;
+import io.trino.s3.proxy.server.credentials.SigningControllerConfig;
 import io.trino.s3.proxy.server.rest.TrinoS3ProxyResource;
 
+import static io.airlift.configuration.ConfigBinder.configBinder;
 import static io.airlift.jaxrs.JaxrsBinder.jaxrsBinder;
 
 public class TrinoS3ProxyServerModule
@@ -26,5 +28,7 @@ public class TrinoS3ProxyServerModule
     public void configure(Binder binder)
     {
         jaxrsBinder(binder).bind(TrinoS3ProxyResource.class);
+
+        configBinder(binder).bindConfig(SigningControllerConfig.class);
     }
 }

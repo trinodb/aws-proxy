@@ -13,15 +13,19 @@
  */
 package io.trino.s3.proxy.server.credentials;
 
+import io.airlift.units.Duration;
 import io.trino.s3.proxy.server.credentials.Credentials.Credential;
+import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.core.MultivaluedHashMap;
 import jakarta.ws.rs.core.MultivaluedMap;
 import org.junit.jupiter.api.Test;
 
 import java.net.URI;
 import java.util.Optional;
+import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 public class TestSigningController
 {
@@ -31,7 +35,7 @@ public class TestSigningController
     public void testRootLs()
     {
         CredentialsController credentialsController = accessKey -> Optional.of(CREDENTIALS);
-        SigningController signingController = new SigningController(credentialsController);
+        SigningController signingController = new SigningController(credentialsController, new SigningControllerConfig().setMaxClockDrift(new Duration(99999, TimeUnit.DAYS)));
 
         // values discovered from an AWS CLI request sent to a dummy local HTTP server
         MultivaluedMap<String, String> requestHeaders = new MultivaluedHashMap<>();
@@ -55,10 +59,35 @@ public class TestSigningController
     }
 
     @Test
+    public void testRootExpiredClock()
+    {
+        CredentialsController credentialsController = accessKey -> Optional.of(CREDENTIALS);
+        SigningController signingController = new SigningController(credentialsController, new SigningControllerConfig().setMaxClockDrift(new Duration(1, TimeUnit.MINUTES)));
+
+        // values discovered from an AWS CLI request sent to a dummy local HTTP server
+        MultivaluedMap<String, String> requestHeaders = new MultivaluedHashMap<>();
+        requestHeaders.putSingle("X-Amz-Date", "20240516T024511Z");
+        requestHeaders.putSingle("X-Amz-Content-SHA256", "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855");
+        requestHeaders.putSingle("X-Amz-Security-Token", "FwoGZXIvYXdzEP3//////////wEaDG79rlcAjsgKPP9N3SKIAu7/Zvngne5Ov6kGrDcIIPUZYkGpwNbj8zNnbWgOhiqmOCM3hrk4NuH17mP5n3nC7urlXZxaTCywKpAHpO3YsvLXcwjlfaYFA0Au4oejwSbU9ybIlzPzrqz7lVesgCfJOV+rj5F5UAh19d7RpRpA6Vy4nxGBTTlCNIVbkW9fp2Esql2/vsdh77rAG+j+BQegtegDCKBfen4gHMdvEOF6hyc4ne43eLXjpvUKxBgpI9MjOHtNHrDbOOBFXDDyknoESgE9Hsm12nDuVQhwrI/hhA4YB/MSIpl4FTgVs2sQP3K+v65tmyvIlpL6O78S6spMM9Tv/F4JLtksTzb90w46uZk9sxKC/RBkRijisM6tBjIrr/0znxnW3i5ggGAX4H/Z3aWlxSdzNs2UGWtqig9Plp3Xa9gG+zCKcXmDAA==");
+        requestHeaders.putSingle("Host", "localhost:10064");
+        requestHeaders.putSingle("User-Agent", "aws-cli/2.15.16 Python/3.11.7 Darwin/22.6.0 source/x86_64 prompt/off command/s3.ls");
+        requestHeaders.putSingle("Accept-Encoding", "identity");
+
+        assertThatThrownBy(() -> signingController.signRequest(
+                URI.create("http://localhost:10064"),
+                requestHeaders,
+                new MultivaluedHashMap<>(),
+                "GET",
+                "/",
+                "us-east-1",
+                "THIS_IS_AN_ACCESS_KEY")).isInstanceOf(WebApplicationException.class);
+    }
+
+    @Test
     public void testBucketLs()
     {
         CredentialsController credentialsController = accessKey -> Optional.of(CREDENTIALS);
-        SigningController signingController = new SigningController(credentialsController);
+        SigningController signingController = new SigningController(credentialsController, new SigningControllerConfig().setMaxClockDrift(new Duration(99999, TimeUnit.DAYS)));
 
         // values discovered from an AWS CLI request sent to a dummy local HTTP server
         MultivaluedMap<String, String> requestHeaders = new MultivaluedHashMap<>();
