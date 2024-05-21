@@ -16,6 +16,7 @@ package io.trino.s3.proxy.server.credentials;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.net.HostAndPort;
+import io.airlift.log.Logger;
 import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.core.MultivaluedHashMap;
 import jakarta.ws.rs.core.MultivaluedMap;
@@ -31,6 +32,7 @@ import software.amazon.awssdk.regions.Region;
 import java.io.ByteArrayInputStream;
 import java.net.URI;
 import java.time.Clock;
+import java.time.Duration;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
@@ -42,6 +44,8 @@ import static com.google.common.collect.ImmutableList.toImmutableList;
 
 final class Signer
 {
+    private static final Logger log = Logger.get(Signer.class);
+
     @VisibleForTesting
     static final DateTimeFormatter AMZ_DATE_FORMAT = DateTimeFormatter.ofPattern("yyyyMMdd'T'HHmmss'Z'", Locale.US).withZone(ZoneId.of("Z"));
 
@@ -84,6 +88,7 @@ final class Signer
             String region,
             String accessKey,
             String secretKey,
+            Duration maxClockDrift,
             Optional<byte[]> entity)
     {
         requestHeaders = lowercase(requestHeaders);
@@ -111,15 +116,27 @@ final class Signer
                 .signingRegion(Region.of(region))
                 .awsCredentials(AwsBasicCredentials.create(accessKey, secretKey));
 
+        String xAmzDate = Optional.ofNullable(requestHeaders.getFirst("x-amz-date")).orElseThrow(() -> {
+            log.debug("Missing \"x-amz-date\" header");
+            return new WebApplicationException(Response.Status.BAD_REQUEST);
+        });
+        ZonedDateTime zonedRequestDateTime = ZonedDateTime.parse(xAmzDate, AMZ_DATE_FORMAT);
+
+        ZonedDateTime now = ZonedDateTime.now(zonedRequestDateTime.getZone());
+        Duration driftFromNow = Duration.between(now, zonedRequestDateTime).abs();
+        if (driftFromNow.compareTo(maxClockDrift) > 0) {
+            log.debug("Request time exceeds max drift. RequestTime: %s Now: %s", zonedRequestDateTime, now);
+            throw new WebApplicationException(Response.Status.BAD_REQUEST);
+        }
+
         // because we're verifying the signature provided we must match the clock that they used
-        String xAmzDate = Optional.ofNullable(requestHeaders.getFirst("x-amz-date")).orElseThrow(() -> new WebApplicationException(Response.Status.BAD_REQUEST));
-        ZonedDateTime zonedDateTime = ZonedDateTime.parse(xAmzDate, AMZ_DATE_FORMAT);
-        Clock clock = Clock.fixed(zonedDateTime.toInstant(), zonedDateTime.getZone());
+        Clock clock = Clock.fixed(zonedRequestDateTime.toInstant(), zonedRequestDateTime.getZone());
         signerParamsBuilder.signingClockOverride(clock);
 
-        // TODO - only allow a configured time window for the request
-
-        return aws4Signer.sign(requestBuilder.build(), signerParamsBuilder.build()).firstMatchingHeader("Authorization").orElseThrow();
+        return aws4Signer.sign(requestBuilder.build(), signerParamsBuilder.build()).firstMatchingHeader("Authorization").orElseThrow(() -> {
+            log.debug("Signer did not generate \"Authorization\" header");
+            return new WebApplicationException(Response.Status.BAD_REQUEST);
+        });
     }
 
     private static MultivaluedMap<String, String> lowercase(MultivaluedMap<String, String> map)

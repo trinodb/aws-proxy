@@ -14,9 +14,12 @@
 package io.trino.s3.proxy.server.credentials;
 
 import com.google.inject.Inject;
+import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.core.MultivaluedMap;
+import jakarta.ws.rs.core.Response;
 
 import java.net.URI;
+import java.time.Duration;
 import java.util.Optional;
 
 import static java.util.Objects.requireNonNull;
@@ -24,11 +27,13 @@ import static java.util.Objects.requireNonNull;
 public class SigningController
 {
     private final CredentialsController credentialsController;
+    private final Duration maxClockDrift;
 
     @Inject
-    public SigningController(CredentialsController credentialsController)
+    public SigningController(CredentialsController credentialsController, SigningControllerConfig signingControllerConfig)
     {
         this.credentialsController = requireNonNull(credentialsController, "credentialsController is null");
+        maxClockDrift = signingControllerConfig.getMaxClockDrift().toJavaTime();
     }
 
     public String signRequest(
@@ -40,8 +45,8 @@ public class SigningController
             String region,
             String accessKey)
     {
-        // TODO
-        Credentials credentials = credentialsController.credentials(accessKey).orElseThrow();
+        Credentials credentials = credentialsController.credentials(accessKey)
+                .orElseThrow(() -> new WebApplicationException(Response.Status.UNAUTHORIZED));
 
         return Signer.sign(
                 "s3",
@@ -53,6 +58,7 @@ public class SigningController
                 region,
                 accessKey,
                 credentials.emulated().secretKey(),
+                maxClockDrift,
                 Optional.empty());
     }
 }
