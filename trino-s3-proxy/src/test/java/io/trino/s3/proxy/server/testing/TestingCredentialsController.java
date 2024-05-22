@@ -15,6 +15,7 @@ package io.trino.s3.proxy.server.testing;
 
 import io.trino.s3.proxy.server.credentials.Credentials;
 import io.trino.s3.proxy.server.credentials.CredentialsController;
+import io.trino.s3.proxy.server.credentials.SigningService;
 
 import java.util.Map;
 import java.util.Optional;
@@ -26,7 +27,7 @@ public class TestingCredentialsController
     private final Map<String, Credentials> credentials = new ConcurrentHashMap<>();
 
     @Override
-    public Optional<Credentials> credentials(String emulatedAccessKey, Optional<String> session)
+    public Optional<Credentials> credentials(SigningService signingService, String emulatedAccessKey, Optional<String> session)
     {
         return Optional.ofNullable(credentials.get(emulatedAccessKey));
     }

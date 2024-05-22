@@ -30,7 +30,7 @@ public class TestSigningController
 {
     private static final Credentials CREDENTIALS = new Credentials(new Credential("THIS_IS_AN_ACCESS_KEY", "THIS_IS_A_SECRET_KEY"), new Credential("dummy", "dummy"));
 
-    private final CredentialsController credentialsController = (emulatedAccessKey, session) -> Optional.of(CREDENTIALS);
+    private final CredentialsController credentialsController = (signingService, emulatedAccessKey, session) -> Optional.of(CREDENTIALS);
     private final SigningController signingController = new SigningController(credentialsController, new SigningControllerConfig().setMaxClockDrift(new Duration(99999, TimeUnit.DAYS)));
 
     @Test

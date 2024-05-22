@@ -75,7 +75,7 @@ public class SigningController
 
         Optional<String> session = Optional.ofNullable(requestHeaders.getFirst("x-amz-security-token"));
 
-        return credentialsController.credentials(emulatedAccessKey, session)
+        return credentialsController.credentials(signingService, emulatedAccessKey, session)
                 .map(credentials -> new SigningMetadata(credentials, session, region))
                 .filter(metadata -> isValidAuthorization(signingService, metadata, credentialsSupplier, authorization, requestURI, requestHeaders, queryParameters, httpMethod, encodedPath, entity));
     }
