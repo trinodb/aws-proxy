@@ -13,7 +13,6 @@
  */
 package io.trino.s3.proxy.server.credentials;
 
-import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.net.HostAndPort;
 import io.airlift.log.Logger;
@@ -33,6 +32,7 @@ import java.io.ByteArrayInputStream;
 import java.net.URI;
 import java.time.Clock;
 import java.time.Duration;
+import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
@@ -46,8 +46,8 @@ final class Signer
 {
     private static final Logger log = Logger.get(Signer.class);
 
-    @VisibleForTesting
-    static final DateTimeFormatter AMZ_DATE_FORMAT = DateTimeFormatter.ofPattern("yyyyMMdd'T'HHmmss'Z'", Locale.US).withZone(ZoneId.of("Z"));
+    private static final ZoneId ZONE = ZoneId.of("Z");
+    private static final DateTimeFormatter AMZ_DATE_FORMAT = DateTimeFormatter.ofPattern("yyyyMMdd'T'HHmmss'Z'", Locale.US).withZone(ZONE);
 
     private static final Set<String> IGNORED_HEADERS = ImmutableSet.of(
             "x-amzn-trace-id",
@@ -76,6 +76,11 @@ final class Signer
     };
 
     private Signer() {}
+
+    static String formatInstant(Instant instant)
+    {
+        return instant.atZone(ZONE).format(AMZ_DATE_FORMAT);
+    }
 
     @SuppressWarnings("SameParameterValue")
     static String sign(

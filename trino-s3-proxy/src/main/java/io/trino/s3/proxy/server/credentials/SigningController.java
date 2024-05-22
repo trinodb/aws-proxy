@@ -19,6 +19,7 @@ import jakarta.ws.rs.core.MultivaluedMap;
 
 import java.net.URI;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Function;
@@ -103,6 +104,11 @@ public class SigningController
                 credential.secretKey(),
                 maxClockDrift,
                 entity);
+    }
+
+    public String formatInstant(Instant instant)
+    {
+        return Signer.formatInstant(instant);
     }
 
     private boolean isValidAuthorization(
