@@ -33,25 +33,27 @@ public class SigningController
 {
     private final CredentialsController credentialsController;
     private final Duration maxClockDrift;
+    private final StsController stsController;
 
     @Inject
-    public SigningController(CredentialsController credentialsController, SigningControllerConfig signingControllerConfig)
+    public SigningController(CredentialsController credentialsController, SigningControllerConfig signingControllerConfig, StsController stsController)
     {
         this.credentialsController = requireNonNull(credentialsController, "credentialsController is null");
         maxClockDrift = signingControllerConfig.getMaxClockDrift().toJavaTime();
+        this.stsController = requireNonNull(stsController, "stsController is null");
     }
 
-
-    public SigningMetadata validateAndParseAuthorization(ContainerRequest request, SigningService signingService, Function<Credentials, Credential> credentialsSupplier)
+    public SigningMetadata validateAndParseAuthorization(ContainerRequest request, SigningService signingService, Function<Credentials, Credential> credentialsSupplier, Optional<byte[]> entity)
     {
         return signingMetadataFromRequest(
-                        signingService,
-                        credentialsSupplier,
-                        request.getRequestUri(),
-                        request.getRequestHeaders(),
-                        request.getUriInfo().getQueryParameters(),
-                        request.getMethod(),
-                        request.getPath(false), Optional.empty())
+                signingService,
+                credentialsSupplier,
+                request.getRequestUri(),
+                request.getRequestHeaders(),
+                request.getUriInfo().getQueryParameters(),
+                request.getMethod(),
+                request.getPath(false),
+                entity)
                 .orElseThrow(() -> new WebApplicationException(Response.Status.UNAUTHORIZED));
     }
 
@@ -123,7 +125,10 @@ public class SigningController
 
         Optional<String> session = Optional.ofNullable(requestHeaders.getFirst("x-amz-security-token"));
 
-        return credentialsController.credentials(signingService, emulatedAccessKey, session)
+        Optional<Credentials> maybeCredentials = stsController.checkAssumedRole(emulatedAccessKey, session)
+                .or(() -> credentialsController.credentials(signingService, emulatedAccessKey, session));
+
+        return maybeCredentials
                 .map(credentials -> new SigningMetadata(credentials, session, region))
                 .filter(metadata -> isValidAuthorization(signingService, metadata, credentialsSupplier, authorization, requestURI, requestHeaders, queryParameters, httpMethod, encodedPath, entity));
     }

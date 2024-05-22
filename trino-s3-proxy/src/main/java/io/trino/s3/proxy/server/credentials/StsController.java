@@ -11,19 +11,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.trino.s3.proxy.server;
+package io.trino.s3.proxy.server.credentials;
 
-import com.google.inject.Inject;
-import io.trino.s3.proxy.server.testing.harness.TrinoS3ProxyTest;
-import software.amazon.awssdk.services.s3.S3Client;
+import java.util.Optional;
 
-@TrinoS3ProxyTest(initialBuckets = "one,two,three")
-public class TestProxiedRequests
-        extends AbstractTestProxiedRequests
+public interface StsController
 {
-    @Inject
-    public TestProxiedRequests(S3Client s3Client)
+    Optional<StsAssumedRole> assumeRole(
+            String emulatedAccessKey,
+            Optional<String> session,
+            String requestRoleArn,
+            Optional<String> requestExternalId,
+            Optional<String> requestRoleSessionName,
+            Optional<Integer> requestDurationSeconds);
+
+    default Optional<Credentials> checkAssumedRole(String emulatedAccessKey, Optional<String> session)
     {
-        super(s3Client);
+        return Optional.empty();
     }
 }

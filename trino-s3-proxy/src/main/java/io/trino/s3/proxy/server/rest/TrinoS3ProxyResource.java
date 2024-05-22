@@ -17,6 +17,7 @@ import com.google.common.base.Splitter;
 import com.google.inject.Inject;
 import io.trino.s3.proxy.server.credentials.Credentials;
 import io.trino.s3.proxy.server.credentials.SigningController;
+import io.trino.s3.proxy.server.credentials.SigningMetadata;
 import io.trino.s3.proxy.server.credentials.SigningService;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.HEAD;
@@ -28,6 +29,7 @@ import jakarta.ws.rs.core.Context;
 import org.glassfish.jersey.server.ContainerRequest;
 
 import java.util.List;
+import java.util.Optional;
 
 import static java.util.Objects.requireNonNull;
 
@@ -54,7 +56,8 @@ public class TrinoS3ProxyResource
     @Path("{path:.*}")
     public void s3Get(@Context ContainerRequest request, @Suspended AsyncResponse asyncResponse, @PathParam("path") String path)
     {
-        proxyClient.proxyRequest(signingController.validateAndParseAuthorization(request, SigningService.S3, Credentials::emulated), request, asyncResponse, getBucket(path));
+        SigningMetadata signingMetadata = signingController.validateAndParseAuthorization(request, SigningService.S3, Credentials::emulated, Optional.empty());
+        proxyClient.proxyRequest(signingMetadata, request, asyncResponse, getBucket(path));
     }
 
     @HEAD
@@ -67,7 +70,8 @@ public class TrinoS3ProxyResource
     @Path("{path:.*}")
     public void s3Head(@Context ContainerRequest request, @Suspended AsyncResponse asyncResponse, @PathParam("path") String path)
     {
-        proxyClient.proxyRequest(signingController.validateAndParseAuthorization(request, SigningService.S3, Credentials::emulated), request, asyncResponse, getBucket(path));
+        SigningMetadata signingMetadata = signingController.validateAndParseAuthorization(request, SigningService.S3, Credentials::emulated, Optional.empty());
+        proxyClient.proxyRequest(signingMetadata, request, asyncResponse, getBucket(path));
     }
 
     private String getBucket(String path)

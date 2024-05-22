@@ -11,19 +11,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.trino.s3.proxy.server;
+package io.trino.s3.proxy.server.credentials;
 
-import com.google.inject.Inject;
-import io.trino.s3.proxy.server.testing.harness.TrinoS3ProxyTest;
-import software.amazon.awssdk.services.s3.S3Client;
+import java.time.Instant;
 
-@TrinoS3ProxyTest(initialBuckets = "one,two,three")
-public class TestProxiedRequests
-        extends AbstractTestProxiedRequests
+import static java.util.Objects.requireNonNull;
+
+public record StsAssumedRole(Credential emulatedCredential, String session, String arn, String roleId, Instant expiration)
 {
-    @Inject
-    public TestProxiedRequests(S3Client s3Client)
+    public StsAssumedRole
     {
-        super(s3Client);
+        requireNonNull(emulatedCredential, "emulatedCredential is null");
+        requireNonNull(session, "session is null");
+        requireNonNull(arn, "arn is null");
+        requireNonNull(roleId, "roleId is null");
+        requireNonNull(expiration, "expiration is null");
     }
 }

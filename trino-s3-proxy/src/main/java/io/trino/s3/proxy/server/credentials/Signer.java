@@ -47,7 +47,9 @@ final class Signer
     private static final Logger log = Logger.get(Signer.class);
 
     private static final ZoneId ZONE = ZoneId.of("Z");
+    private static final ZoneId UTC = ZoneId.of("UTC");
     private static final DateTimeFormatter AMZ_DATE_FORMAT = DateTimeFormatter.ofPattern("yyyyMMdd'T'HHmmss'Z'", Locale.US).withZone(ZONE);
+    private static final DateTimeFormatter RESPONSE_DATE_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH':'mm':'ss'.'SSS'Z'", Locale.US).withZone(UTC);
 
     private static final Set<String> IGNORED_HEADERS = ImmutableSet.of(
             "x-amzn-trace-id",
@@ -55,8 +57,7 @@ final class Signer
             "accept-encoding",
             "authorization",
             "user-agent",
-            "connection",
-            "content-length");
+            "connection");
 
     private static final Set<String> LOWERCASE_HEADERS = ImmutableSet.of("content-type");
     private static final BaseAws4Signer aws4Signer = new BaseAws4Signer()
@@ -79,7 +80,7 @@ final class Signer
 
     static String formatInstant(Instant instant)
     {
-        return instant.atZone(ZONE).format(AMZ_DATE_FORMAT);
+        return instant.atZone(UTC).format(RESPONSE_DATE_FORMAT);
     }
 
     @SuppressWarnings("SameParameterValue")

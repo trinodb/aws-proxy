@@ -31,7 +31,8 @@ public class TestSigningController
     private static final Credentials CREDENTIALS = new Credentials(new Credential("THIS_IS_AN_ACCESS_KEY", "THIS_IS_A_SECRET_KEY"), new Credential("dummy", "dummy"));
 
     private final CredentialsController credentialsController = (signingService, emulatedAccessKey, session) -> Optional.of(CREDENTIALS);
-    private final SigningController signingController = new SigningController(credentialsController, new SigningControllerConfig().setMaxClockDrift(new Duration(99999, TimeUnit.DAYS)));
+    private final StsController stsController = (emulatedAccessKey, session, requestRoleArn, requestExternalId, requestRoleSessionName, requestDurationSeconds) -> Optional.empty();
+    private final SigningController signingController = new SigningController(credentialsController, new SigningControllerConfig().setMaxClockDrift(new Duration(99999, TimeUnit.DAYS)), stsController);
 
     @Test
     public void testRootLs()
@@ -61,7 +62,7 @@ public class TestSigningController
     @Test
     public void testRootExpiredClock()
     {
-        SigningController signingController = new SigningController(credentialsController, new SigningControllerConfig().setMaxClockDrift(new Duration(1, TimeUnit.MINUTES)));
+        SigningController signingController = new SigningController(credentialsController, new SigningControllerConfig().setMaxClockDrift(new Duration(1, TimeUnit.MINUTES)), stsController);
 
         // values discovered from an AWS CLI request sent to a dummy local HTTP server
         MultivaluedMap<String, String> requestHeaders = new MultivaluedHashMap<>();

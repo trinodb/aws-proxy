@@ -17,11 +17,14 @@ import io.airlift.http.server.testing.TestingHttpServer;
 import io.airlift.log.Logger;
 import io.trino.s3.proxy.server.credentials.Credential;
 import io.trino.s3.proxy.server.credentials.Credentials;
+import io.trino.s3.proxy.server.rest.TrinoS3ProxyRestConstants;
 import io.trino.s3.proxy.server.testing.TestingTrinoS3ProxyServer;
 
 public final class LocalServer
 {
     private static final Logger log = Logger.get(LocalServer.class);
+
+    private static final String ASSUMED_ROLE_ARN = "arn:aws:iam::123456789012:role/testing";
 
     private LocalServer() {}
 
@@ -47,7 +50,10 @@ public final class LocalServer
 
         TestingHttpServer httpServer = trinoS3ProxyServer.getInjector().getInstance(TestingHttpServer.class);
         log.info("");
-        log.info("Endpoint: %s", httpServer.getBaseUrl());
+        log.info("S3 Endpoint: %s", httpServer.getBaseUrl().resolve(TrinoS3ProxyRestConstants.S3_PATH));
+        log.info("STS Endpoint: %s", httpServer.getBaseUrl().resolve(TrinoS3ProxyRestConstants.STS_PATH));
+        log.info("");
+        log.info("Assume Role ARN: %s", ASSUMED_ROLE_ARN);
         log.info("");
     }
 }

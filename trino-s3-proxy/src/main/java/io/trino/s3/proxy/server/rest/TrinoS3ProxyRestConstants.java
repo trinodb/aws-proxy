@@ -19,4 +19,5 @@ public final class TrinoS3ProxyRestConstants
 
     public static final String BASE_PATH = "/api/v1/s3Proxy/";
     public static final String S3_PATH = BASE_PATH + "s3";
+    public static final String STS_PATH = BASE_PATH + "sts";
 }
