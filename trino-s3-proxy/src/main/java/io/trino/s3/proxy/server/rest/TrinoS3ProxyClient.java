@@ -20,6 +20,7 @@ import io.airlift.http.client.Request;
 import io.trino.s3.proxy.server.credentials.Credentials;
 import io.trino.s3.proxy.server.credentials.SigningController;
 import io.trino.s3.proxy.server.credentials.SigningMetadata;
+import io.trino.s3.proxy.server.credentials.SigningService;
 import jakarta.annotation.PreDestroy;
 import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.container.AsyncResponse;
@@ -32,6 +33,7 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.Target;
 import java.net.URI;
 import java.time.Duration;
+import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -96,13 +98,12 @@ public class TrinoS3ProxyClient
         // set the new signed request auth header
         String encodedPath = firstNonNull(realUri.getRawPath(), "");
         String signature = signingController.signRequest(
-                signingMetadata,
-                Credentials::real,
+                SigningService.S3, Credentials::real, signingMetadata,
                 realUri,
                 realRequestHeaders,
                 request.getUriInfo().getQueryParameters(),
                 request.getMethod(),
-                encodedPath);
+                encodedPath, Optional.empty());
         realRequestHeaders.putSingle("Authorization", signature);
 
         // requestHeaders now has correct values, copy to the real request

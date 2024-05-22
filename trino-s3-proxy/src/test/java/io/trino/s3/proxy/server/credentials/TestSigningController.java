@@ -47,13 +47,14 @@ public class TestSigningController
         requestHeaders.putSingle("Accept-Encoding", "identity");
 
         String signature = signingController.signRequest(
-                new SigningMetadata(CREDENTIALS, Optional.empty(), "us-east-1"),
+                SigningService.S3,
                 Credentials::emulated,
+                new SigningMetadata(CREDENTIALS, Optional.empty(), "us-east-1"),
                 URI.create("http://localhost:10064"),
                 requestHeaders,
                 new MultivaluedHashMap<>(),
                 "GET",
-                "/");
+                "/", Optional.empty());
 
         assertThat(signature).isEqualTo("AWS4-HMAC-SHA256 Credential=THIS_IS_AN_ACCESS_KEY/20240516/us-east-1/s3/aws4_request, SignedHeaders=host;x-amz-content-sha256;x-amz-date;x-amz-security-token, Signature=9a19c251bf4e1533174e80da59fa57c65b3149b611ec9a4104f6944767c25704");
     }
@@ -73,13 +74,14 @@ public class TestSigningController
         requestHeaders.putSingle("Accept-Encoding", "identity");
 
         assertThatThrownBy(() -> signingController.signRequest(
-                new SigningMetadata(CREDENTIALS, Optional.empty(), "us-east-1"),
+                SigningService.S3,
                 Credentials::emulated,
+                new SigningMetadata(CREDENTIALS, Optional.empty(), "us-east-1"),
                 URI.create("http://localhost:10064"),
                 requestHeaders,
                 new MultivaluedHashMap<>(),
                 "GET",
-                "/")).isInstanceOf(WebApplicationException.class);
+                "/", Optional.empty())).isInstanceOf(WebApplicationException.class);
     }
 
     @Test
@@ -101,13 +103,14 @@ public class TestSigningController
         queryParameters.putSingle("encoding-type", "url");
 
         String signature = signingController.signRequest(
-                new SigningMetadata(CREDENTIALS, Optional.empty(), "us-east-1"),
+                SigningService.S3,
                 Credentials::emulated,
+                new SigningMetadata(CREDENTIALS, Optional.empty(), "us-east-1"),
                 URI.create("http://localhost:10064"),
                 requestHeaders,
                 queryParameters,
                 "GET",
-                "/mybucket");
+                "/mybucket", Optional.empty());
 
         assertThat(signature).isEqualTo("AWS4-HMAC-SHA256 Credential=THIS_IS_AN_ACCESS_KEY/20240516/us-east-1/s3/aws4_request, SignedHeaders=host;x-amz-content-sha256;x-amz-date;x-amz-security-token, Signature=222d7b7fcd4d5560c944e8fecd9424ee3915d131c3ad9e000d65db93e87946c4");
     }

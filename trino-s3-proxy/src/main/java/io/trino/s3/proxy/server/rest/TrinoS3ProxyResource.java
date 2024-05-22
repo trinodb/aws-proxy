@@ -18,6 +18,7 @@ import com.google.inject.Inject;
 import io.trino.s3.proxy.server.credentials.Credentials;
 import io.trino.s3.proxy.server.credentials.SigningController;
 import io.trino.s3.proxy.server.credentials.SigningMetadata;
+import io.trino.s3.proxy.server.credentials.SigningService;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.HEAD;
 import jakarta.ws.rs.Path;
@@ -30,6 +31,7 @@ import jakarta.ws.rs.core.Response;
 import org.glassfish.jersey.server.ContainerRequest;
 
 import java.util.List;
+import java.util.Optional;
 
 import static java.util.Objects.requireNonNull;
 
@@ -81,12 +83,13 @@ public class TrinoS3ProxyResource
     private SigningMetadata validateAndParseAuthorization(ContainerRequest request)
     {
         return signingController.signingMetadataFromRequest(
+                        SigningService.S3,
                         Credentials::emulated,
                         request.getRequestUri(),
                         request.getRequestHeaders(),
                         request.getUriInfo().getQueryParameters(),
                         request.getMethod(),
-                        request.getPath(false))
+                        request.getPath(false), Optional.empty())
                 .orElseThrow(() -> new WebApplicationException(Response.Status.UNAUTHORIZED));
     }
 }

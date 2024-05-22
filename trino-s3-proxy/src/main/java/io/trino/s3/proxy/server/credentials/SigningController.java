@@ -38,12 +38,14 @@ public class SigningController
     }
 
     public Optional<SigningMetadata> signingMetadataFromRequest(
+            SigningService signingService,
             Function<Credentials, Credentials.Credential> credentialsSupplier,
             URI requestURI,
             MultivaluedMap<String, String> requestHeaders,
             MultivaluedMap<String, String> queryParameters,
             String httpMethod,
-            String encodedPath)
+            String encodedPath,
+            Optional<byte[]> entity)
     {
         String authorization = requestHeaders.getFirst("Authorization");
         if (authorization == null) {
@@ -74,22 +76,23 @@ public class SigningController
 
         return credentialsController.credentials(emulatedAccessKey, session)
                 .map(credentials -> new SigningMetadata(credentials, session, region))
-                .filter(metadata -> isValidAuthorization(metadata, credentialsSupplier, authorization, requestURI, requestHeaders, queryParameters, httpMethod, encodedPath));
+                .filter(metadata -> isValidAuthorization(signingService, metadata, credentialsSupplier, authorization, requestURI, requestHeaders, queryParameters, httpMethod, encodedPath, entity));
     }
 
     public String signRequest(
-            SigningMetadata metadata,
-            Function<Credentials, Credentials.Credential> credentialsSupplier,
+            SigningService signingService,
+            Function<Credentials, Credentials.Credential> credentialsSupplier, SigningMetadata metadata,
             URI requestURI,
             MultivaluedMap<String, String> requestHeaders,
             MultivaluedMap<String, String> queryParameters,
             String httpMethod,
-            String encodedPath)
+            String encodedPath,
+            Optional<byte[]> entity)
     {
         Credentials.Credential credential = credentialsSupplier.apply(metadata.credentials());
 
         return Signer.sign(
-                "s3",
+                signingService.asServiceName(),
                 requestURI,
                 requestHeaders,
                 queryParameters,
@@ -99,10 +102,11 @@ public class SigningController
                 credential.accessKey(),
                 credential.secretKey(),
                 maxClockDrift,
-                Optional.empty());
+                entity);
     }
 
     private boolean isValidAuthorization(
+            SigningService signingService,
             SigningMetadata metadata,
             Function<Credentials, Credentials.Credential> credentialsSupplier,
             String authorizationHeader,
@@ -110,9 +114,10 @@ public class SigningController
             MultivaluedMap<String, String> requestHeaders,
             MultivaluedMap<String, String> queryParameters,
             String httpMethod,
-            String encodedPath)
+            String encodedPath,
+            Optional<byte[]> entity)
     {
-        String expectedAuthorization = signRequest(metadata, credentialsSupplier, requestURI, requestHeaders, queryParameters, httpMethod, encodedPath);
+        String expectedAuthorization = signRequest(signingService, credentialsSupplier, metadata, requestURI, requestHeaders, queryParameters, httpMethod, encodedPath, entity);
         return authorizationHeader.equals(expectedAuthorization);
     }
 }
