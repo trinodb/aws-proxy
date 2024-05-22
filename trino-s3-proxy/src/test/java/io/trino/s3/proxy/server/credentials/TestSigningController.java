@@ -34,7 +34,7 @@ public class TestSigningController
     @Test
     public void testRootLs()
     {
-        CredentialsController credentialsController = accessKey -> Optional.of(CREDENTIALS);
+        CredentialsController credentialsController = (accessKey, session) -> Optional.of(CREDENTIALS);
         SigningController signingController = new SigningController(credentialsController, new SigningControllerConfig().setMaxClockDrift(new Duration(99999, TimeUnit.DAYS)));
 
         // values discovered from an AWS CLI request sent to a dummy local HTTP server
@@ -61,7 +61,7 @@ public class TestSigningController
     @Test
     public void testRootExpiredClock()
     {
-        CredentialsController credentialsController = accessKey -> Optional.of(CREDENTIALS);
+        CredentialsController credentialsController = (accessKey, session) -> Optional.of(CREDENTIALS);
         SigningController signingController = new SigningController(credentialsController, new SigningControllerConfig().setMaxClockDrift(new Duration(1, TimeUnit.MINUTES)));
 
         // values discovered from an AWS CLI request sent to a dummy local HTTP server
@@ -86,7 +86,7 @@ public class TestSigningController
     @Test
     public void testBucketLs()
     {
-        CredentialsController credentialsController = accessKey -> Optional.of(CREDENTIALS);
+        CredentialsController credentialsController = (accessKey, session) -> Optional.of(CREDENTIALS);
         SigningController signingController = new SigningController(credentialsController, new SigningControllerConfig().setMaxClockDrift(new Duration(99999, TimeUnit.DAYS)));
 
         // values discovered from an AWS CLI request sent to a dummy local HTTP server

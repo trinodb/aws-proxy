@@ -45,7 +45,9 @@ public class SigningController
             String region,
             String accessKey)
     {
-        Credentials credentials = credentialsController.credentials(accessKey)
+        Optional<String> session = Optional.ofNullable(requestHeaders.getFirst("x-amz-security-token"));
+
+        Credentials credentials = credentialsController.credentials(accessKey, session)
                 .orElseThrow(() -> new WebApplicationException(Response.Status.UNAUTHORIZED));
 
         return Signer.sign(

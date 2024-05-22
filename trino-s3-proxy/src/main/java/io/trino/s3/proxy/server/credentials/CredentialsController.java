@@ -17,5 +17,5 @@ import java.util.Optional;
 
 public interface CredentialsController
 {
-    Optional<Credentials> credentials(String emulatedAccessKey);
+    Optional<Credentials> credentials(String emulatedAccessKey, Optional<String> session);
 }
