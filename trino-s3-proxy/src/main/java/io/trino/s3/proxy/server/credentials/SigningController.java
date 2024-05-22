@@ -39,7 +39,7 @@ public class SigningController
 
     public Optional<SigningMetadata> signingMetadataFromRequest(
             SigningService signingService,
-            Function<Credentials, Credentials.Credential> credentialsSupplier,
+            Function<Credentials, Credential> credentialsSupplier,
             URI requestURI,
             MultivaluedMap<String, String> requestHeaders,
             MultivaluedMap<String, String> queryParameters,
@@ -81,7 +81,7 @@ public class SigningController
 
     public String signRequest(
             SigningService signingService,
-            Function<Credentials, Credentials.Credential> credentialsSupplier, SigningMetadata metadata,
+            Function<Credentials, Credential> credentialsSupplier, SigningMetadata metadata,
             URI requestURI,
             MultivaluedMap<String, String> requestHeaders,
             MultivaluedMap<String, String> queryParameters,
@@ -89,7 +89,7 @@ public class SigningController
             String encodedPath,
             Optional<byte[]> entity)
     {
-        Credentials.Credential credential = credentialsSupplier.apply(metadata.credentials());
+        Credential credential = credentialsSupplier.apply(metadata.credentials());
 
         return Signer.sign(
                 signingService.asServiceName(),
@@ -108,7 +108,7 @@ public class SigningController
     private boolean isValidAuthorization(
             SigningService signingService,
             SigningMetadata metadata,
-            Function<Credentials, Credentials.Credential> credentialsSupplier,
+            Function<Credentials, Credential> credentialsSupplier,
             String authorizationHeader,
             URI requestURI,
             MultivaluedMap<String, String> requestHeaders,

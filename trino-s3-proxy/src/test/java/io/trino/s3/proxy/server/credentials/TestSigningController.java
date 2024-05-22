@@ -14,7 +14,6 @@
 package io.trino.s3.proxy.server.credentials;
 
 import io.airlift.units.Duration;
-import io.trino.s3.proxy.server.credentials.Credentials.Credential;
 import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.core.MultivaluedHashMap;
 import jakarta.ws.rs.core.MultivaluedMap;

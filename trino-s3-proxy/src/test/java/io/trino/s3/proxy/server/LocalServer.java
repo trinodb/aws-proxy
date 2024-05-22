@@ -15,6 +15,7 @@ package io.trino.s3.proxy.server;
 
 import io.airlift.http.server.testing.TestingHttpServer;
 import io.airlift.log.Logger;
+import io.trino.s3.proxy.server.credentials.Credential;
 import io.trino.s3.proxy.server.credentials.Credentials;
 import io.trino.s3.proxy.server.testing.TestingTrinoS3ProxyServer;
 
@@ -36,7 +37,7 @@ public final class LocalServer
         String emulatedSecretKey = args[1];
         String realAccessKey = args[2];
         String realSecretKey = args[3];
-        Credentials credentials = new Credentials(new Credentials.Credential(emulatedAccessKey, emulatedSecretKey), new Credentials.Credential(realAccessKey, realSecretKey));
+        Credentials credentials = new Credentials(new Credential(emulatedAccessKey, emulatedSecretKey), new Credential(realAccessKey, realSecretKey));
 
         TestingTrinoS3ProxyServer trinoS3ProxyServer = TestingTrinoS3ProxyServer.builder()
                 .addCredentials(credentials)
