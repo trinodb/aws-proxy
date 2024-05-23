@@ -15,7 +15,10 @@ package io.trino.s3.proxy.server.credentials;
 
 import com.google.common.base.Splitter;
 import com.google.inject.Inject;
+import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.core.MultivaluedMap;
+import jakarta.ws.rs.core.Response;
+import org.glassfish.jersey.server.ContainerRequest;
 
 import java.net.URI;
 import java.time.Duration;
@@ -38,7 +41,52 @@ public class SigningController
         maxClockDrift = signingControllerConfig.getMaxClockDrift().toJavaTime();
     }
 
-    public Optional<SigningMetadata> signingMetadataFromRequest(
+
+    public SigningMetadata validateAndParseAuthorization(ContainerRequest request, SigningService signingService, Function<Credentials, Credential> credentialsSupplier)
+    {
+        return signingMetadataFromRequest(
+                        signingService,
+                        credentialsSupplier,
+                        request.getRequestUri(),
+                        request.getRequestHeaders(),
+                        request.getUriInfo().getQueryParameters(),
+                        request.getMethod(),
+                        request.getPath(false), Optional.empty())
+                .orElseThrow(() -> new WebApplicationException(Response.Status.UNAUTHORIZED));
+    }
+
+    public String signRequest(
+            SigningService signingService,
+            Function<Credentials, Credential> credentialsSupplier, SigningMetadata metadata,
+            URI requestURI,
+            MultivaluedMap<String, String> requestHeaders,
+            MultivaluedMap<String, String> queryParameters,
+            String httpMethod,
+            String encodedPath,
+            Optional<byte[]> entity)
+    {
+        Credential credential = credentialsSupplier.apply(metadata.credentials());
+
+        return Signer.sign(
+                signingService.asServiceName(),
+                requestURI,
+                requestHeaders,
+                queryParameters,
+                httpMethod,
+                encodedPath,
+                metadata.region(),
+                credential.accessKey(),
+                credential.secretKey(),
+                maxClockDrift,
+                entity);
+    }
+
+    public String formatInstant(Instant instant)
+    {
+        return Signer.formatInstant(instant);
+    }
+
+    private Optional<SigningMetadata> signingMetadataFromRequest(
             SigningService signingService,
             Function<Credentials, Credential> credentialsSupplier,
             URI requestURI,
@@ -78,37 +126,6 @@ public class SigningController
         return credentialsController.credentials(signingService, emulatedAccessKey, session)
                 .map(credentials -> new SigningMetadata(credentials, session, region))
                 .filter(metadata -> isValidAuthorization(signingService, metadata, credentialsSupplier, authorization, requestURI, requestHeaders, queryParameters, httpMethod, encodedPath, entity));
-    }
-
-    public String signRequest(
-            SigningService signingService,
-            Function<Credentials, Credential> credentialsSupplier, SigningMetadata metadata,
-            URI requestURI,
-            MultivaluedMap<String, String> requestHeaders,
-            MultivaluedMap<String, String> queryParameters,
-            String httpMethod,
-            String encodedPath,
-            Optional<byte[]> entity)
-    {
-        Credential credential = credentialsSupplier.apply(metadata.credentials());
-
-        return Signer.sign(
-                signingService.asServiceName(),
-                requestURI,
-                requestHeaders,
-                queryParameters,
-                httpMethod,
-                encodedPath,
-                metadata.region(),
-                credential.accessKey(),
-                credential.secretKey(),
-                maxClockDrift,
-                entity);
-    }
-
-    public String formatInstant(Instant instant)
-    {
-        return Signer.formatInstant(instant);
     }
 
     private boolean isValidAuthorization(
