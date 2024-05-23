@@ -16,6 +16,7 @@ package io.trino.s3.proxy.server.rest;
 import com.google.inject.BindingAnnotation;
 import com.google.inject.Inject;
 import io.airlift.http.client.HttpClient;
+import io.airlift.http.client.HttpClient.HttpResponseFuture;
 import io.airlift.http.client.Request;
 import io.trino.s3.proxy.server.credentials.Credentials;
 import io.trino.s3.proxy.server.credentials.SigningController;
@@ -34,9 +35,11 @@ import java.net.URI;
 import java.time.Duration;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 import static com.google.common.base.MoreObjects.firstNonNull;
 import static com.google.common.util.concurrent.MoreExecutors.shutdownAndAwaitTermination;
+import static io.airlift.jaxrs.AsyncResponseHandler.bindAsyncResponse;
 import static java.lang.annotation.ElementType.FIELD;
 import static java.lang.annotation.ElementType.METHOD;
 import static java.lang.annotation.ElementType.PARAMETER;
@@ -110,8 +113,10 @@ public class TrinoS3ProxyClient
 
         Request realRequest = realRequestBuilder.build();
 
-        // TODO config a max time to wait
-        executorService.submit(() -> httpClient.execute(realRequest, new StreamingResponseHandler(asyncResponse, Duration.ofHours(1))));
+        HttpResponseFuture<Void> response = httpClient.executeAsync(realRequest, new StreamingResponseHandler(asyncResponse));
+        bindAsyncResponse(asyncResponse, response, executorService)
+                // TODO configure timeout instead of hard-coding
+                .withTimeout(new io.airlift.units.Duration(1, TimeUnit.HOURS), () -> Response.status(Response.Status.REQUEST_TIMEOUT).build());
     }
 
     private static String rewriteRequestPath(ContainerRequest request, String bucket)

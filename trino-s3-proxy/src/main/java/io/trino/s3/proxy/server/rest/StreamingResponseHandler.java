@@ -23,23 +23,19 @@ import jakarta.ws.rs.container.AsyncResponse;
 import jakarta.ws.rs.core.StreamingOutput;
 
 import java.io.InputStream;
-import java.time.Duration;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
 
 import static io.airlift.http.client.ResponseHandlerUtils.propagate;
+import static jakarta.ws.rs.core.Response.Status.INTERNAL_SERVER_ERROR;
 import static java.util.Objects.requireNonNull;
 
 class StreamingResponseHandler
         implements ResponseHandler<Void, RuntimeException>
 {
     private final AsyncResponse asyncResponse;
-    private final Duration maxWaitForResponse;
 
-    StreamingResponseHandler(AsyncResponse asyncResponse, Duration maxWaitForResponse)
+    StreamingResponseHandler(AsyncResponse asyncResponse)
     {
         this.asyncResponse = requireNonNull(asyncResponse, "asyncResponse is null");
-        this.maxWaitForResponse = requireNonNull(maxWaitForResponse, "maxWaitForResponse is null");
     }
 
     @Override
@@ -53,15 +49,10 @@ class StreamingResponseHandler
     public Void handle(Request request, Response response)
             throws RuntimeException
     {
-        CountDownLatch latch = new CountDownLatch(1);
         StreamingOutput streamingOutput = output -> {
-            try {
-                InputStream inputStream = response.getInputStream();
-                ByteStreams.copy(inputStream, output);
-            }
-            finally {
-                latch.countDown();
-            }
+            InputStream inputStream = response.getInputStream();
+            // TODO should we use a different bytestream processor that can use larger buffers?
+            ByteStreams.copy(inputStream, output);
         };
 
         jakarta.ws.rs.core.Response.ResponseBuilder responseBuilder = jakarta.ws.rs.core.Response.status(response.getStatusCode()).entity(streamingOutput);
@@ -72,19 +63,11 @@ class StreamingResponseHandler
                 .forEach(name -> response.getHeaders(name).forEach(value -> responseBuilder.header(name, value)));
 
         try {
+            // this will block until streamingOutput has completed
             asyncResponse.resume(responseBuilder.build());
         }
         catch (Exception e) {
-            throw new WebApplicationException(e, jakarta.ws.rs.core.Response.Status.INTERNAL_SERVER_ERROR);
-        }
-        try {
-            if (!latch.await(maxWaitForResponse.toMillis(), TimeUnit.MILLISECONDS)) {
-                throw new WebApplicationException(jakarta.ws.rs.core.Response.Status.REQUEST_TIMEOUT);
-            }
-        }
-        catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new WebApplicationException(jakarta.ws.rs.core.Response.Status.SERVICE_UNAVAILABLE);
+            throw new WebApplicationException(e, INTERNAL_SERVER_ERROR);
         }
 
         return null;
