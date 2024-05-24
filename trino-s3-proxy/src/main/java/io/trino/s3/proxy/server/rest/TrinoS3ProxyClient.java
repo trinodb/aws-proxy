@@ -115,8 +115,7 @@ public class TrinoS3ProxyClient
 
         Request realRequest = realRequestBuilder.build();
 
-        // TODO config a max time to wait
-        executorService.submit(() -> httpClient.execute(realRequest, new StreamingResponseHandler(asyncResponse, Duration.ofHours(1))));
+        executorService.submit(() -> httpClient.execute(realRequest, new StreamingResponseHandler(asyncResponse)));
     }
 
     private static String rewriteRequestPath(ContainerRequest request, String bucket)
