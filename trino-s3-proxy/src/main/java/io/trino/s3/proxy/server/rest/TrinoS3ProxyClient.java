@@ -32,11 +32,13 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.Target;
 import java.net.URI;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 import static com.google.common.base.MoreObjects.firstNonNull;
 import static com.google.common.util.concurrent.MoreExecutors.shutdownAndAwaitTermination;
+import static io.trino.s3.proxy.server.credentials.SigningController.formatRequestInstant;
 import static java.lang.annotation.ElementType.FIELD;
 import static java.lang.annotation.ElementType.METHOD;
 import static java.lang.annotation.ElementType.PARAMETER;
@@ -86,12 +88,15 @@ public class TrinoS3ProxyClient
             throw new WebApplicationException(Response.Status.BAD_REQUEST);
         }
 
-        // modify the source request headers for real values needed for the real AWS request
-        MultivaluedMap<String, String> realRequestHeaders = new MultivaluedHashMap<>(request.getRequestHeaders());
-        // we don't use sessions when making the real AWS call
-        realRequestHeaders.remove("X-Amz-Security-Token");
-        // replace source host with the real AWS host
-        realRequestHeaders.putSingle("Host", realUri.getHost());
+        MultivaluedMap<String, String> realRequestHeaders = new MultivaluedHashMap<>();
+        request.getRequestHeaders().forEach((key, value) -> {
+            switch (key.toLowerCase()) {
+                case "x-amz-security-token" -> {}   // we don't use sessions when making the real AWS call
+                case "x-amz-date" -> realRequestHeaders.putSingle("X-Amz-Date", formatRequestInstant(Instant.now())); // use now for the real request
+                case "host" -> realRequestHeaders.putSingle("Host", realUri.getHost()); // replace source host with the real AWS host
+                default -> realRequestHeaders.put(key, value);
+            }
+        });
 
         // set the new signed request auth header
         String encodedPath = firstNonNull(realUri.getRawPath(), "");

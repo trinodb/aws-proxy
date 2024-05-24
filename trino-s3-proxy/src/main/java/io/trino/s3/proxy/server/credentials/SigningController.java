@@ -19,10 +19,13 @@ import jakarta.ws.rs.core.MultivaluedMap;
 
 import java.net.URI;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Function;
 
+import static io.trino.s3.proxy.server.credentials.Signer.AMZ_DATE_FORMAT;
+import static io.trino.s3.proxy.server.credentials.Signer.UTC;
 import static java.util.Objects.requireNonNull;
 
 public class SigningController
@@ -35,6 +38,11 @@ public class SigningController
     {
         this.credentialsController = requireNonNull(credentialsController, "credentialsController is null");
         maxClockDrift = signingControllerConfig.getMaxClockDrift().toJavaTime();
+    }
+
+    public static String formatRequestInstant(Instant instant)
+    {
+        return instant.atZone(UTC).format(AMZ_DATE_FORMAT);
     }
 
     public Optional<SigningMetadata> signingMetadataFromRequest(
