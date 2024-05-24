@@ -29,7 +29,7 @@ public class TestingS3EndpointBuilder
     @Override
     public URI buildEndpoint(UriBuilder uriBuilder, String path, String bucket, String region)
     {
-        return delegate.get().buildEndpoint(uriBuilder, path, bucket, bucket);
+        return delegate.get().buildEndpoint(uriBuilder, path, bucket, region);
     }
 
     public void setDelegate(S3EndpointBuilder delegate)
