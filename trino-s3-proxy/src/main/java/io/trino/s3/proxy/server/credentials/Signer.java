@@ -13,7 +13,6 @@
  */
 package io.trino.s3.proxy.server.credentials;
 
-import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.net.HostAndPort;
 import io.airlift.log.Logger;
@@ -46,8 +45,9 @@ final class Signer
 {
     private static final Logger log = Logger.get(Signer.class);
 
-    @VisibleForTesting
-    static final DateTimeFormatter AMZ_DATE_FORMAT = DateTimeFormatter.ofPattern("yyyyMMdd'T'HHmmss'Z'", Locale.US).withZone(ZoneId.of("Z"));
+    static final ZoneId ZONE = ZoneId.of("Z");
+    static final ZoneId UTC = ZoneId.of("UTC");
+    static final DateTimeFormatter AMZ_DATE_FORMAT = DateTimeFormatter.ofPattern("yyyyMMdd'T'HHmmss'Z'", Locale.US).withZone(ZONE);
 
     private static final Set<String> IGNORED_HEADERS = ImmutableSet.of(
             "x-amzn-trace-id",
