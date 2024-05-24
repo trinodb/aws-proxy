@@ -114,6 +114,7 @@ final class Signer
         Aws4SignerParams.Builder<?> signerParamsBuilder = Aws4SignerParams.builder()
                 .signingName(serviceName)
                 .signingRegion(Region.of(region))
+                .doubleUrlEncode(false)
                 .awsCredentials(AwsBasicCredentials.create(accessKey, secretKey));
 
         String xAmzDate = Optional.ofNullable(requestHeaders.getFirst("x-amz-date")).orElseThrow(() -> {

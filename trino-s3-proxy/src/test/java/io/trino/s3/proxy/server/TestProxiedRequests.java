@@ -19,11 +19,13 @@ import org.junit.jupiter.api.Test;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.Bucket;
 import software.amazon.awssdk.services.s3.model.ListBucketsResponse;
+import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
 
 import static java.util.Objects.requireNonNull;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-@TrinoS3ProxyTest(initialBuckets = "one,two,three")
+@TrinoS3ProxyTest(initialBuckets = "a b c,two,three")
 public class TestProxiedRequests
 {
     private final S3Client s3Client;
@@ -40,6 +42,14 @@ public class TestProxiedRequests
         ListBucketsResponse response = s3Client.listBuckets();
         assertThat(response.buckets())
                 .extracting(Bucket::name)
-                .containsExactlyInAnyOrder("one", "two", "three");
+                .containsExactlyInAnyOrder("a b c", "two", "three");
+    }
+
+    @Test
+    public void testUpload()
+    {
+        // make sure buckets with escapable characters authorize correctly
+        assertThatThrownBy(() -> s3Client.getObject(r -> r.bucket("a b c").key("test")).response())
+                .isInstanceOf(NoSuchKeyException.class);
     }
 }
