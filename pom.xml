@@ -50,7 +50,6 @@
         <dep.airlift-units.version>1.10</dep.airlift-units.version>
         <dep.jersey.version>3.1.6</dep.jersey.version>
         <dep.testcontainers.version>1.19.8</dep.testcontainers.version>
-        <dep.adobe-mock.version>3.8.0</dep.adobe-mock.version>
     </properties>
 
     <dependencyManagement>
@@ -72,12 +71,6 @@
             </dependency>
 
             <dependency>
-                <groupId>com.adobe.testing</groupId>
-                <artifactId>s3mock-testcontainers</artifactId>
-                <version>${dep.adobe-mock.version}</version>
-            </dependency>
-
-            <dependency>
                 <groupId>io.airlift</groupId>
                 <artifactId>units</artifactId>
                 <version>${dep.airlift-units.version}</version>
@@ -87,6 +80,12 @@
                 <groupId>org.glassfish.jersey.core</groupId>
                 <artifactId>jersey-server</artifactId>
                 <version>${dep.jersey.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>org.testcontainers</groupId>
+                <artifactId>minio</artifactId>
+                <version>${dep.testcontainers.version}</version>
             </dependency>
 
             <dependency>

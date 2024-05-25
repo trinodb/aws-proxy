@@ -13,10 +13,15 @@
  */
 package io.trino.s3.proxy.server.testing;
 
-import com.adobe.testing.s3mock.testcontainers.S3MockContainer;
+import com.google.common.base.Splitter;
 import com.google.inject.BindingAnnotation;
 import com.google.inject.Inject;
+import io.trino.s3.proxy.server.credentials.Credentials.Credential;
 import jakarta.annotation.PreDestroy;
+import org.testcontainers.containers.Container.ExecResult;
+import org.testcontainers.containers.GenericContainer;
+import org.testcontainers.containers.MinIOContainer;
+import org.testcontainers.images.builder.Transferable;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.Target;
@@ -28,7 +33,22 @@ import static java.lang.annotation.RetentionPolicy.RUNTIME;
 
 public class ManagedS3MockContainer
 {
-    private final S3MockContainer container;
+    private final MinIOContainer container;
+
+    private static final String CONFIG = """
+            {
+                "version": "10",
+                "aliases": {
+                    "local": {
+                        "url": "http://localhost:9000",
+                        "accessKey": "%s",
+                        "secretKey": "%s",
+                        "api": "S3v4",
+                        "path": "auto"
+                    }
+                }
+            }
+            """;
 
     @Retention(RUNTIME)
     @Target({FIELD, PARAMETER, METHOD})
@@ -36,16 +56,35 @@ public class ManagedS3MockContainer
     public @interface ForS3MockContainer {}
 
     @Inject
-    public ManagedS3MockContainer(@ForS3MockContainer String initialBuckets)
+    public ManagedS3MockContainer(@ForS3MockContainer String initialBuckets, @ForS3MockContainer Credential credential)
     {
-        container = new S3MockContainer("3.8.0");
-        if (!initialBuckets.isEmpty()) {
-            container.withInitialBuckets(initialBuckets);
-        }
+        Transferable transferable = Transferable.of(CONFIG.formatted(credential.accessKey(), credential.secretKey()));
+        container = new MinIOContainer("minio/minio:RELEASE.2023-09-04T19-57-37Z")
+                .withUserName(credential.accessKey())
+                .withPassword(credential.secretKey())
+                // setting this allows us to shell into the container and run "mc" commands
+                .withCopyToContainer(transferable, "/root/.mc/config.json");
+
+        container.configure();
         container.start();
+
+        if (!initialBuckets.isEmpty()) {
+            Splitter.on(',').trimResults().splitToStream(initialBuckets).forEach(bucket -> {
+                ExecResult execResult;
+                try {
+                    execResult = container.execInContainer("mc", "mb", "local/" + bucket);
+                }
+                catch (Exception e) {
+                    throw new RuntimeException("Could not create bucket: " + bucket, e);
+                }
+                if (execResult.getExitCode() != 0) {
+                    throw new RuntimeException("Could not create bucket: " + bucket + " error: " + execResult.getStderr());
+                }
+            });
+        }
     }
 
-    public S3MockContainer container()
+    public GenericContainer<?> container()
     {
         return container;
     }
