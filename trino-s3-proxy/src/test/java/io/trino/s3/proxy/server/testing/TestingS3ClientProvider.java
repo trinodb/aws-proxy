@@ -20,6 +20,7 @@ import io.trino.s3.proxy.server.credentials.Credentials;
 import io.trino.s3.proxy.server.credentials.Credentials.Credential;
 import io.trino.s3.proxy.server.rest.S3EndpointBuilder;
 import io.trino.s3.proxy.server.rest.TrinoS3ProxyResource;
+import io.trino.s3.proxy.server.testing.ManagedS3MockContainer.ForS3MockContainer;
 import jakarta.ws.rs.core.UriBuilder;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.regions.Region;
@@ -39,10 +40,11 @@ public class TestingS3ClientProvider
     public TestingS3ClientProvider(
             TestingTrinoS3ProxyServer trinoS3ProxyServer,
             ManagedS3MockContainer container,
+            @ForS3MockContainer Credential containerCredential,
             TestingCredentialsController credentialsController,
             TestingS3EndpointBuilder endpointBuilder)
     {
-        credentials = new Credentials(new Credential(UUID.randomUUID().toString(), UUID.randomUUID().toString()), new Credential(UUID.randomUUID().toString(), UUID.randomUUID().toString()));
+        credentials = new Credentials(new Credential(UUID.randomUUID().toString(), UUID.randomUUID().toString()), containerCredential);
         credentialsController.addCredentials(credentials);
 
         S3EndpointBuilder mockS3EndpointBuilder = (uriBuilder, path, ignore1, ignore2) -> uriBuilder.host(container.container().getHost())
