@@ -16,6 +16,7 @@ package io.trino.s3.proxy.server.testing.harness;
 import com.google.inject.Injector;
 import com.google.inject.Module;
 import com.google.inject.Scopes;
+import io.trino.s3.proxy.server.credentials.Credentials.Credential;
 import io.trino.s3.proxy.server.testing.ManagedS3MockContainer;
 import io.trino.s3.proxy.server.testing.ManagedS3MockContainer.ForS3MockContainer;
 import io.trino.s3.proxy.server.testing.TestingS3ClientProvider;
@@ -29,6 +30,7 @@ import software.amazon.awssdk.services.s3.S3Client;
 
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Stream;
 
@@ -62,9 +64,12 @@ public class TrinoS3ProxyTestExtension
                 .buildAndStart();
         testingServersRegistry.put(extensionContext.getUniqueId(), trinoS3ProxyServer);
 
+        Credential containerCredential = new Credential(UUID.randomUUID().toString(), UUID.randomUUID().toString());
+
         Injector injector = trinoS3ProxyServer.getInjector()
                 .createChildInjector(binder -> {
                     binder.bind(String.class).annotatedWith(ForS3MockContainer.class).toInstance(trinoS3ProxyTest.initialBuckets());
+                    binder.bind(Credential.class).annotatedWith(ForS3MockContainer.class).toInstance(containerCredential);
                     binder.bind(ManagedS3MockContainer.class).asEagerSingleton();
                     binder.bind(S3Client.class).toProvider(TestingS3ClientProvider.class).in(Scopes.SINGLETON);
                     binder.bind(TestingTrinoS3ProxyServer.class).toInstance(trinoS3ProxyServer);
