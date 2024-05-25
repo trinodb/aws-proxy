@@ -107,8 +107,7 @@ public class TrinoS3ProxyClient
                 realUri,
                 realRequestHeaders,
                 request.getUriInfo().getQueryParameters(),
-                request.getMethod(),
-                encodedPath);
+                request.getMethod());
         realRequestHeaders.putSingle("Authorization", signature);
 
         // requestHeaders now has correct values, copy to the real request

@@ -50,8 +50,7 @@ public class SigningController
             URI requestURI,
             MultivaluedMap<String, String> requestHeaders,
             MultivaluedMap<String, String> queryParameters,
-            String httpMethod,
-            String encodedPath)
+            String httpMethod)
     {
         String authorization = requestHeaders.getFirst("Authorization");
         if (authorization == null) {
@@ -82,7 +81,7 @@ public class SigningController
 
         return credentialsController.credentials(emulatedAccessKey, session)
                 .map(credentials -> new SigningMetadata(credentials, session, region))
-                .filter(metadata -> isValidAuthorization(metadata, credentialsSupplier, authorization, requestURI, requestHeaders, queryParameters, httpMethod, encodedPath));
+                .filter(metadata -> isValidAuthorization(metadata, credentialsSupplier, authorization, requestURI, requestHeaders, queryParameters, httpMethod));
     }
 
     public String signRequest(
@@ -91,8 +90,7 @@ public class SigningController
             URI requestURI,
             MultivaluedMap<String, String> requestHeaders,
             MultivaluedMap<String, String> queryParameters,
-            String httpMethod,
-            String encodedPath)
+            String httpMethod)
     {
         Credentials.Credential credential = credentialsSupplier.apply(metadata.credentials());
 
@@ -102,7 +100,6 @@ public class SigningController
                 requestHeaders,
                 queryParameters,
                 httpMethod,
-                encodedPath,
                 metadata.region(),
                 credential.accessKey(),
                 credential.secretKey(),
@@ -117,10 +114,9 @@ public class SigningController
             URI requestURI,
             MultivaluedMap<String, String> requestHeaders,
             MultivaluedMap<String, String> queryParameters,
-            String httpMethod,
-            String encodedPath)
+            String httpMethod)
     {
-        String expectedAuthorization = signRequest(metadata, credentialsSupplier, requestURI, requestHeaders, queryParameters, httpMethod, encodedPath);
+        String expectedAuthorization = signRequest(metadata, credentialsSupplier, requestURI, requestHeaders, queryParameters, httpMethod);
         return authorizationHeader.equals(expectedAuthorization);
     }
 }

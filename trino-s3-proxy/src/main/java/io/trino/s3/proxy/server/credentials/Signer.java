@@ -14,16 +14,14 @@
 package io.trino.s3.proxy.server.credentials;
 
 import com.google.common.collect.ImmutableSet;
-import com.google.common.net.HostAndPort;
 import io.airlift.log.Logger;
 import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.core.MultivaluedHashMap;
 import jakarta.ws.rs.core.MultivaluedMap;
 import jakarta.ws.rs.core.Response;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
-import software.amazon.awssdk.auth.signer.internal.BaseAws4Signer;
-import software.amazon.awssdk.auth.signer.params.Aws4SignerParams;
-import software.amazon.awssdk.core.checksums.SdkChecksum;
+import software.amazon.awssdk.auth.signer.AwsS3V4Signer;
+import software.amazon.awssdk.auth.signer.params.AwsS3V4SignerParams;
 import software.amazon.awssdk.http.SdkHttpFullRequest;
 import software.amazon.awssdk.http.SdkHttpMethod;
 import software.amazon.awssdk.regions.Region;
@@ -59,21 +57,7 @@ final class Signer
             "content-length");
 
     private static final Set<String> LOWERCASE_HEADERS = ImmutableSet.of("content-type");
-    private static final BaseAws4Signer aws4Signer = new BaseAws4Signer()
-    {
-        @Override
-        protected String calculateContentHash(SdkHttpFullRequest.Builder mutableRequest, Aws4SignerParams signerParams, SdkChecksum contentFlexibleChecksum)
-        {
-            boolean isUnsignedPayload = mutableRequest.firstMatchingHeader("x-amz-content-sha256")
-                    .map(header -> header.equals("UNSIGNED-PAYLOAD"))
-                    .orElse(false);
-            if (isUnsignedPayload) {
-                return "UNSIGNED-PAYLOAD";
-            }
-
-            return super.calculateContentHash(mutableRequest, signerParams, contentFlexibleChecksum);
-        }
-    };
+    private static final AwsS3V4Signer aws4Signer = AwsS3V4Signer.create();
 
     private Signer() {}
 
@@ -84,7 +68,6 @@ final class Signer
             MultivaluedMap<String, String> requestHeaders,
             MultivaluedMap<String, String> queryParameters,
             String httpMethod,
-            String encodedPath,
             String region,
             String accessKey,
             String secretKey,
@@ -95,11 +78,8 @@ final class Signer
         queryParameters = lowercase(queryParameters);
 
         SdkHttpFullRequest.Builder requestBuilder = SdkHttpFullRequest.builder()
-                .port(requestURI.getPort())
-                .protocol(requestURI.getScheme())
-                .host(HostAndPort.fromString(requestHeaders.getFirst("host")).getHost())
-                .method(SdkHttpMethod.fromValue(httpMethod))
-                .encodedPath(encodedPath);
+                .uri(requestURI)
+                .method(SdkHttpMethod.fromValue(httpMethod));
 
         entity.ifPresent(entityBytes -> requestBuilder.contentStreamProvider(() -> new ByteArrayInputStream(entityBytes)));
 
@@ -111,10 +91,15 @@ final class Signer
 
         queryParameters.forEach(requestBuilder::putRawQueryParameter);
 
-        Aws4SignerParams.Builder<?> signerParamsBuilder = Aws4SignerParams.builder()
+        boolean enablePayloadSigning = Optional.ofNullable(requestHeaders.getFirst("x-amz-content-sha256"))
+                .map(contentHashHeader -> !contentHashHeader.equals("UNSIGNED-PAYLOAD"))
+                .orElse(true);
+
+        AwsS3V4SignerParams.Builder signerParamsBuilder = AwsS3V4SignerParams.builder()
                 .signingName(serviceName)
                 .signingRegion(Region.of(region))
                 .doubleUrlEncode(false)
+                .enablePayloadSigning(enablePayloadSigning)
                 .awsCredentials(AwsBasicCredentials.create(accessKey, secretKey));
 
         String xAmzDate = Optional.ofNullable(requestHeaders.getFirst("x-amz-date")).orElseThrow(() -> {

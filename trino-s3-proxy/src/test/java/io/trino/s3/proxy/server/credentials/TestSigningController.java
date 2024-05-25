@@ -49,11 +49,10 @@ public class TestSigningController
         String signature = signingController.signRequest(
                 new SigningMetadata(CREDENTIALS, Optional.empty(), "us-east-1"),
                 Credentials::emulated,
-                URI.create("http://localhost:10064"),
+                URI.create("http://localhost:10064/"),
                 requestHeaders,
                 new MultivaluedHashMap<>(),
-                "GET",
-                "/");
+                "GET");
 
         assertThat(signature).isEqualTo("AWS4-HMAC-SHA256 Credential=THIS_IS_AN_ACCESS_KEY/20240516/us-east-1/s3/aws4_request, SignedHeaders=host;x-amz-content-sha256;x-amz-date;x-amz-security-token, Signature=9a19c251bf4e1533174e80da59fa57c65b3149b611ec9a4104f6944767c25704");
     }
@@ -75,11 +74,10 @@ public class TestSigningController
         assertThatThrownBy(() -> signingController.signRequest(
                 new SigningMetadata(CREDENTIALS, Optional.empty(), "us-east-1"),
                 Credentials::emulated,
-                URI.create("http://localhost:10064"),
+                URI.create("http://localhost:10064/"),
                 requestHeaders,
                 new MultivaluedHashMap<>(),
-                "GET",
-                "/")).isInstanceOf(WebApplicationException.class);
+                "GET")).isInstanceOf(WebApplicationException.class);
     }
 
     @Test
@@ -103,11 +101,10 @@ public class TestSigningController
         String signature = signingController.signRequest(
                 new SigningMetadata(CREDENTIALS, Optional.empty(), "us-east-1"),
                 Credentials::emulated,
-                URI.create("http://localhost:10064"),
+                URI.create("http://localhost:10064/mybucket"),
                 requestHeaders,
                 queryParameters,
-                "GET",
-                "/mybucket");
+                "GET");
 
         assertThat(signature).isEqualTo("AWS4-HMAC-SHA256 Credential=THIS_IS_AN_ACCESS_KEY/20240516/us-east-1/s3/aws4_request, SignedHeaders=host;x-amz-content-sha256;x-amz-date;x-amz-security-token, Signature=222d7b7fcd4d5560c944e8fecd9424ee3915d131c3ad9e000d65db93e87946c4");
     }

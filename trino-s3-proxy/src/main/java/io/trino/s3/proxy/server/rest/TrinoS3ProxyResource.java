@@ -85,8 +85,7 @@ public class TrinoS3ProxyResource
                         request.getRequestUri(),
                         request.getRequestHeaders(),
                         request.getUriInfo().getQueryParameters(),
-                        request.getMethod(),
-                        request.getPath(false))
+                        request.getMethod())
                 .orElseThrow(() -> new WebApplicationException(Response.Status.UNAUTHORIZED));
     }
 }
