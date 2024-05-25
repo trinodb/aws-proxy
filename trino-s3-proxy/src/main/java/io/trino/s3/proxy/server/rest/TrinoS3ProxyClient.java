@@ -92,8 +92,9 @@ public class TrinoS3ProxyClient
         request.getRequestHeaders().forEach((key, value) -> {
             switch (key.toLowerCase()) {
                 case "x-amz-security-token" -> {}   // we don't use sessions when making the real AWS call
+                case "amz-sdk-invocation-id", "amz-sdk-request" -> {}   // don't send these
                 case "x-amz-date" -> realRequestHeaders.putSingle("X-Amz-Date", formatRequestInstant(Instant.now())); // use now for the real request
-                case "host" -> realRequestHeaders.putSingle("Host", realUri.getHost()); // replace source host with the real AWS host
+                case "host" -> realRequestHeaders.putSingle("Host", buildRealHost(realUri)); // replace source host with the real AWS host
                 default -> realRequestHeaders.put(key, value);
             }
         });
@@ -116,6 +117,15 @@ public class TrinoS3ProxyClient
         Request realRequest = realRequestBuilder.build();
 
         executorService.submit(() -> httpClient.execute(realRequest, new StreamingResponseHandler(asyncResponse)));
+    }
+
+    private static String buildRealHost(URI realUri)
+    {
+        int port = realUri.getPort();
+        if ((port < 0) || (port == 80) || (port == 443)) {
+            return realUri.getHost();
+        }
+        return realUri.getHost() + ":" + port;
     }
 
     private static String rewriteRequestPath(ContainerRequest request, String bucket)
