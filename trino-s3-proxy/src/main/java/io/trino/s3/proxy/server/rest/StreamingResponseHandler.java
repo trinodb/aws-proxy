@@ -13,7 +13,6 @@
  */
 package io.trino.s3.proxy.server.rest;
 
-import com.google.common.io.ByteStreams;
 import io.airlift.http.client.HeaderName;
 import io.airlift.http.client.Request;
 import io.airlift.http.client.Response;
@@ -53,7 +52,7 @@ class StreamingResponseHandler
             // HttpClient/Jersey timeouts control behavior. The configured HttpClient idle timeout
             // controls whether the InputStream will time out. Jersey configuration controls
             // OutputStream and general request timeouts.
-            ByteStreams.copy(inputStream, output);
+            inputStream.transferTo(output);
             output.flush();
         };
 
