@@ -20,14 +20,17 @@ import java.net.URI;
 @FunctionalInterface
 public interface S3EndpointBuilder
 {
-    S3EndpointBuilder STANDARD = (uriBuilder, path, bucket, region) -> {
-        String host = bucket.isEmpty() ? "s3.%s.amazonaws.com".formatted(region) : "%s.s3.%s.amazonaws.com".formatted(bucket, region);
+    S3EndpointBuilder STANDARD = (uriBuilder, path, bucket, region) -> buildEndpoint(uriBuilder, "amazonaws.com", -1, true, path, bucket, region);
+
+    static URI buildEndpoint(UriBuilder uriBuilder, String domain, int port, boolean https, String path, String bucket, String region)
+    {
+        String host = bucket.isEmpty() ? "s3.%s.%s".formatted(region, domain) : "%s.s3.%s.%s".formatted(bucket, region, domain);
         return uriBuilder.host(host)
-                .port(-1)
-                .scheme("https")
+                .port(port)
+                .scheme(https ? "https" : "http")
                 .replacePath(path)
                 .build();
-    };
+    }
 
     URI buildEndpoint(UriBuilder uriBuilder, String path, String bucket, String region);
 }

@@ -29,6 +29,9 @@ import software.amazon.awssdk.services.s3.S3Client;
 import java.net.URI;
 import java.util.UUID;
 
+import static io.trino.s3.proxy.server.rest.S3EndpointBuilder.buildEndpoint;
+import static io.trino.s3.proxy.server.testing.TestingTrinoS3ProxyServer.LOCAL_HOSTNAME;
+
 public class TestingS3ClientProvider
         implements Provider<S3Client>
 {
@@ -47,14 +50,12 @@ public class TestingS3ClientProvider
         credentials = new Credentials(new Credential(UUID.randomUUID().toString(), UUID.randomUUID().toString()), containerCredential);
         credentialsController.addCredentials(credentials);
 
-        S3EndpointBuilder mockS3EndpointBuilder = (uriBuilder, path, ignore1, ignore2) -> uriBuilder.host(container.container().getHost())
-                .port(container.container().getFirstMappedPort())
-                .replacePath(path)
-                .build();
+        S3EndpointBuilder mockS3EndpointBuilder = (UriBuilder uriBuilder, String path, String bucket, String region) ->
+                buildEndpoint(uriBuilder, LOCAL_HOSTNAME, container.container().getFirstMappedPort(), false, path, bucket, region);
         endpointBuilder.setDelegate(mockS3EndpointBuilder);
 
         URI baseUrl = trinoS3ProxyServer.getInjector().getInstance(TestingHttpServer.class).getBaseUrl();
-        localProxyServerUri = UriBuilder.fromUri(baseUrl).path(TrinoS3ProxyResource.class).build();
+        localProxyServerUri = UriBuilder.fromUri(baseUrl).host(LOCAL_HOSTNAME).path(TrinoS3ProxyResource.class).build();
     }
 
     @Override

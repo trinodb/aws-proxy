@@ -32,6 +32,9 @@ import java.util.Collection;
 public final class TestingTrinoS3ProxyServer
         implements Closeable
 {
+    // a wildcard DNS we've registered that resolves to 127.0.0.1
+    public static final String LOCAL_HOSTNAME = "local.gate0.net";
+
     private final Injector injector;
 
     private TestingTrinoS3ProxyServer(Injector injector)
