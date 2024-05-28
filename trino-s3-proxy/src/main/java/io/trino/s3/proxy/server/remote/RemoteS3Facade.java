@@ -11,23 +11,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.trino.s3.proxy.server.rest;
+package io.trino.s3.proxy.server.remote;
 
 import jakarta.ws.rs.core.UriBuilder;
 
 import java.net.URI;
 
-@FunctionalInterface
-public interface S3EndpointBuilder
+public interface RemoteS3Facade
 {
-    S3EndpointBuilder STANDARD = (uriBuilder, path, bucket, region) -> {
-        String host = bucket.isEmpty() ? "s3.%s.amazonaws.com".formatted(region) : "%s.s3.%s.amazonaws.com".formatted(bucket, region);
-        return uriBuilder.host(host)
-                .port(-1)
-                .scheme("https")
-                .replacePath(path)
-                .build();
-    };
-
     URI buildEndpoint(UriBuilder uriBuilder, String path, String bucket, String region);
 }
