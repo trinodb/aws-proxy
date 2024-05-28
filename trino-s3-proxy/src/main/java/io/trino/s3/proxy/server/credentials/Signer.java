@@ -44,9 +44,8 @@ final class Signer
     private static final Logger log = Logger.get(Signer.class);
 
     static final ZoneId ZONE = ZoneId.of("Z");
-    static final ZoneId UTC = ZoneId.of("UTC");
     static final DateTimeFormatter AMZ_DATE_FORMAT = DateTimeFormatter.ofPattern("yyyyMMdd'T'HHmmss'Z'", Locale.US).withZone(ZONE);
-    static final DateTimeFormatter RESPONSE_DATE_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH':'mm':'ss'.'SSS'Z'", Locale.US).withZone(UTC);
+    static final DateTimeFormatter RESPONSE_DATE_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH':'mm':'ss'.'SSS'Z'", Locale.US).withZone(ZONE);
 
     private static final Set<String> IGNORED_HEADERS = ImmutableSet.of(
             "x-amzn-trace-id",

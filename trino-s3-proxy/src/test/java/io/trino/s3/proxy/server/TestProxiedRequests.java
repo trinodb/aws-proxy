@@ -14,18 +14,12 @@
 package io.trino.s3.proxy.server;
 
 import com.google.inject.Inject;
-import io.trino.s3.proxy.server.testing.harness.TrinoS3ProxyTest;
-import org.junit.jupiter.api.Test;
 import software.amazon.awssdk.services.s3.S3Client;
-import software.amazon.awssdk.services.s3.model.Bucket;
-import software.amazon.awssdk.services.s3.model.ListBucketsResponse;
-import software.amazon.awssdk.services.s3.model.ListObjectsResponse;
 
 import static java.util.Objects.requireNonNull;
-import static org.assertj.core.api.Assertions.assertThat;
 
-@TrinoS3ProxyTest(initialBuckets = "one,two,three")
 public class TestProxiedRequests
+        extends AbstractTestProxiedRequests
 {
     private final S3Client s3Client;
 
@@ -35,15 +29,9 @@ public class TestProxiedRequests
         this.s3Client = requireNonNull(s3Client, "s3Client is null");
     }
 
-    @Test
-    public void testListBuckets()
+    @Override
+    protected S3Client buildClient()
     {
-        ListBucketsResponse listBucketsResponse = s3Client.listBuckets();
-        assertThat(listBucketsResponse.buckets())
-                .extracting(Bucket::name)
-                .containsExactlyInAnyOrder("one", "two", "three");
-
-        ListObjectsResponse listObjectsResponse = s3Client.listObjects(request -> request.bucket("one"));
-        assertThat(listObjectsResponse.contents()).isEmpty();
+        return s3Client;
     }
 }

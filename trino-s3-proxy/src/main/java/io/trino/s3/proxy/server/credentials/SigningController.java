@@ -29,7 +29,6 @@ import java.util.function.Function;
 
 import static io.trino.s3.proxy.server.credentials.Signer.AMZ_DATE_FORMAT;
 import static io.trino.s3.proxy.server.credentials.Signer.RESPONSE_DATE_FORMAT;
-import static io.trino.s3.proxy.server.credentials.Signer.UTC;
 import static io.trino.s3.proxy.server.credentials.Signer.ZONE;
 import static java.util.Objects.requireNonNull;
 
@@ -52,7 +51,7 @@ public class SigningController
 
     public static String formatResponseInstant(Instant instant)
     {
-        return instant.atZone(UTC).format(RESPONSE_DATE_FORMAT);
+        return instant.atZone(ZONE).format(RESPONSE_DATE_FORMAT);
     }
 
     public String signRequest(

@@ -25,6 +25,7 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static com.google.common.base.Preconditions.checkState;
 import static java.util.Objects.requireNonNull;
@@ -39,6 +40,7 @@ public class TestingCredentialsController
 {
     private final Map<String, Credentials> credentials = new ConcurrentHashMap<>();
     private final Map<String, Session> assumedRoleSessions = new ConcurrentHashMap<>();
+    private final AtomicInteger assumedRoleCount = new AtomicInteger();
 
     private record Session(Credential sessionCredential, String originalEmulatedAccessKey, Instant expiration)
     {
@@ -61,6 +63,8 @@ public class TestingCredentialsController
                     assumedRoleSessions.remove(sessionToken);
                     return Optional.empty();
                 }
+
+                assumedRoleCount.incrementAndGet();
 
                 checkState(emulatedAccessKey.equals(session.sessionCredential.accessKey()), "emulatedAccessKey and session accessKey mismatch");
 
@@ -92,6 +96,11 @@ public class TestingCredentialsController
                 });
     }
 
+    public int assumedRoleCount()
+    {
+        return assumedRoleCount.get();
+    }
+
     public void addCredentials(Credentials credentials)
     {
         this.credentials.put(credentials.emulated().accessKey(), credentials);
@@ -99,6 +108,7 @@ public class TestingCredentialsController
 
     public void resetAssumedRoles()
     {
+        assumedRoleCount.set(0);
         assumedRoleSessions.clear();
     }
 }
