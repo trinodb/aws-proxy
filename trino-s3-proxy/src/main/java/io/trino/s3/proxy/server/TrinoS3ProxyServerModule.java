@@ -23,6 +23,7 @@ import io.trino.s3.proxy.server.remote.StandardS3RemoteS3Facade;
 import io.trino.s3.proxy.server.rest.TrinoS3ProxyClient;
 import io.trino.s3.proxy.server.rest.TrinoS3ProxyClient.ForProxyClient;
 import io.trino.s3.proxy.server.rest.TrinoS3ProxyResource;
+import io.trino.s3.proxy.server.rest.TrinoStsResource;
 
 import static io.airlift.configuration.ConfigBinder.configBinder;
 import static io.airlift.http.client.HttpClientBinder.httpClientBinder;
@@ -35,6 +36,7 @@ public class TrinoS3ProxyServerModule
     public final void configure(Binder binder)
     {
         jaxrsBinder(binder).bind(TrinoS3ProxyResource.class);
+        jaxrsBinder(binder).bind(TrinoStsResource.class);
 
         configBinder(binder).bindConfig(SigningControllerConfig.class);
         binder.bind(SigningController.class).in(Scopes.SINGLETON);
