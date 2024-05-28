@@ -46,6 +46,7 @@ public class StandardS3RemoteS3Facade
 
         UriBuilder builder = uriBuilder.host(host)
                 .scheme(https ? "https" : "http")
+                .port(-1)
                 .replacePath(path);
         port.ifPresent(builder::port);
 

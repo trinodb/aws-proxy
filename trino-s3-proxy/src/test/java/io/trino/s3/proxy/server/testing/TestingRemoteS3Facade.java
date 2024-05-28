@@ -13,28 +13,27 @@
  */
 package io.trino.s3.proxy.server.testing;
 
-import com.google.inject.Inject;
-import io.trino.s3.proxy.server.remote.PathStyleRemoteS3Facade;
+import io.trino.s3.proxy.server.remote.RemoteS3Facade;
+import io.trino.s3.proxy.server.remote.StandardS3RemoteS3Facade;
+import jakarta.ws.rs.core.UriBuilder;
 
-import java.util.Optional;
+import java.net.URI;
+
+import static java.util.Objects.requireNonNull;
 
 public class TestingRemoteS3Facade
-        extends PathStyleRemoteS3Facade
+        implements RemoteS3Facade
 {
-    private final String host;
-
-    @SuppressWarnings("resource")
-    @Inject
-    public TestingRemoteS3Facade(ManagedS3MockContainer s3MockContainer)
-    {
-        super(s3MockContainer.container().getHost(), false, Optional.of(s3MockContainer.container().getFirstMappedPort()));
-
-        host = s3MockContainer.container().getHost();
-    }
+    private volatile RemoteS3Facade delegate = new StandardS3RemoteS3Facade();
 
     @Override
-    protected String buildHost(String ignore)
+    public URI buildEndpoint(UriBuilder uriBuilder, String path, String bucket, String region)
     {
-        return host;
+        return delegate.buildEndpoint(uriBuilder, path, bucket, region);
+    }
+
+    public void setDelegate(RemoteS3Facade delegate)
+    {
+        this.delegate = requireNonNull(delegate, "delegate is null");
     }
 }

@@ -64,7 +64,7 @@ public class ManagedS3MockContainer
     public @interface ForS3MockContainer {}
 
     @Inject
-    public ManagedS3MockContainer(@ForS3MockContainer String initialBuckets, @ForS3MockContainer Credential credential)
+    public ManagedS3MockContainer(@ForS3MockContainer String initialBuckets, @ForS3MockContainer Credential credential, TestingRemoteS3Facade testingRemoteS3Facade)
     {
         this.initialBuckets = requireNonNull(initialBuckets, "initialBuckets is null");
         this.credential = requireNonNull(credential, "credential is null");
@@ -77,6 +77,8 @@ public class ManagedS3MockContainer
                 .withCopyToContainer(transferable, "/root/.mc/config.json");
 
         container.start();
+
+        testingRemoteS3Facade.setDelegate(new MockRemoteS3Facade(container.getHost(), container.getFirstMappedPort()));
     }
 
     public GenericContainer<?> container()
