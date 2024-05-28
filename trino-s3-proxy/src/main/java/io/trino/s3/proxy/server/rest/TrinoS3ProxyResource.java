@@ -27,6 +27,7 @@ import jakarta.ws.rs.core.Context;
 import org.glassfish.jersey.server.ContainerRequest;
 
 import java.util.List;
+import java.util.Optional;
 
 import static java.util.Objects.requireNonNull;
 
@@ -53,7 +54,7 @@ public class TrinoS3ProxyResource
     @Path("{path:.*}")
     public void s3Get(@Context ContainerRequest request, @Suspended AsyncResponse asyncResponse, @PathParam("path") String path)
     {
-        proxyClient.proxyRequest(signingController.validateAndParseAuthorization(request, SigningServiceType.S3), request, asyncResponse, getBucket(path));
+        proxyClient.proxyRequest(signingController.validateAndParseAuthorization(request, SigningServiceType.S3, Optional.empty()), request, asyncResponse, getBucket(path));
     }
 
     @HEAD
@@ -66,7 +67,7 @@ public class TrinoS3ProxyResource
     @Path("{path:.*}")
     public void s3Head(@Context ContainerRequest request, @Suspended AsyncResponse asyncResponse, @PathParam("path") String path)
     {
-        proxyClient.proxyRequest(signingController.validateAndParseAuthorization(request, SigningServiceType.S3), request, asyncResponse, getBucket(path));
+        proxyClient.proxyRequest(signingController.validateAndParseAuthorization(request, SigningServiceType.S3, Optional.empty()), request, asyncResponse, getBucket(path));
     }
 
     private String getBucket(String path)

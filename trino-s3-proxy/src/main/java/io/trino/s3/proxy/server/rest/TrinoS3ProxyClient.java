@@ -34,6 +34,7 @@ import java.lang.annotation.Target;
 import java.net.URI;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -108,7 +109,8 @@ public class TrinoS3ProxyClient
                 realUri,
                 realRequestHeaders,
                 request.getUriInfo().getQueryParameters(),
-                request.getMethod());
+                request.getMethod(),
+                Optional.empty());
         realRequestHeaders.putSingle("Authorization", signature);
 
         // requestHeaders now has correct values, copy to the real request
