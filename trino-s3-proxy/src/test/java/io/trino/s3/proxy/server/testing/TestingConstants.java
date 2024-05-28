@@ -14,6 +14,7 @@
 package io.trino.s3.proxy.server.testing;
 
 import com.google.inject.BindingAnnotation;
+import io.trino.s3.proxy.server.credentials.Credential;
 import io.trino.s3.proxy.server.credentials.Credentials;
 
 import java.lang.annotation.Retention;
@@ -28,8 +29,8 @@ import static java.lang.annotation.RetentionPolicy.RUNTIME;
 public final class TestingConstants
 {
     public static final Credentials TESTING_CREDENTIALS = new Credentials(
-            new Credentials.Credential(UUID.randomUUID().toString(), UUID.randomUUID().toString()),
-            new Credentials.Credential(UUID.randomUUID().toString(), UUID.randomUUID().toString()));
+            new Credential(UUID.randomUUID().toString(), UUID.randomUUID().toString()),
+            new Credential(UUID.randomUUID().toString(), UUID.randomUUID().toString()));
 
     @Retention(RUNTIME)
     @Target({FIELD, PARAMETER, METHOD})
