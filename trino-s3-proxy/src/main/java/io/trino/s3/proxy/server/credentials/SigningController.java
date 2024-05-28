@@ -46,7 +46,7 @@ public class SigningController
     }
 
     public Optional<SigningMetadata> signingMetadataFromRequest(
-            Function<Credentials, Credentials.Credential> credentialsSupplier,
+            Function<Credentials, Credential> credentialsSupplier,
             URI requestURI,
             MultivaluedMap<String, String> requestHeaders,
             MultivaluedMap<String, String> queryParameters,
@@ -86,13 +86,13 @@ public class SigningController
 
     public String signRequest(
             SigningMetadata metadata,
-            Function<Credentials, Credentials.Credential> credentialsSupplier,
+            Function<Credentials, Credential> credentialsSupplier,
             URI requestURI,
             MultivaluedMap<String, String> requestHeaders,
             MultivaluedMap<String, String> queryParameters,
             String httpMethod)
     {
-        Credentials.Credential credential = credentialsSupplier.apply(metadata.credentials());
+        Credential credential = credentialsSupplier.apply(metadata.credentials());
 
         return Signer.sign(
                 "s3",
@@ -109,7 +109,7 @@ public class SigningController
 
     private boolean isValidAuthorization(
             SigningMetadata metadata,
-            Function<Credentials, Credentials.Credential> credentialsSupplier,
+            Function<Credentials, Credential> credentialsSupplier,
             String authorizationHeader,
             URI requestURI,
             MultivaluedMap<String, String> requestHeaders,

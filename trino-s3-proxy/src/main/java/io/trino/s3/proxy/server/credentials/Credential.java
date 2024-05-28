@@ -15,11 +15,11 @@ package io.trino.s3.proxy.server.credentials;
 
 import static java.util.Objects.requireNonNull;
 
-public record Credentials(Credential emulated, Credential real)
+public record Credential(String accessKey, String secretKey)
 {
-    public Credentials
+    public Credential
     {
-        requireNonNull(emulated, "emulated is null");
-        requireNonNull(real, "real is null");
+        requireNonNull(accessKey, "accessKey is null");
+        requireNonNull(secretKey, "secretKey is null");
     }
 }
