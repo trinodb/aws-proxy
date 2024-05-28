@@ -75,6 +75,7 @@ public class TrinoS3ProxyTestExtension
 
         Injector injector = trinoS3ProxyServer.getInjector()
                 .createChildInjector(binder -> {
+                    binder.bind(TestingS3ClientProvider.class).in(Scopes.SINGLETON);
                     binder.bind(S3Client.class).toProvider(TestingS3ClientProvider.class).in(Scopes.SINGLETON);
                     binder.bind(TestingTrinoS3ProxyServer.class).toInstance(trinoS3ProxyServer);
                     binder.bind(factoryContext.getTestClass()).in(Scopes.SINGLETON);
