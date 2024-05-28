@@ -19,6 +19,7 @@ import io.trino.s3.proxy.server.credentials.Credentials;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.Target;
+import java.util.Optional;
 import java.util.UUID;
 
 import static java.lang.annotation.ElementType.FIELD;
@@ -30,7 +31,7 @@ public final class TestingConstants
 {
     public static final Credentials TESTING_CREDENTIALS = new Credentials(
             new Credential(UUID.randomUUID().toString(), UUID.randomUUID().toString()),
-            new Credential(UUID.randomUUID().toString(), UUID.randomUUID().toString()));
+            Optional.of(new Credential(UUID.randomUUID().toString(), UUID.randomUUID().toString())));
 
     @Retention(RUNTIME)
     @Target({FIELD, PARAMETER, METHOD})

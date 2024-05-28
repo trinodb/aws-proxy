@@ -41,6 +41,7 @@ public class TestingS3ClientProvider
             @ForTestingCredentials Credentials testingCredentials)
     {
         this.testingCredentials = requireNonNull(testingCredentials, "testingCredentials is null").emulated();
+
         URI baseUrl = trinoS3ProxyServer.getInjector().getInstance(TestingHttpServer.class).getBaseUrl();
         localProxyServerUri = UriBuilder.fromUri(baseUrl).path(TrinoS3ProxyResource.class).build();
     }

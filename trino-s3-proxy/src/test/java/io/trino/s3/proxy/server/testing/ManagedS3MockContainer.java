@@ -77,7 +77,7 @@ public class ManagedS3MockContainer
     public ManagedS3MockContainer(@ForS3MockContainer String initialBuckets, @ForTestingCredentials Credentials credentials)
     {
         this.initialBuckets = requireNonNull(initialBuckets, "initialBuckets is null");
-        this.credential = requireNonNull(credentials, "credentials is null").real();
+        this.credential = requireNonNull(credentials, "credentials is null").requiredRealCredential();
 
         Transferable transferable = Transferable.of(CONFIG_TEMPLATE.formatted(credential.accessKey(), credential.secretKey()));
         container = new MinIOContainer(MINIO_IMAGE_NAME + ":" + MINIO_IMAGE_TAG)
