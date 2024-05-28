@@ -104,7 +104,7 @@ public class TrinoS3ProxyClient
         String encodedPath = firstNonNull(realUri.getRawPath(), "");
         String signature = signingController.signRequest(
                 signingMetadata,
-                Credentials::real,
+                Credentials::requiredRealCredential,
                 realUri,
                 realRequestHeaders,
                 request.getUriInfo().getQueryParameters(),

@@ -13,13 +13,25 @@
  */
 package io.trino.s3.proxy.server.credentials;
 
+import java.util.Optional;
+
 import static java.util.Objects.requireNonNull;
 
-public record Credentials(Credential emulated, Credential real)
+public record Credentials(Credential emulated, Optional<Credential> real)
 {
     public Credentials
     {
         requireNonNull(emulated, "emulated is null");
         requireNonNull(real, "real is null");
+    }
+
+    public Credential requiredRealCredential()
+    {
+        return real.orElseThrow(() -> new IllegalStateException("Credentials are emulated only and cannot be used for remote access"));
+    }
+
+    public Credentials(Credential emulated)
+    {
+        this(emulated, Optional.empty());
     }
 }

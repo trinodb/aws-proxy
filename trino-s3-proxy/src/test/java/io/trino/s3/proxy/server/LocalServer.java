@@ -19,6 +19,8 @@ import io.trino.s3.proxy.server.credentials.Credential;
 import io.trino.s3.proxy.server.credentials.Credentials;
 import io.trino.s3.proxy.server.testing.TestingTrinoS3ProxyServer;
 
+import java.util.Optional;
+
 public final class LocalServer
 {
     private static final Logger log = Logger.get(LocalServer.class);
@@ -37,7 +39,7 @@ public final class LocalServer
         String emulatedSecretKey = args[1];
         String realAccessKey = args[2];
         String realSecretKey = args[3];
-        Credentials credentials = new Credentials(new Credential(emulatedAccessKey, emulatedSecretKey), new Credential(realAccessKey, realSecretKey));
+        Credentials credentials = new Credentials(new Credential(emulatedAccessKey, emulatedSecretKey), Optional.of(new Credential(realAccessKey, realSecretKey)));
 
         TestingTrinoS3ProxyServer trinoS3ProxyServer = TestingTrinoS3ProxyServer.builder().buildAndStart();
         trinoS3ProxyServer.getCredentialsController().addCredentials(credentials);
