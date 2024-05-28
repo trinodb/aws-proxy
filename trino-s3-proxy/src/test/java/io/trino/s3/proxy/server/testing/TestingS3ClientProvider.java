@@ -24,6 +24,7 @@ import jakarta.ws.rs.core.UriBuilder;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.S3ClientBuilder;
 
 import java.net.URI;
 
@@ -51,10 +52,15 @@ public class TestingS3ClientProvider
     {
         AwsBasicCredentials awsBasicCredentials = AwsBasicCredentials.create(testingCredentials.accessKey(), testingCredentials.secretKey());
 
+        return newClientBuilder()
+                .credentialsProvider(() -> awsBasicCredentials)
+                .build();
+    }
+
+    public S3ClientBuilder newClientBuilder()
+    {
         return S3Client.builder()
                 .region(Region.US_EAST_1)
-                .credentialsProvider(() -> awsBasicCredentials)
-                .endpointOverride(localProxyServerUri)
-                .build();
+                .endpointOverride(localProxyServerUri);
     }
 }
