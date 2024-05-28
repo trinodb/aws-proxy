@@ -19,6 +19,7 @@ import org.junit.jupiter.api.Test;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.Bucket;
 import software.amazon.awssdk.services.s3.model.ListBucketsResponse;
+import software.amazon.awssdk.services.s3.model.ListObjectsResponse;
 
 import static java.util.Objects.requireNonNull;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -37,9 +38,12 @@ public class TestProxiedRequests
     @Test
     public void testListBuckets()
     {
-        ListBucketsResponse response = s3Client.listBuckets();
-        assertThat(response.buckets())
+        ListBucketsResponse listBucketsResponse = s3Client.listBuckets();
+        assertThat(listBucketsResponse.buckets())
                 .extracting(Bucket::name)
                 .containsExactlyInAnyOrder("one", "two", "three");
+
+        ListObjectsResponse listObjectsResponse = s3Client.listObjects(request -> request.bucket("one"));
+        assertThat(listObjectsResponse.contents()).isEmpty();
     }
 }

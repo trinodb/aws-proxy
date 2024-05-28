@@ -18,7 +18,6 @@ import com.google.inject.Provider;
 import io.airlift.http.server.testing.TestingHttpServer;
 import io.trino.s3.proxy.server.credentials.Credentials;
 import io.trino.s3.proxy.server.credentials.Credentials.Credential;
-import io.trino.s3.proxy.server.rest.S3EndpointBuilder;
 import io.trino.s3.proxy.server.rest.TrinoS3ProxyResource;
 import io.trino.s3.proxy.server.testing.ManagedS3MockContainer.ForS3MockContainer;
 import jakarta.ws.rs.core.UriBuilder;
@@ -35,23 +34,16 @@ public class TestingS3ClientProvider
     private final Credentials credentials;
     private final URI localProxyServerUri;
 
-    @SuppressWarnings("resource")
     @Inject
     public TestingS3ClientProvider(
             TestingTrinoS3ProxyServer trinoS3ProxyServer,
             ManagedS3MockContainer container,
             @ForS3MockContainer Credential containerCredential,
             TestingCredentialsController credentialsController,
-            TestingS3EndpointBuilder endpointBuilder)
+            TestingRemoteS3Facade endpointBuilder)
     {
         credentials = new Credentials(new Credential(UUID.randomUUID().toString(), UUID.randomUUID().toString()), containerCredential);
         credentialsController.addCredentials(credentials);
-
-        S3EndpointBuilder mockS3EndpointBuilder = (uriBuilder, path, ignore1, ignore2) -> uriBuilder.host(container.container().getHost())
-                .port(container.container().getFirstMappedPort())
-                .replacePath(path)
-                .build();
-        endpointBuilder.setDelegate(mockS3EndpointBuilder);
 
         URI baseUrl = trinoS3ProxyServer.getInjector().getInstance(TestingHttpServer.class).getBaseUrl();
         localProxyServerUri = UriBuilder.fromUri(baseUrl).path(TrinoS3ProxyResource.class).build();

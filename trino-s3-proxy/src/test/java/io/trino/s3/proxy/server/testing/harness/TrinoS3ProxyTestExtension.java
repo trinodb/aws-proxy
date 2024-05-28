@@ -60,17 +60,19 @@ public class TrinoS3ProxyTestExtension
             builder = filter.filter(builder);
         }
 
-        TestingTrinoS3ProxyServer trinoS3ProxyServer = builder
-                .buildAndStart();
-        testingServersRegistry.put(extensionContext.getUniqueId(), trinoS3ProxyServer);
-
         Credential containerCredential = new Credential(UUID.randomUUID().toString(), UUID.randomUUID().toString());
 
-        Injector injector = trinoS3ProxyServer.getInjector()
-                .createChildInjector(binder -> {
+        TestingTrinoS3ProxyServer trinoS3ProxyServer = builder
+                .addModule(binder -> {
                     binder.bind(String.class).annotatedWith(ForS3MockContainer.class).toInstance(trinoS3ProxyTest.initialBuckets());
                     binder.bind(Credential.class).annotatedWith(ForS3MockContainer.class).toInstance(containerCredential);
                     binder.bind(ManagedS3MockContainer.class).asEagerSingleton();
+                })
+                .buildAndStart();
+        testingServersRegistry.put(extensionContext.getUniqueId(), trinoS3ProxyServer);
+
+        Injector injector = trinoS3ProxyServer.getInjector()
+                .createChildInjector(binder -> {
                     binder.bind(S3Client.class).toProvider(TestingS3ClientProvider.class).in(Scopes.SINGLETON);
                     binder.bind(TestingTrinoS3ProxyServer.class).toInstance(trinoS3ProxyServer);
                     binder.bind(factoryContext.getTestClass()).in(Scopes.SINGLETON);
