@@ -18,6 +18,7 @@ import com.google.inject.Inject;
 import io.trino.s3.proxy.server.credentials.Credentials;
 import io.trino.s3.proxy.server.credentials.SigningController;
 import io.trino.s3.proxy.server.credentials.SigningMetadata;
+import io.trino.s3.proxy.server.credentials.SigningServiceType;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.HEAD;
 import jakarta.ws.rs.Path;
@@ -81,6 +82,7 @@ public class TrinoS3ProxyResource
     private SigningMetadata validateAndParseAuthorization(ContainerRequest request)
     {
         return signingController.signingMetadataFromRequest(
+                        SigningServiceType.S3,
                         Credentials::emulated,
                         request.getRequestUri(),
                         request.getRequestHeaders(),
