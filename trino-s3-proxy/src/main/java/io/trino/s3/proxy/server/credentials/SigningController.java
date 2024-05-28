@@ -28,7 +28,9 @@ import java.util.Optional;
 import java.util.function.Function;
 
 import static io.trino.s3.proxy.server.credentials.Signer.AMZ_DATE_FORMAT;
+import static io.trino.s3.proxy.server.credentials.Signer.RESPONSE_DATE_FORMAT;
 import static io.trino.s3.proxy.server.credentials.Signer.UTC;
+import static io.trino.s3.proxy.server.credentials.Signer.ZONE;
 import static java.util.Objects.requireNonNull;
 
 public class SigningController
@@ -45,7 +47,12 @@ public class SigningController
 
     public static String formatRequestInstant(Instant instant)
     {
-        return instant.atZone(UTC).format(AMZ_DATE_FORMAT);
+        return instant.atZone(ZONE).format(AMZ_DATE_FORMAT);
+    }
+
+    public static String formatResponseInstant(Instant instant)
+    {
+        return instant.atZone(UTC).format(RESPONSE_DATE_FORMAT);
     }
 
     public String signRequest(
@@ -83,20 +90,6 @@ public class SigningController
                 request.getMethod(),
                 entity)
                 .orElseThrow(() -> new WebApplicationException(Response.Status.UNAUTHORIZED));
-    }
-
-    private boolean isValidAuthorization(
-            SigningMetadata metadata,
-            Function<Credentials, Credential> credentialsSupplier,
-            String authorizationHeader,
-            URI requestURI,
-            MultivaluedMap<String, String> requestHeaders,
-            MultivaluedMap<String, String> queryParameters,
-            String httpMethod,
-            Optional<byte[]> entity)
-    {
-        String expectedAuthorization = signRequest(metadata, credentialsSupplier, requestURI, requestHeaders, queryParameters, httpMethod, entity);
-        return authorizationHeader.equals(expectedAuthorization);
     }
 
     private Optional<SigningMetadata> signingMetadataFromRequest(
@@ -138,5 +131,19 @@ public class SigningController
         return credentialsController.credentials(emulatedAccessKey, session)
                 .map(credentials -> new SigningMetadata(signingServiceType, credentials, session, region))
                 .filter(metadata -> isValidAuthorization(metadata, credentialsSupplier, authorization, requestURI, requestHeaders, queryParameters, httpMethod, entity));
+    }
+
+    private boolean isValidAuthorization(
+            SigningMetadata metadata,
+            Function<Credentials, Credential> credentialsSupplier,
+            String authorizationHeader,
+            URI requestURI,
+            MultivaluedMap<String, String> requestHeaders,
+            MultivaluedMap<String, String> queryParameters,
+            String httpMethod,
+            Optional<byte[]> entity)
+    {
+        String expectedAuthorization = signRequest(metadata, credentialsSupplier, requestURI, requestHeaders, queryParameters, httpMethod, entity);
+        return authorizationHeader.equals(expectedAuthorization);
     }
 }

@@ -35,6 +35,7 @@ public class TrinoS3ProxyServerModule
     public final void configure(Binder binder)
     {
         jaxrsBinder(binder).bind(TrinoS3ProxyResource.class);
+
         configBinder(binder).bindConfig(SigningControllerConfig.class);
         binder.bind(SigningController.class).in(Scopes.SINGLETON);
 
