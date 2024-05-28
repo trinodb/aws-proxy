@@ -18,4 +18,20 @@ import java.util.Optional;
 public interface CredentialsController
 {
     Optional<Credentials> credentials(String emulatedAccessKey, Optional<String> session);
+
+    /**
+     * Assume a role if possible. The details of role assuming are implementation
+     * specific. Your implementation should have a centralized role assuming
+     * mechanism, likely some type of database along with a way of registering
+     * roles assuming policies, etc.
+     */
+    default Optional<EmulatedAssumedRole> assumeRole(
+            SigningMetadata signingMetadata,
+            String requestArn,
+            Optional<String> requestExternalId,
+            Optional<String> requestRoleSessionName,
+            Optional<Integer> requestDurationSeconds)
+    {
+        return Optional.empty();
+    }
 }
