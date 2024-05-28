@@ -46,6 +46,7 @@ public class SigningController
     }
 
     public Optional<SigningMetadata> signingMetadataFromRequest(
+            SigningServiceType signingServiceType,
             Function<Credentials, Credential> credentialsSupplier,
             URI requestURI,
             MultivaluedMap<String, String> requestHeaders,
@@ -80,7 +81,7 @@ public class SigningController
         Optional<String> session = Optional.ofNullable(requestHeaders.getFirst("x-amz-security-token"));
 
         return credentialsController.credentials(emulatedAccessKey, session)
-                .map(credentials -> new SigningMetadata(credentials, session, region))
+                .map(credentials -> new SigningMetadata(signingServiceType, credentials, session, region))
                 .filter(metadata -> isValidAuthorization(metadata, credentialsSupplier, authorization, requestURI, requestHeaders, queryParameters, httpMethod));
     }
 
@@ -95,7 +96,7 @@ public class SigningController
         Credential credential = credentialsSupplier.apply(metadata.credentials());
 
         return Signer.sign(
-                "s3",
+                metadata.signingServiceType().asServiceName(),
                 requestURI,
                 requestHeaders,
                 queryParameters,

@@ -13,17 +13,15 @@
  */
 package io.trino.s3.proxy.server.credentials;
 
-import java.util.Optional;
+import java.util.Locale;
 
-import static java.util.Objects.requireNonNull;
-
-public record SigningMetadata(SigningServiceType signingServiceType, Credentials credentials, Optional<String> session, String region)
+public enum SigningServiceType
 {
-    public SigningMetadata
+    S3,
+    STS;
+
+    public String asServiceName()
     {
-        requireNonNull(signingServiceType, "signingService is null");
-        requireNonNull(credentials, "credentials is null");
-        requireNonNull(session, "session is null");
-        requireNonNull(region, "region is null");
+        return name().toLowerCase(Locale.ROOT);
     }
 }

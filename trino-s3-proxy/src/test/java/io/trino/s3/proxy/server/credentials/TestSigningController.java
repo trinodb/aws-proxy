@@ -46,7 +46,7 @@ public class TestSigningController
         requestHeaders.putSingle("Accept-Encoding", "identity");
 
         String signature = signingController.signRequest(
-                new SigningMetadata(CREDENTIALS, Optional.empty(), "us-east-1"),
+                new SigningMetadata(SigningServiceType.S3, CREDENTIALS, Optional.empty(), "us-east-1"),
                 Credentials::emulated,
                 URI.create("http://localhost:10064/"),
                 requestHeaders,
@@ -71,7 +71,7 @@ public class TestSigningController
         requestHeaders.putSingle("Accept-Encoding", "identity");
 
         assertThatThrownBy(() -> signingController.signRequest(
-                new SigningMetadata(CREDENTIALS, Optional.empty(), "us-east-1"),
+                new SigningMetadata(SigningServiceType.S3, CREDENTIALS, Optional.empty(), "us-east-1"),
                 Credentials::emulated,
                 URI.create("http://localhost:10064/"),
                 requestHeaders,
@@ -98,7 +98,7 @@ public class TestSigningController
         queryParameters.putSingle("encoding-type", "url");
 
         String signature = signingController.signRequest(
-                new SigningMetadata(CREDENTIALS, Optional.empty(), "us-east-1"),
+                new SigningMetadata(SigningServiceType.S3, CREDENTIALS, Optional.empty(), "us-east-1"),
                 Credentials::emulated,
                 URI.create("http://localhost:10064/mybucket"),
                 requestHeaders,
