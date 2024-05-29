@@ -59,8 +59,7 @@ public class TestAssumingRoles
     @Test
     public void testStsSession()
     {
-        SigningMetadata mockedSigningMetadata = new SigningMetadata(SigningServiceType.S3, testingCredentials, Optional.empty(), "us-east-1");
-        EmulatedAssumedRole emulatedAssumedRole = credentialsController.assumeEmulatedRole(mockedSigningMetadata, ARN, Optional.empty(), Optional.empty(), Optional.empty())
+        EmulatedAssumedRole emulatedAssumedRole = credentialsController.assumeEmulatedRole(testingCredentials.emulated(), "us-east-1", ARN, Optional.empty(), Optional.empty(), Optional.empty())
                 .orElseThrow(() -> new RuntimeException("Failed to assume role"));
 
         try (S3Client client = clientBuilder(httpServer)

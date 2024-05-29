@@ -13,13 +13,21 @@
  */
 package io.trino.s3.proxy.server.credentials;
 
+import java.util.Optional;
+
 import static java.util.Objects.requireNonNull;
 
-public record Credential(String accessKey, String secretKey)
+public record Credential(String accessKey, String secretKey, Optional<String> session)
 {
     public Credential
     {
         requireNonNull(accessKey, "accessKey is null");
         requireNonNull(secretKey, "secretKey is null");
+        requireNonNull(session, "session is null");
+    }
+
+    public Credential(String accessKey, String secretKey)
+    {
+        this(accessKey, secretKey, Optional.empty());
     }
 }
