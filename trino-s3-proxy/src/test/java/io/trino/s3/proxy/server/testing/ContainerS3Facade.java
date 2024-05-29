@@ -15,30 +15,33 @@ package io.trino.s3.proxy.server.testing;
 
 import com.google.inject.Inject;
 import io.trino.s3.proxy.server.remote.PathStyleRemoteS3Facade;
+import io.trino.s3.proxy.server.remote.VirtualHostStyleRemoteS3Facade;
 
 import java.util.Optional;
 
-public class ContainerS3Facade
-        extends PathStyleRemoteS3Facade
+import static io.trino.s3.proxy.server.testing.TestingConstants.LOCALHOST_DOMAIN;
+
+public final class ContainerS3Facade
 {
-    private final ManagedS3MockContainer.ContainerHost containerHost;
-
-    @Inject
-    public ContainerS3Facade(ManagedS3MockContainer s3MockContainer, TestingRemoteS3Facade delegatingFacade)
+    public static class PathStyleContainerS3Facade
+            extends PathStyleRemoteS3Facade
     {
-        this(s3MockContainer.getContainerHost(), delegatingFacade);
+        @Inject
+        public PathStyleContainerS3Facade(ManagedS3MockContainer s3MockContainer, TestingRemoteS3Facade delegatingFacade)
+        {
+            super((ignored1, ignored2) -> s3MockContainer.getContainerHost().host(), false, Optional.of(s3MockContainer.getContainerHost().port()));
+            delegatingFacade.setDelegate(this);
+        }
     }
 
-    private ContainerS3Facade(ManagedS3MockContainer.ContainerHost containerHost, TestingRemoteS3Facade delegatingFacade)
+    public static class VirtualHostStyleContainerS3Facade
+            extends VirtualHostStyleRemoteS3Facade
     {
-        super(containerHost.host(), false, Optional.of(containerHost.port()));
-        this.containerHost = containerHost;
-        delegatingFacade.setDelegate(this);
-    }
-
-    @Override
-    protected String buildHost(String ignore)
-    {
-        return containerHost.host();
+        @Inject
+        public VirtualHostStyleContainerS3Facade(ManagedS3MockContainer s3MockContainer, TestingRemoteS3Facade delegatingFacade)
+        {
+            super((bucket, ignored) -> bucket.isEmpty() ? LOCALHOST_DOMAIN : "%s.%s".formatted(bucket, LOCALHOST_DOMAIN), false, Optional.of(s3MockContainer.getContainerHost().port()));
+            delegatingFacade.setDelegate(this);
+        }
     }
 }

@@ -17,16 +17,17 @@ import com.google.inject.Inject;
 import io.trino.s3.proxy.server.testing.ManagedS3MockContainer.ForS3MockContainer;
 import io.trino.s3.proxy.server.testing.harness.TrinoS3ProxyTest;
 import io.trino.s3.proxy.server.testing.harness.TrinoS3ProxyTestCommonModules.WithConfiguredBuckets;
+import io.trino.s3.proxy.server.testing.harness.TrinoS3ProxyTestCommonModules.WithVirtualHostAddressing;
 import software.amazon.awssdk.services.s3.S3Client;
 
 import java.util.List;
 
-@TrinoS3ProxyTest(modules = WithConfiguredBuckets.class)
-public class TestProxiedRequests
+@TrinoS3ProxyTest(modules = {WithConfiguredBuckets.class, WithVirtualHostAddressing.class})
+public class TestProxiedRequestsToVirtualHostEndpoint
         extends AbstractTestProxiedRequests
 {
     @Inject
-    public TestProxiedRequests(S3Client s3Client, @ForS3MockContainer S3Client storageClient, @ForS3MockContainer List<String> configuredBuckets)
+    public TestProxiedRequestsToVirtualHostEndpoint(S3Client s3Client, @ForS3MockContainer S3Client storageClient, @ForS3MockContainer List<String> configuredBuckets)
     {
         super(s3Client, storageClient, configuredBuckets);
     }

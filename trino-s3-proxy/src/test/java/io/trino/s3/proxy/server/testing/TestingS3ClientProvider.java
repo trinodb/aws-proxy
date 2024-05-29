@@ -19,7 +19,7 @@ import io.airlift.http.server.testing.TestingHttpServer;
 import io.trino.s3.proxy.server.credentials.Credential;
 import io.trino.s3.proxy.server.credentials.Credentials;
 import io.trino.s3.proxy.server.rest.TrinoS3ProxyResource;
-import io.trino.s3.proxy.server.testing.TestingConstants.ForTestingCredentials;
+import io.trino.s3.proxy.server.testing.TestingConstants.ForTesting;
 import jakarta.ws.rs.core.UriBuilder;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.regions.Region;
@@ -39,7 +39,7 @@ public class TestingS3ClientProvider
     @Inject
     public TestingS3ClientProvider(
             TestingTrinoS3ProxyServer trinoS3ProxyServer,
-            @ForTestingCredentials Credentials testingCredentials)
+            @ForTesting Credentials testingCredentials)
     {
         this.testingCredentials = requireNonNull(testingCredentials, "testingCredentials is null").emulated();
 

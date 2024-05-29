@@ -13,6 +13,7 @@
  */
 package io.trino.s3.proxy.server.testing.harness;
 
+import com.google.inject.Module;
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.extension.ExtendWith;
 
@@ -34,6 +35,4 @@ public @interface TrinoS3ProxyTest
     Class<? extends Module>[] modules() default {};
 
     Class<? extends BuilderFilter>[] filters() default {};
-
-    String initialBuckets() default "";
 }

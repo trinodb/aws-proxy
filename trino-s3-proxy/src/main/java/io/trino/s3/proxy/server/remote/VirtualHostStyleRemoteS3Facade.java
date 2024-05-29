@@ -18,23 +18,24 @@ import jakarta.ws.rs.core.UriBuilder;
 import java.net.URI;
 import java.util.Optional;
 
+import static io.trino.s3.proxy.server.remote.AwsRemoteS3FacadeConstants.VIRTUAL_HOST_BUILDER;
 import static java.util.Objects.requireNonNull;
 
-public class StandardS3RemoteS3Facade
+public class VirtualHostStyleRemoteS3Facade
         implements RemoteS3Facade
 {
-    private final String domain;
+    private final RemoteS3HostBuilder hostBuilder;
     private final boolean https;
     private final Optional<Integer> port;
 
-    public StandardS3RemoteS3Facade()
+    public VirtualHostStyleRemoteS3Facade()
     {
-        this("amazonaws.com", true, Optional.empty());
+        this(VIRTUAL_HOST_BUILDER, true, Optional.empty());
     }
 
-    public StandardS3RemoteS3Facade(String domain, boolean https, Optional<Integer> port)
+    public VirtualHostStyleRemoteS3Facade(RemoteS3HostBuilder hostBuilder, boolean https, Optional<Integer> port)
     {
-        this.domain = requireNonNull(domain, "domain is null");
+        this.hostBuilder = requireNonNull(hostBuilder, "hostBuilder is null");
         this.port = requireNonNull(port, "port is null");
         this.https = https;
     }
@@ -42,7 +43,7 @@ public class StandardS3RemoteS3Facade
     @Override
     public URI buildEndpoint(UriBuilder uriBuilder, String path, String bucket, String region)
     {
-        String host = bucket.isEmpty() ? "s3.%s.%s".formatted(region, domain) : "%s.s3.%s.%s".formatted(bucket, region, domain);
+        String host = hostBuilder.build(bucket, region);
 
         UriBuilder builder = uriBuilder.host(host)
                 .scheme(https ? "https" : "http")

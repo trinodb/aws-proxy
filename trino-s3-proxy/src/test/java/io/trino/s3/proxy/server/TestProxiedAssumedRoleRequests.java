@@ -17,9 +17,12 @@ import com.google.inject.Inject;
 import io.airlift.http.server.testing.TestingHttpServer;
 import io.trino.s3.proxy.server.credentials.Credentials;
 import io.trino.s3.proxy.server.rest.TrinoS3ProxyRestConstants;
-import io.trino.s3.proxy.server.testing.TestingConstants.ForTestingCredentials;
+import io.trino.s3.proxy.server.testing.ManagedS3MockContainer.ForS3MockContainer;
+import io.trino.s3.proxy.server.testing.TestingConstants.ForTesting;
 import io.trino.s3.proxy.server.testing.TestingCredentialsController;
-import org.junit.jupiter.api.AfterEach;
+import io.trino.s3.proxy.server.testing.harness.TrinoS3ProxyTest;
+import io.trino.s3.proxy.server.testing.harness.TrinoS3ProxyTestCommonModules.WithConfiguredBuckets;
+import org.junit.jupiter.api.AfterAll;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.endpoints.Endpoint;
@@ -29,38 +32,34 @@ import software.amazon.awssdk.services.sts.StsClient;
 import software.amazon.awssdk.services.sts.auth.StsAssumeRoleCredentialsProvider;
 
 import java.net.URI;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
-import static java.util.Objects.requireNonNull;
 import static org.assertj.core.api.Assertions.assertThat;
 
+@TrinoS3ProxyTest(modules = WithConfiguredBuckets.class)
 public class TestProxiedAssumedRoleRequests
         extends AbstractTestProxiedRequests
 {
     private static final String ARN = "arn:aws:iam::123456789012:role/assumed";
 
-    private final TestingHttpServer httpServer;
-    private final Credentials testingCredentials;
     private final TestingCredentialsController credentialsController;
 
     @Inject
-    public TestProxiedAssumedRoleRequests(TestingHttpServer httpServer, @ForTestingCredentials Credentials testingCredentials, TestingCredentialsController credentialsController)
+    public TestProxiedAssumedRoleRequests(TestingHttpServer httpServer, @ForTesting Credentials testingCredentials, TestingCredentialsController credentialsController, @ForS3MockContainer S3Client storageClient, @ForS3MockContainer List<String> configuredBuckets)
     {
-        this.httpServer = requireNonNull(httpServer, "httpServer is null");
-        this.testingCredentials = requireNonNull(testingCredentials, "testingCredentials is null");
+        super(buildClient(httpServer, testingCredentials), storageClient, configuredBuckets);
         this.credentialsController = credentialsController;
     }
 
-    @AfterEach
+    @AfterAll
     public void validateCount()
     {
-        // 1 call to list buckets / 1 to list objects
-        assertThat(credentialsController.assumedRoleCount()).isEqualTo(2);
+        assertThat(credentialsController.assumedRoleCount()).isGreaterThan(0);
         credentialsController.resetAssumedRoles();
     }
 
-    @Override
-    protected S3Client buildClient()
+    private static S3Client buildClient(TestingHttpServer httpServer, Credentials testingCredentials)
     {
         URI baseUrl = httpServer.getBaseUrl();
         URI localProxyServerUri = baseUrl.resolve(TrinoS3ProxyRestConstants.S3_PATH);

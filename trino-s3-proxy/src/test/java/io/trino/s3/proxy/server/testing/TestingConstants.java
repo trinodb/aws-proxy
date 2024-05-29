@@ -33,10 +33,13 @@ public final class TestingConstants
             new Credential(UUID.randomUUID().toString(), UUID.randomUUID().toString()),
             Optional.of(new Credential(UUID.randomUUID().toString(), UUID.randomUUID().toString())));
 
+    // Domain name with a wildcard CNAME pointing to localhost - needed to test Virtual Host style addressing
+    public static final String LOCALHOST_DOMAIN = "local.gate0.net";
+
     @Retention(RUNTIME)
     @Target({FIELD, PARAMETER, METHOD})
     @BindingAnnotation
-    public @interface ForTestingCredentials {}
+    public @interface ForTesting {}
 
     private TestingConstants() {}
 }

@@ -19,7 +19,7 @@ import com.google.inject.Scopes;
 import io.trino.s3.proxy.server.credentials.SigningController;
 import io.trino.s3.proxy.server.credentials.SigningControllerConfig;
 import io.trino.s3.proxy.server.remote.RemoteS3Facade;
-import io.trino.s3.proxy.server.remote.StandardS3RemoteS3Facade;
+import io.trino.s3.proxy.server.remote.VirtualHostStyleRemoteS3Facade;
 import io.trino.s3.proxy.server.rest.TrinoS3ProxyClient;
 import io.trino.s3.proxy.server.rest.TrinoS3ProxyClient.ForProxyClient;
 import io.trino.s3.proxy.server.rest.TrinoS3ProxyResource;
@@ -50,6 +50,6 @@ public class TrinoS3ProxyServerModule
 
     protected void moduleSpecificBinding(Binder binder)
     {
-        binder.bind(RemoteS3Facade.class).to(StandardS3RemoteS3Facade.class).in(Scopes.SINGLETON);
+        binder.bind(RemoteS3Facade.class).to(VirtualHostStyleRemoteS3Facade.class).in(Scopes.SINGLETON);
     }
 }
