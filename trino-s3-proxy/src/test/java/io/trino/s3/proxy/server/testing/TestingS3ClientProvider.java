@@ -19,32 +19,28 @@ import io.airlift.http.server.testing.TestingHttpServer;
 import io.trino.s3.proxy.server.credentials.Credentials;
 import io.trino.s3.proxy.server.credentials.Credentials.Credential;
 import io.trino.s3.proxy.server.rest.TrinoS3ProxyResource;
-import io.trino.s3.proxy.server.testing.ManagedS3MockContainer.ForS3MockContainer;
+import io.trino.s3.proxy.server.testing.TestingConstants.ForTestingCredentials;
 import jakarta.ws.rs.core.UriBuilder;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3Client;
 
 import java.net.URI;
-import java.util.UUID;
+
+import static java.util.Objects.requireNonNull;
 
 public class TestingS3ClientProvider
         implements Provider<S3Client>
 {
-    private final Credentials credentials;
+    private final Credential testingCredentials;
     private final URI localProxyServerUri;
 
     @Inject
     public TestingS3ClientProvider(
             TestingTrinoS3ProxyServer trinoS3ProxyServer,
-            ManagedS3MockContainer container,
-            @ForS3MockContainer Credential containerCredential,
-            TestingCredentialsController credentialsController,
-            TestingRemoteS3Facade endpointBuilder)
+            @ForTestingCredentials Credentials testingCredentials)
     {
-        credentials = new Credentials(new Credential(UUID.randomUUID().toString(), UUID.randomUUID().toString()), containerCredential);
-        credentialsController.addCredentials(credentials);
-
+        this.testingCredentials = requireNonNull(testingCredentials, "testingCredentials is null").emulated();
         URI baseUrl = trinoS3ProxyServer.getInjector().getInstance(TestingHttpServer.class).getBaseUrl();
         localProxyServerUri = UriBuilder.fromUri(baseUrl).path(TrinoS3ProxyResource.class).build();
     }
@@ -52,7 +48,7 @@ public class TestingS3ClientProvider
     @Override
     public S3Client get()
     {
-        AwsBasicCredentials awsBasicCredentials = AwsBasicCredentials.create(credentials.emulated().accessKey(), credentials.emulated().secretKey());
+        AwsBasicCredentials awsBasicCredentials = AwsBasicCredentials.create(testingCredentials.accessKey(), testingCredentials.secretKey());
 
         return S3Client.builder()
                 .region(Region.US_EAST_1)

@@ -16,9 +16,11 @@ package io.trino.s3.proxy.server.testing.harness;
 import com.google.inject.Injector;
 import com.google.inject.Module;
 import com.google.inject.Scopes;
-import io.trino.s3.proxy.server.credentials.Credentials.Credential;
+import io.trino.s3.proxy.server.credentials.Credentials;
+import io.trino.s3.proxy.server.testing.ContainerS3Facade;
 import io.trino.s3.proxy.server.testing.ManagedS3MockContainer;
 import io.trino.s3.proxy.server.testing.ManagedS3MockContainer.ForS3MockContainer;
+import io.trino.s3.proxy.server.testing.TestingConstants.ForTestingCredentials;
 import io.trino.s3.proxy.server.testing.TestingS3ClientProvider;
 import io.trino.s3.proxy.server.testing.TestingTrinoS3ProxyServer;
 import org.junit.jupiter.api.extension.ExtensionContext;
@@ -30,11 +32,11 @@ import software.amazon.awssdk.services.s3.S3Client;
 
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Stream;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
+import static io.trino.s3.proxy.server.testing.TestingConstants.TESTING_CREDENTIALS;
 
 public class TrinoS3ProxyTestExtension
         implements TestInstanceFactory, TestInstancePreDestroyCallback
@@ -60,15 +62,15 @@ public class TrinoS3ProxyTestExtension
             builder = filter.filter(builder);
         }
 
-        Credential containerCredential = new Credential(UUID.randomUUID().toString(), UUID.randomUUID().toString());
-
         TestingTrinoS3ProxyServer trinoS3ProxyServer = builder
                 .addModule(binder -> {
                     binder.bind(String.class).annotatedWith(ForS3MockContainer.class).toInstance(trinoS3ProxyTest.initialBuckets());
-                    binder.bind(Credential.class).annotatedWith(ForS3MockContainer.class).toInstance(containerCredential);
+                    binder.bind(Credentials.class).annotatedWith(ForTestingCredentials.class).toInstance(TESTING_CREDENTIALS);
                     binder.bind(ManagedS3MockContainer.class).asEagerSingleton();
+                    binder.bind(ContainerS3Facade.class).asEagerSingleton();
                 })
                 .buildAndStart();
+        trinoS3ProxyServer.getCredentialsController().addCredentials(TESTING_CREDENTIALS);
         testingServersRegistry.put(extensionContext.getUniqueId(), trinoS3ProxyServer);
 
         Injector injector = trinoS3ProxyServer.getInjector()

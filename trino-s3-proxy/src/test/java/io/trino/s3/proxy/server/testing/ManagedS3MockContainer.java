@@ -18,10 +18,11 @@ import com.google.inject.BindingAnnotation;
 import com.google.inject.Inject;
 import io.minio.MakeBucketArgs;
 import io.minio.MinioClient;
+import io.trino.s3.proxy.server.credentials.Credentials;
 import io.trino.s3.proxy.server.credentials.Credentials.Credential;
+import io.trino.s3.proxy.server.testing.TestingConstants.ForTestingCredentials;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
-import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.MinIOContainer;
 import org.testcontainers.images.builder.Transferable;
 
@@ -63,11 +64,20 @@ public class ManagedS3MockContainer
     @BindingAnnotation
     public @interface ForS3MockContainer {}
 
+    public record ContainerHost(String host, Integer port)
+    {
+        public ContainerHost
+        {
+            requireNonNull(host, "host is null");
+            requireNonNull(port, "port is null");
+        }
+    }
+
     @Inject
-    public ManagedS3MockContainer(@ForS3MockContainer String initialBuckets, @ForS3MockContainer Credential credential)
+    public ManagedS3MockContainer(@ForS3MockContainer String initialBuckets, @ForTestingCredentials Credentials credentials)
     {
         this.initialBuckets = requireNonNull(initialBuckets, "initialBuckets is null");
-        this.credential = requireNonNull(credential, "credential is null");
+        this.credential = requireNonNull(credentials, "credentials is null").real();
 
         Transferable transferable = Transferable.of(CONFIG_TEMPLATE.formatted(credential.accessKey(), credential.secretKey()));
         container = new MinIOContainer(MINIO_IMAGE_NAME + ":" + MINIO_IMAGE_TAG)
@@ -79,9 +89,9 @@ public class ManagedS3MockContainer
         container.start();
     }
 
-    public GenericContainer<?> container()
+    public ContainerHost getContainerHost()
     {
-        return container;
+        return new ContainerHost(container.getHost(), container.getFirstMappedPort());
     }
 
     @PostConstruct

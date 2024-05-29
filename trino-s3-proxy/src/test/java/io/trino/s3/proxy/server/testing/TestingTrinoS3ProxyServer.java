@@ -24,7 +24,6 @@ import io.airlift.http.server.testing.TestingHttpServerModule;
 import io.airlift.jaxrs.JaxrsModule;
 import io.airlift.json.JsonModule;
 import io.airlift.node.testing.TestingNodeModule;
-import io.trino.s3.proxy.server.credentials.Credentials;
 
 import java.io.Closeable;
 import java.util.Collection;
@@ -50,6 +49,11 @@ public final class TestingTrinoS3ProxyServer
         return injector;
     }
 
+    public TestingCredentialsController getCredentialsController()
+    {
+        return injector.getInstance(TestingCredentialsController.class);
+    }
+
     public static Builder builder()
     {
         return new Builder();
@@ -57,15 +61,10 @@ public final class TestingTrinoS3ProxyServer
 
     public static class Builder
     {
-        private final ImmutableSet.Builder<Credentials> credentials = ImmutableSet.builder();
         private final ImmutableSet.Builder<Module> modules = ImmutableSet.builder();
 
-        private Builder() {}
-
-        public Builder addCredentials(Credentials credentials)
+        private Builder()
         {
-            this.credentials.add(credentials);
-            return this;
         }
 
         public Builder addModule(Module module)
@@ -76,12 +75,7 @@ public final class TestingTrinoS3ProxyServer
 
         public TestingTrinoS3ProxyServer buildAndStart()
         {
-            TestingTrinoS3ProxyServer trinoS3ProxyServer = start(modules.build());
-
-            TestingCredentialsController credentialsController = trinoS3ProxyServer.injector.getInstance(TestingCredentialsController.class);
-            credentials.build().forEach(credentialsController::addCredentials);
-
-            return trinoS3ProxyServer;
+            return start(modules.build());
         }
     }
 
