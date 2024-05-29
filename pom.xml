@@ -111,6 +111,12 @@
                 <groupId>software.amazon.awssdk</groupId>
                 <artifactId>endpoints-spi</artifactId>
                 <version>${dep.aws-sdk.version}</version>
+                <exclusions>
+                    <exclusion>
+                        <groupId>commons-logging</groupId>
+                        <artifactId>commons-logging</artifactId>
+                    </exclusion>
+                </exclusions>
             </dependency>
 
             <dependency>
@@ -130,10 +136,26 @@
                 <artifactId>sdk-core</artifactId>
                 <version>${dep.aws-sdk.version}</version>
                 <exclusions>
+                    <exclusion>
+                        <groupId>commons-logging</groupId>
+                        <artifactId>commons-logging</artifactId>
+                    </exclusion>
                     <!-- This is included directly when needed -->
                     <exclusion>
                         <groupId>software.amazon.awssdk</groupId>
                         <artifactId>endpoints-spi</artifactId>
+                    </exclusion>
+                </exclusions>
+            </dependency>
+
+            <dependency>
+                <groupId>software.amazon.awssdk</groupId>
+                <artifactId>sts</artifactId>
+                <version>${dep.aws-sdk.version}</version>
+                <exclusions>
+                    <exclusion>
+                        <groupId>commons-logging</groupId>
+                        <artifactId>commons-logging</artifactId>
                     </exclusion>
                 </exclusions>
             </dependency>

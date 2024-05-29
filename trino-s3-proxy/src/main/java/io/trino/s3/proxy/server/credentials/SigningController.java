@@ -34,13 +34,13 @@ import static java.util.Objects.requireNonNull;
 
 public class SigningController
 {
-    private final CredentialsProvider credentialsProvider;
     private final Duration maxClockDrift;
+    private final CredentialsController credentialsController;
 
     @Inject
-    public SigningController(CredentialsProvider credentialsProvider, SigningControllerConfig signingControllerConfig)
+    public SigningController(CredentialsController credentialsController, SigningControllerConfig signingControllerConfig)
     {
-        this.credentialsProvider = requireNonNull(credentialsProvider, "credentialsController is null");
+        this.credentialsController = requireNonNull(credentialsController, "credentialsController is null");
         maxClockDrift = signingControllerConfig.getMaxClockDrift().toJavaTime();
     }
 
@@ -127,9 +127,13 @@ public class SigningController
 
         Optional<String> session = Optional.ofNullable(requestHeaders.getFirst("x-amz-security-token"));
 
-        return credentialsProvider.credentials(emulatedAccessKey, session)
-                .map(credentials -> new SigningMetadata(signingServiceType, credentials, session, region))
-                .filter(metadata -> isValidAuthorization(metadata, credentialsSupplier, authorization, requestURI, requestHeaders, queryParameters, httpMethod, entity));
+        return credentialsController.withCredentials(emulatedAccessKey, session, credentials -> {
+            SigningMetadata metadata = new SigningMetadata(signingServiceType, credentials, session, region);
+            if (isValidAuthorization(metadata, credentialsSupplier, authorization, requestURI, requestHeaders, queryParameters, httpMethod, entity)) {
+                return Optional.of(metadata);
+            }
+            return Optional.empty();
+        });
     }
 
     private boolean isValidAuthorization(

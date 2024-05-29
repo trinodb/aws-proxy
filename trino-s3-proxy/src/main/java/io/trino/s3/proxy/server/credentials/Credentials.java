@@ -13,16 +13,19 @@
  */
 package io.trino.s3.proxy.server.credentials;
 
+import io.trino.s3.proxy.server.remote.RemoteSessionRole;
+
 import java.util.Optional;
 
 import static java.util.Objects.requireNonNull;
 
-public record Credentials(Credential emulated, Optional<Credential> real)
+public record Credentials(Credential emulated, Optional<Credential> real, Optional<RemoteSessionRole> realSessionRole)
 {
     public Credentials
     {
         requireNonNull(emulated, "emulated is null");
         requireNonNull(real, "real is null");
+        requireNonNull(realSessionRole, "realSessionRole is null");
     }
 
     public Credential requiredRealCredential()
@@ -30,8 +33,23 @@ public record Credentials(Credential emulated, Optional<Credential> real)
         return real.orElseThrow(() -> new IllegalStateException("Credentials are emulated only and cannot be used for remote access"));
     }
 
-    public Credentials(Credential emulated)
+    public static Credentials build(Credential emulated)
     {
-        this(emulated, Optional.empty());
+        return new Credentials(emulated, Optional.empty(), Optional.empty());
+    }
+
+    public static Credentials build(Credential emulated, Credential real)
+    {
+        return new Credentials(emulated, Optional.of(real), Optional.empty());
+    }
+
+    public static Credentials build(Credential emulated, Optional<Credential> real)
+    {
+        return new Credentials(emulated, real, Optional.empty());
+    }
+
+    public static Credentials build(Credential emulated, Credential real, RemoteSessionRole realSessionRole)
+    {
+        return new Credentials(emulated, Optional.of(real), Optional.of(realSessionRole));
     }
 }

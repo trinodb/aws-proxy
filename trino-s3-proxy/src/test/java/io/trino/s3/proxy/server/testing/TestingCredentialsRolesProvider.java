@@ -18,7 +18,6 @@ import io.trino.s3.proxy.server.credentials.Credential;
 import io.trino.s3.proxy.server.credentials.Credentials;
 import io.trino.s3.proxy.server.credentials.CredentialsProvider;
 import io.trino.s3.proxy.server.credentials.EmulatedAssumedRole;
-import io.trino.s3.proxy.server.credentials.SigningMetadata;
 
 import java.time.Instant;
 import java.util.Map;
@@ -70,7 +69,7 @@ public class TestingCredentialsRolesProvider
                 checkState(emulatedAccessKey.equals(session.sessionCredential.accessKey()), "emulatedAccessKey and session accessKey mismatch");
 
                 Credentials originalCredentials = requireNonNull(credentials.get(session.originalEmulatedAccessKey), "original credentials missing for: " + session.originalEmulatedAccessKey);
-                return Optional.of(new Credentials(session.sessionCredential, originalCredentials.real()));
+                return Optional.of(Credentials.build(session.sessionCredential, originalCredentials.real()));
             });
         }
 
@@ -79,13 +78,14 @@ public class TestingCredentialsRolesProvider
 
     @Override
     public Optional<EmulatedAssumedRole> assumeEmulatedRole(
-            SigningMetadata signingMetadata,
+            Credential emulatedCredential,
+            String region,
             String requestArn,
             Optional<String> requestExternalId,
             Optional<String> requestRoleSessionName,
             Optional<Integer> requestDurationSeconds)
     {
-        String originalEmulatedAccessKey = signingMetadata.credentials().emulated().accessKey();
+        String originalEmulatedAccessKey = emulatedCredential.accessKey();
         return Optional.ofNullable(credentials.get(originalEmulatedAccessKey))
                 .map(internal -> {
                     String sessionToken = UUID.randomUUID().toString();

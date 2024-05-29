@@ -101,7 +101,7 @@ public class TrinoStsResource
         Optional<String> externalId = Optional.ofNullable(arguments.get("ExternalId"));
         Optional<Integer> durationSeconds = Optional.ofNullable(arguments.get("DurationSeconds")).map(TrinoStsResource::mapToInt);
 
-        EmulatedAssumedRole assumedRole = assumedRoleProvider.assumeEmulatedRole(signingMetadata, roleArn, externalId, roleSessionName, durationSeconds)
+        EmulatedAssumedRole assumedRole = assumedRoleProvider.assumeEmulatedRole(signingMetadata.credentials().emulated(), signingMetadata.region(), roleArn, externalId, roleSessionName, durationSeconds)
                 .orElseThrow(() -> {
                     log.debug("Assume role failed. Arguments: %s", arguments);
                     return new WebApplicationException(Response.status(Response.Status.UNAUTHORIZED).build());

@@ -21,6 +21,7 @@ import io.trino.s3.proxy.server.credentials.Credentials;
 import io.trino.s3.proxy.server.testing.TestingUtil.ForTesting;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
+import org.testcontainers.containers.Container;
 import org.testcontainers.containers.MinIOContainer;
 import org.testcontainers.images.builder.Transferable;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
@@ -31,6 +32,7 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.Target;
 import java.net.URI;
 import java.util.List;
+import java.util.UUID;
 
 import static io.trino.s3.proxy.server.testing.TestingUtil.LOCALHOST_DOMAIN;
 import static java.lang.annotation.ElementType.FIELD;
@@ -42,6 +44,8 @@ import static java.util.Objects.requireNonNull;
 public class ManagedS3MockContainer
         implements Provider<S3Client>
 {
+    public static final String POLICY_NAME = "managedPolicy";
+
     private static final String MINIO_IMAGE_NAME = "minio/minio";
     private static final String MINIO_IMAGE_TAG = "RELEASE.2023-09-04T19-57-37Z";
 
@@ -60,10 +64,30 @@ public class ManagedS3MockContainer
             }
             """;
 
+    private static final String POLICY = """
+            {
+               "Version": "2012-10-17",
+               "Statement": [
+                  {
+                     "Effect": "Allow",
+                     "Action": [
+                        "s3:*"
+                     ],
+                     "Resource": [
+                        "arn:aws:s3:::*"
+                     ]
+                  }
+               ]
+            }
+            """;
+
     private final MinIOContainer container;
     private final S3Client storageClient;
     private final List<String> initialBuckets;
     private final Credential credential;
+    private final Credential policyUserCredential;
+
+    private volatile Credentials sessionCredentials;
 
     @Override
     public S3Client get()
@@ -91,21 +115,27 @@ public class ManagedS3MockContainer
         this.initialBuckets = requireNonNull(initialBuckets, "initialBuckets is null");
         this.credential = requireNonNull(credentials, "credentials is null").requiredRealCredential();
 
-        Transferable transferable = Transferable.of(CONFIG_TEMPLATE.formatted(credential.accessKey(), credential.secretKey()));
+        Transferable config = Transferable.of(CONFIG_TEMPLATE.formatted(credential.accessKey(), credential.secretKey()));
+        Transferable policyFile = Transferable.of(POLICY);
+
         container = new MinIOContainer(MINIO_IMAGE_NAME + ":" + MINIO_IMAGE_TAG)
                 .withUserName(credential.accessKey())
                 .withPassword(credential.secretKey())
                 // setting this allows us to shell into the container and run "mc" commands
-                .withCopyToContainer(transferable, "/root/.mc/config.json");
+                .withCopyToContainer(config, "/root/.mc/config.json")
+                .withCopyToContainer(policyFile, "/root/policy.json");
 
         container.withEnv("MINIO_DOMAIN", LOCALHOST_DOMAIN);
         container.start();
+
         storageClient = S3Client.builder()
                 .region(Region.US_EAST_1)
                 .endpointOverride(URI.create(container.getS3URL()))
                 .forcePathStyle(true)
                 .credentialsProvider(() -> AwsBasicCredentials.create(credential.accessKey(), credential.secretKey()))
                 .build();
+
+        policyUserCredential = new Credential(UUID.randomUUID().toString(), UUID.randomUUID().toString());
     }
 
     public ContainerHost getContainerHost()
@@ -113,19 +143,39 @@ public class ManagedS3MockContainer
         return new ContainerHost(container.getHost(), container.getFirstMappedPort());
     }
 
+    public Credential policyUserCredential()
+    {
+        return policyUserCredential;
+    }
+
     @PostConstruct
     public void setUp()
     {
-        if (initialBuckets.isEmpty()) {
-            return;
-        }
-
         initialBuckets.forEach(bucket -> storageClient.createBucket(request -> request.bucket(bucket)));
+
+        // the Minio client does not have APIs for IAM or STS
+        execInContainer("Could not create user in container", "mc", "admin", "user", "add", "local", policyUserCredential.accessKey(), policyUserCredential.secretKey());
+        execInContainer("Could not create policy in container", "mc", "admin", "policy", "create", "local", POLICY_NAME, "/root/policy.json");
+        execInContainer("Could not attach policy in container", "mc", "admin", "policy", "attach", "local", POLICY_NAME, "--user", policyUserCredential.accessKey());
     }
 
     @PreDestroy
     public void shutdown()
     {
         container.stop();
+    }
+
+    private void execInContainer(String errorMessage, String... command)
+    {
+        Container.ExecResult execResult;
+        try {
+            execResult = container.execInContainer(command);
+        }
+        catch (Exception e) {
+            throw new RuntimeException(errorMessage, e);
+        }
+        if (execResult.getExitCode() != 0) {
+            throw new RuntimeException(errorMessage + "\n" + execResult.getStdout() + "\n" + execResult.getStderr());
+        }
     }
 }

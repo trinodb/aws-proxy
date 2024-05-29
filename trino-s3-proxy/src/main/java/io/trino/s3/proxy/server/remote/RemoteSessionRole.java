@@ -13,16 +13,16 @@
  */
 package io.trino.s3.proxy.server.remote;
 
-import jakarta.ws.rs.core.UriBuilder;
+import java.util.Optional;
 
-import java.net.URI;
+import static java.util.Objects.requireNonNull;
 
-public interface RemoteS3Facade
+public record RemoteSessionRole(String region, String roleArn, Optional<String> externalId)
 {
-    URI buildEndpoint(UriBuilder uriBuilder, String path, String bucket, String region);
-
-    default URI remoteUri(String region)
+    public RemoteSessionRole
     {
-        return buildEndpoint(UriBuilder.newInstance(), "/", "", region);
+        requireNonNull(region, "region is null");
+        requireNonNull(roleArn, "roleArn is null");
+        requireNonNull(externalId, "externalId is null");
     }
 }

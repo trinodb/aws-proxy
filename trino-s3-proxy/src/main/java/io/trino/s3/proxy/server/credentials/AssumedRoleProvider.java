@@ -24,7 +24,8 @@ public interface AssumedRoleProvider
      * roles assuming policies, etc.
      */
     Optional<EmulatedAssumedRole> assumeEmulatedRole(
-            SigningMetadata signingMetadata,
+            Credential emulatedCredential,
+            String region,
             String requestArn,
             Optional<String> requestExternalId,
             Optional<String> requestRoleSessionName,

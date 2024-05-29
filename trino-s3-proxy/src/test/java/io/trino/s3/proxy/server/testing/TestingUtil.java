@@ -25,7 +25,6 @@ import software.amazon.awssdk.services.s3.S3ClientBuilder;
 import java.lang.annotation.Retention;
 import java.lang.annotation.Target;
 import java.net.URI;
-import java.util.Optional;
 import java.util.UUID;
 
 import static java.lang.annotation.ElementType.FIELD;
@@ -35,9 +34,9 @@ import static java.lang.annotation.RetentionPolicy.RUNTIME;
 
 public final class TestingUtil
 {
-    public static final Credentials TESTING_CREDENTIALS = new Credentials(
+    public static final Credentials TESTING_CREDENTIALS = Credentials.build(
             new Credential(UUID.randomUUID().toString(), UUID.randomUUID().toString()),
-            Optional.of(new Credential(UUID.randomUUID().toString(), UUID.randomUUID().toString())));
+            new Credential(UUID.randomUUID().toString(), UUID.randomUUID().toString()));
 
     // Domain name with a wildcard CNAME pointing to localhost - needed to test Virtual Host style addressing
     public static final String LOCALHOST_DOMAIN = "local.gate0.net";

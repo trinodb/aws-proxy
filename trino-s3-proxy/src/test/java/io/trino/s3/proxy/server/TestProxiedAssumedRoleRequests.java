@@ -46,9 +46,25 @@ public class TestProxiedAssumedRoleRequests
     private final TestingCredentialsRolesProvider credentialsController;
 
     @Inject
-    public TestProxiedAssumedRoleRequests(TestingHttpServer httpServer, @ForTesting Credentials testingCredentials, TestingCredentialsRolesProvider credentialsController, @ForS3MockContainer S3Client storageClient, @ForS3MockContainer List<String> configuredBuckets)
+    public TestProxiedAssumedRoleRequests(
+            TestingHttpServer httpServer,
+            @ForTesting Credentials testingCredentials,
+            TestingCredentialsRolesProvider credentialsController,
+            @ForS3MockContainer S3Client storageClient,
+            @ForS3MockContainer List<String> configuredBuckets)
     {
-        super(buildClient(httpServer, testingCredentials), storageClient, configuredBuckets);
+        this(buildClient(httpServer, testingCredentials), testingCredentials, credentialsController, storageClient, configuredBuckets);
+    }
+
+    protected TestProxiedAssumedRoleRequests(
+            S3Client internalClient,
+            Credentials testingCredentials,
+            TestingCredentialsRolesProvider credentialsController,
+            S3Client storageClient,
+            List<String> configuredBuckets)
+    {
+        super(internalClient, storageClient, configuredBuckets);
+
         this.credentialsController = credentialsController;
     }
 
@@ -59,13 +75,13 @@ public class TestProxiedAssumedRoleRequests
         credentialsController.resetAssumedRoles();
     }
 
-    private static S3Client buildClient(TestingHttpServer httpServer, Credentials testingCredentials)
+    protected static S3Client buildClient(TestingHttpServer httpServer, Credentials credentials)
     {
         URI baseUrl = httpServer.getBaseUrl();
         URI localProxyServerUri = baseUrl.resolve(TrinoS3ProxyRestConstants.S3_PATH);
         URI localStsServerUri = baseUrl.resolve(TrinoS3ProxyRestConstants.STS_PATH);
 
-        AwsBasicCredentials awsBasicCredentials = AwsBasicCredentials.create(testingCredentials.emulated().accessKey(), testingCredentials.emulated().secretKey());
+        AwsBasicCredentials awsBasicCredentials = AwsBasicCredentials.create(credentials.emulated().accessKey(), credentials.emulated().secretKey());
 
         StsClient stsClient = StsClient.builder()
                 .region(Region.US_EAST_1)
