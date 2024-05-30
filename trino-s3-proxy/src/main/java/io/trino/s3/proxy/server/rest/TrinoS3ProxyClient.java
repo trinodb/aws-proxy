@@ -28,7 +28,11 @@ import jakarta.ws.rs.core.MultivaluedHashMap;
 import jakarta.ws.rs.core.MultivaluedMap;
 import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.UriBuilder;
+import org.apache.commons.httpclient.ChunkedInputStream;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.UncheckedIOException;
 import java.lang.annotation.Retention;
 import java.lang.annotation.Target;
 import java.net.URI;
@@ -48,6 +52,8 @@ import static java.util.Objects.requireNonNull;
 
 public class TrinoS3ProxyClient
 {
+    private static final int CHUNK_SIZE = 8_192 * 8;
+
     private final HttpClient httpClient;
     private final SigningController signingController;
     private final RemoteS3Facade remoteS3Facade;
@@ -92,7 +98,7 @@ public class TrinoS3ProxyClient
             switch (key) {
                 case "x-amz-security-token" -> {}  // we add this below
                 case "authorization" -> {} // we will create our own authorization header
-                case "amz-sdk-invocation-id", "amz-sdk-request" -> {}   // don't send these
+                case "amz-sdk-invocation-id", "amz-sdk-request", "x-amz-decoded-content-length", "content-length", "content-encoding" -> {}   // don't send these
                 case "x-amz-date" -> remoteRequestHeaders.putSingle("X-Amz-Date", formatRequestInstant(Instant.now())); // use now for the remote request
                 case "host" -> remoteRequestHeaders.putSingle("Host", buildRemoteHost(remoteUri)); // replace source host with the remote AWS host
                 default -> remoteRequestHeaders.put(key, value);
@@ -103,6 +109,27 @@ public class TrinoS3ProxyClient
                 .requiredRemoteCredential()
                 .session()
                 .ifPresent(sessionToken -> remoteRequestHeaders.add("x-amz-security-token", sessionToken));
+
+        request.entitySupplier().ifPresent(entitySupplier -> {
+            InputStream entityStream;
+            if ("aws-chunked".equals(request.requestHeaders().getFirst("content-encoding"))) {
+                // AWS's custom chunked encoding doesn't get handled by Jersey. Do it manually.
+                // TODO move this into a Jersey MessageBodyReader
+                try {
+                    entityStream = new ChunkedInputStream(entitySupplier.get());
+                }
+                catch (IOException e) {
+                    throw new UncheckedIOException(e);
+                }
+            }
+            else {
+                entityStream = entitySupplier.get();
+            }
+
+            // TODO we need to add a Jersey MessageBodyWriter that handles aws-chunked
+            remoteRequestBuilder.setBodyGenerator(new StreamingBodyGenerator(entityStream));
+            remoteRequestHeaders.putSingle("x-amz-content-sha256", "UNSIGNED-PAYLOAD");
+        });
 
         // set the new signed request auth header
         String signature = signingController.signRequest(

@@ -11,17 +11,30 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.trino.s3.proxy.server.credentials;
+package io.trino.s3.proxy.server.rest;
+
+import io.airlift.http.client.BodyGenerator;
+
+import java.io.InputStream;
+import java.io.OutputStream;
 
 import static java.util.Objects.requireNonNull;
 
-public record SigningServiceType(String serviceName)
+class StreamingBodyGenerator
+        implements BodyGenerator
 {
-    public static final SigningServiceType S3 = new SigningServiceType("s3");
-    public static final SigningServiceType STS = new SigningServiceType("sts");
+    private final InputStream source;
 
-    public SigningServiceType
+    StreamingBodyGenerator(InputStream source)
     {
-        requireNonNull(serviceName, "serviceName is null");
+        this.source = requireNonNull(source, "source is null");
+    }
+
+    @Override
+    public void write(OutputStream out)
+            throws Exception
+    {
+        source.transferTo(out);
+        out.flush();
     }
 }

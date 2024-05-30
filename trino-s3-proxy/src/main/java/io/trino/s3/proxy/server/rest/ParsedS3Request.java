@@ -18,9 +18,11 @@ import jakarta.ws.rs.core.MultivaluedMap;
 import jakarta.ws.rs.core.UriBuilder;
 import org.glassfish.jersey.server.ContainerRequest;
 
+import java.io.InputStream;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
+import java.util.function.Supplier;
 
 import static io.trino.s3.proxy.server.collections.MultiMapHelper.lowercase;
 import static java.util.Objects.requireNonNull;
@@ -30,7 +32,8 @@ public record ParsedS3Request(
         String keyInBucket,
         MultivaluedMap<String, String> requestHeaders,
         MultivaluedMap<String, String> requestQueryParameters,
-        String httpVerb)
+        String httpVerb,
+        Optional<Supplier<InputStream>> entitySupplier)
 {
     public ParsedS3Request
     {
@@ -39,9 +42,16 @@ public record ParsedS3Request(
         requestHeaders = lowercase(requireNonNull(requestHeaders, "requestHeaders is null"));
         requireNonNull(requestQueryParameters, "requestQueryParameters is null");
         requireNonNull(httpVerb, "httpVerb is null");
+        requireNonNull(entitySupplier, "entitySupplier is null");
     }
 
-    public static ParsedS3Request fromRequest(String requestPath, MultivaluedMap<String, String> requestHeaders, MultivaluedMap<String, String> requestQueryParameters, String httpVerb, Optional<String> serverHostName)
+    public static ParsedS3Request fromRequest(
+            String requestPath,
+            MultivaluedMap<String, String> requestHeaders,
+            MultivaluedMap<String, String> requestQueryParameters,
+            String httpVerb,
+            Optional<String> serverHostName,
+            Optional<Supplier<InputStream>> entitySupplier)
     {
         MultivaluedMap<String, String> headers = lowercase(requestHeaders);
         return serverHostName
@@ -53,18 +63,19 @@ public record ParsedS3Request(
                             .map(value -> value.substring(0, value.length() - lowercaseServerHostName.length()))
                             .map(value -> value.endsWith(".") ? value.substring(0, value.length() - 1) : value);
                 })
-                .map(bucket -> new ParsedS3Request(bucket, requestPath, headers, requestQueryParameters, httpVerb))
+                .map(bucket -> new ParsedS3Request(bucket, requestPath, headers, requestQueryParameters, httpVerb, entitySupplier))
                 .orElseGet(() -> {
                     List<String> parts = Splitter.on("/").limit(2).splitToList(requestPath);
                     if (parts.size() <= 1) {
-                        return new ParsedS3Request(requestPath, "", headers, requestQueryParameters, httpVerb);
+                        return new ParsedS3Request(requestPath, "", headers, requestQueryParameters, httpVerb, entitySupplier);
                     }
-                    return new ParsedS3Request(parts.get(0), parts.get(1), headers, requestQueryParameters, httpVerb);
+                    return new ParsedS3Request(parts.get(0), parts.get(1), headers, requestQueryParameters, httpVerb, entitySupplier);
                 });
     }
 
     public static ParsedS3Request fromRequest(String requestPath, ContainerRequest request, Optional<String> serverHostName)
     {
-        return fromRequest(requestPath, request.getHeaders(), request.getUriInfo().getQueryParameters(), request.getMethod(), serverHostName);
+        Optional<Supplier<InputStream>> entitySupplier = request.hasEntity() ? Optional.of(request::getEntityStream) : Optional.empty();
+        return fromRequest(requestPath, request.getHeaders(), request.getUriInfo().getQueryParameters(), request.getMethod(), serverHostName, entitySupplier);
     }
 }
