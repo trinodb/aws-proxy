@@ -40,6 +40,7 @@ import java.util.function.BiFunction;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static io.trino.s3.proxy.server.collections.MultiMapHelper.lowercase;
+import static io.trino.s3.proxy.server.credentials.SigningController.Mode.UNADJUSTED_HEADERS;
 
 final class Signer
 {
@@ -63,8 +64,8 @@ final class Signer
 
     private Signer() {}
 
-    @SuppressWarnings("SameParameterValue")
     static String sign(
+            SigningController.Mode mode,
             String serviceName,
             URI requestURI,
             MultivaluedMap<String, String> requestHeaders,
@@ -77,7 +78,8 @@ final class Signer
             Optional<byte[]> entity)
     {
         BiFunction<String, List<String>, List<String>> lowercaseHeaderValues = (key, values) -> {
-            if (!LOWERCASE_HEADERS.contains(key)) {
+            // mode == UNADJUSTED_HEADERS is temp until airlift is fixed
+            if ((mode == UNADJUSTED_HEADERS) || !LOWERCASE_HEADERS.contains(key)) {
                 return values;
             }
             return values.stream().map(value -> value.toLowerCase(Locale.ROOT)).collect(toImmutableList());

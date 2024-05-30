@@ -26,10 +26,12 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Function;
+import java.util.stream.Stream;
 
 import static io.trino.s3.proxy.server.credentials.Signer.AMZ_DATE_FORMAT;
 import static io.trino.s3.proxy.server.credentials.Signer.RESPONSE_DATE_FORMAT;
 import static io.trino.s3.proxy.server.credentials.Signer.ZONE;
+import static io.trino.s3.proxy.server.credentials.SigningController.Mode.UNADJUSTED_HEADERS;
 import static java.util.Objects.requireNonNull;
 
 public class SigningController
@@ -54,6 +56,12 @@ public class SigningController
         return instant.atZone(ZONE).format(RESPONSE_DATE_FORMAT);
     }
 
+    public enum Mode
+    {
+        ADJUSTED_HEADERS,
+        UNADJUSTED_HEADERS,
+    }
+
     public String signRequest(
             SigningMetadata metadata,
             Function<Credentials, Credential> credentialsSupplier,
@@ -63,18 +71,14 @@ public class SigningController
             String httpMethod,
             Optional<byte[]> entity)
     {
-        Credential credential = credentialsSupplier.apply(metadata.credentials());
-
-        return Signer.sign(
-                metadata.signingServiceType().asServiceName(),
+        return internalSignRequest(
+                UNADJUSTED_HEADERS,
+                metadata,
+                credentialsSupplier,
                 requestURI,
                 requestHeaders,
                 queryParameters,
                 httpMethod,
-                metadata.region(),
-                credential.accessKey(),
-                credential.secretKey(),
-                maxClockDrift,
                 entity);
     }
 
@@ -89,6 +93,32 @@ public class SigningController
                 request.getMethod(),
                 entity)
                 .orElseThrow(() -> new WebApplicationException(Response.Status.UNAUTHORIZED));
+    }
+
+    private String internalSignRequest(
+            Mode mode,
+            SigningMetadata metadata,
+            Function<Credentials, Credential> credentialsSupplier,
+            URI requestURI,
+            MultivaluedMap<String, String> requestHeaders,
+            MultivaluedMap<String, String> queryParameters,
+            String httpMethod,
+            Optional<byte[]> entity)
+    {
+        Credential credential = credentialsSupplier.apply(metadata.credentials());
+
+        return Signer.sign(
+                mode,
+                metadata.signingServiceType().asServiceName(),
+                requestURI,
+                requestHeaders,
+                queryParameters,
+                httpMethod,
+                metadata.region(),
+                credential.accessKey(),
+                credential.secretKey(),
+                maxClockDrift,
+                entity);
     }
 
     private Optional<SigningMetadata> signingMetadataFromRequest(
@@ -146,7 +176,10 @@ public class SigningController
             String httpMethod,
             Optional<byte[]> entity)
     {
-        String expectedAuthorization = signRequest(metadata, credentialsSupplier, requestURI, requestHeaders, queryParameters, httpMethod, entity);
-        return authorizationHeader.equals(expectedAuthorization);
+        // temp workaround until https://github.com/airlift/airlift/pull/1178 is accepted
+        return Stream.of(Mode.values()).anyMatch(mode -> {
+            String expectedAuthorization = internalSignRequest(mode, metadata, credentialsSupplier, requestURI, requestHeaders, queryParameters, httpMethod, entity);
+            return authorizationHeader.equals(expectedAuthorization);
+        });
     }
 }
