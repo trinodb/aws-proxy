@@ -50,6 +50,7 @@ final class Signer
     static final DateTimeFormatter RESPONSE_DATE_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH':'mm':'ss'.'SSS'Z'", Locale.US).withZone(ZONE);
 
     private static final Set<String> IGNORED_HEADERS = ImmutableSet.of(
+            "x-amz-decoded-content-length",
             "x-amzn-trace-id",
             "expect",
             "accept-encoding",
@@ -103,11 +104,21 @@ final class Signer
                 .map(contentHashHeader -> !contentHashHeader.equals("UNSIGNED-PAYLOAD"))
                 .orElse(true);
 
+        boolean enableChunkedEncoding = Optional.ofNullable(requestHeaders.getFirst("content-encoding"))
+                .map(contentHashHeader -> contentHashHeader.equals("aws-chunked"))
+                .orElse(false);
+        if (enableChunkedEncoding) {
+            // when chunked, the correct signature needs to reset the content length to the original decoded length
+            Optional.ofNullable(requestHeaders.getFirst("x-amz-decoded-content-length"))
+                    .ifPresent(decodedContentLength -> requestBuilder.putHeader("content-length", decodedContentLength));
+        }
+
         AwsS3V4SignerParams.Builder signerParamsBuilder = AwsS3V4SignerParams.builder()
                 .signingName(serviceName)
                 .signingRegion(Region.of(region))
                 .doubleUrlEncode(false)
                 .enablePayloadSigning(enablePayloadSigning)
+                .enableChunkedEncoding(enableChunkedEncoding)
                 .awsCredentials(AwsBasicCredentials.create(accessKey, secretKey));
 
         String xAmzDate = Optional.ofNullable(requestHeaders.getFirst("x-amz-date")).orElseThrow(() -> {
