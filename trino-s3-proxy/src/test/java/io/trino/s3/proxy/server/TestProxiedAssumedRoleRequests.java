@@ -35,6 +35,7 @@ import java.net.URI;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
+import static java.util.Objects.requireNonNull;
 import static org.assertj.core.api.Assertions.assertThat;
 
 @TrinoS3ProxyTest(filters = WithConfiguredBuckets.class)
@@ -42,7 +43,6 @@ public class TestProxiedAssumedRoleRequests
         extends AbstractTestProxiedRequests
 {
     private static final String ARN = "arn:aws:iam::123456789012:role/assumed";
-
     private final TestingCredentialsRolesProvider credentialsController;
 
     @Inject
@@ -65,7 +65,7 @@ public class TestProxiedAssumedRoleRequests
     {
         super(internalClient, storageClient, configuredBuckets);
 
-        this.credentialsController = credentialsController;
+        this.credentialsController = requireNonNull(credentialsController, "credentialsController is null");
     }
 
     @AfterAll

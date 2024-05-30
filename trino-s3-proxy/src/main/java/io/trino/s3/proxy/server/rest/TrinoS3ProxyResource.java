@@ -19,6 +19,7 @@ import io.trino.s3.proxy.server.signing.SigningServiceType;
 import jakarta.ws.rs.DELETE;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.HEAD;
+import jakarta.ws.rs.POST;
 import jakarta.ws.rs.PUT;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.PathParam;
@@ -82,6 +83,19 @@ public class TrinoS3ProxyResource
     @PUT
     @Path("{path:.*}")
     public void s3Put(@Context ContainerRequest request, @Suspended AsyncResponse asyncResponse, @PathParam("path") String path)
+    {
+        proxyClient.proxyRequest(signingController.validateAndParseAuthorization(fromRequest(request), SigningServiceType.S3), parseRequest(path, request), asyncResponse);
+    }
+
+    @POST
+    public void s3Post(@Context ContainerRequest request, @Suspended AsyncResponse asyncResponse)
+    {
+        s3Post(request, asyncResponse, "/");
+    }
+
+    @POST
+    @Path("{path:.*}")
+    public void s3Post(@Context ContainerRequest request, @Suspended AsyncResponse asyncResponse, @PathParam("path") String path)
     {
         proxyClient.proxyRequest(signingController.validateAndParseAuthorization(fromRequest(request), SigningServiceType.S3), parseRequest(path, request), asyncResponse);
     }
