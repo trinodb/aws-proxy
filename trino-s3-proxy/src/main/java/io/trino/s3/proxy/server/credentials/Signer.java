@@ -84,7 +84,6 @@ final class Signer
         };
 
         requestHeaders = lowercase(requestHeaders, lowercaseHeaderValues);
-        queryParameters = lowercase(queryParameters, lowercaseHeaderValues);
 
         SdkHttpFullRequest.Builder requestBuilder = SdkHttpFullRequest.builder()
                 .uri(requestURI)
