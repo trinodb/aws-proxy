@@ -18,6 +18,7 @@ import io.trino.s3.proxy.server.credentials.Credential;
 import io.trino.s3.proxy.server.credentials.Credentials;
 import io.trino.s3.proxy.server.credentials.CredentialsController;
 import io.trino.s3.proxy.server.credentials.CredentialsProvider;
+import io.trino.s3.proxy.server.rest.RequestContent;
 import io.trino.s3.proxy.server.testing.TestingRemoteS3Facade;
 import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.core.MultivaluedHashMap;
@@ -52,13 +53,12 @@ public class TestSigningController
         requestHeaders.putSingle("Accept-Encoding", "identity");
 
         String signature = signingController.signRequest(
-                new SigningMetadata(SigningServiceType.S3, CREDENTIALS, Optional.empty(), "us-east-1"),
+                new SigningMetadata(SigningServiceType.S3, CREDENTIALS, Optional.empty(), "us-east-1", RequestContent.EMPTY),
                 Credentials::emulated,
                 URI.create("http://localhost:10064/"),
                 requestHeaders,
                 new MultivaluedHashMap<>(),
-                "GET",
-                Optional.empty());
+                "GET");
 
         assertThat(signature).isEqualTo("AWS4-HMAC-SHA256 Credential=THIS_IS_AN_ACCESS_KEY/20240516/us-east-1/s3/aws4_request, SignedHeaders=host;x-amz-content-sha256;x-amz-date;x-amz-security-token, Signature=9a19c251bf4e1533174e80da59fa57c65b3149b611ec9a4104f6944767c25704");
     }
@@ -78,13 +78,13 @@ public class TestSigningController
         requestHeaders.putSingle("Accept-Encoding", "identity");
 
         assertThatThrownBy(() -> signingController.signRequest(
-                new SigningMetadata(SigningServiceType.S3, CREDENTIALS, Optional.empty(), "us-east-1"),
+                new SigningMetadata(SigningServiceType.S3, CREDENTIALS, Optional.empty(), "us-east-1", RequestContent.EMPTY),
                 Credentials::emulated,
                 URI.create("http://localhost:10064/"),
                 requestHeaders,
                 new MultivaluedHashMap<>(),
-                "GET",
-                Optional.empty())).isInstanceOf(WebApplicationException.class);
+                "GET"
+        )).isInstanceOf(WebApplicationException.class);
     }
 
     @Test
@@ -106,13 +106,12 @@ public class TestSigningController
         queryParameters.putSingle("encoding-type", "url");
 
         String signature = signingController.signRequest(
-                new SigningMetadata(SigningServiceType.S3, CREDENTIALS, Optional.empty(), "us-east-1"),
+                new SigningMetadata(SigningServiceType.S3, CREDENTIALS, Optional.empty(), "us-east-1", RequestContent.EMPTY),
                 Credentials::emulated,
                 URI.create("http://localhost:10064/mybucket"),
                 requestHeaders,
                 queryParameters,
-                "GET",
-                Optional.empty());
+                "GET");
 
         assertThat(signature).isEqualTo("AWS4-HMAC-SHA256 Credential=THIS_IS_AN_ACCESS_KEY/20240516/us-east-1/s3/aws4_request, SignedHeaders=host;x-amz-content-sha256;x-amz-date;x-amz-security-token, Signature=222d7b7fcd4d5560c944e8fecd9424ee3915d131c3ad9e000d65db93e87946c4");
     }

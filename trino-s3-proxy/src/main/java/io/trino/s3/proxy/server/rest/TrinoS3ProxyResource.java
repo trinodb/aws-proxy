@@ -57,7 +57,7 @@ public class TrinoS3ProxyResource
     @Path("{path:.*}")
     public void s3Get(@Context ContainerRequest request, @Suspended AsyncResponse asyncResponse, @PathParam("path") String path)
     {
-        proxyClient.proxyRequest(signingController.validateAndParseAuthorization(fromRequest(request), SigningServiceType.S3, Optional.empty()), parseRequest(path, request), asyncResponse);
+        proxyClient.proxyRequest(signingController.validateAndParseAuthorization(fromRequest(request), SigningServiceType.S3), parseRequest(path, request), asyncResponse);
     }
 
     @HEAD
@@ -70,7 +70,7 @@ public class TrinoS3ProxyResource
     @Path("{path:.*}")
     public void s3Head(@Context ContainerRequest request, @Suspended AsyncResponse asyncResponse, @PathParam("path") String path)
     {
-        proxyClient.proxyRequest(signingController.validateAndParseAuthorization(fromRequest(request), SigningServiceType.S3, Optional.empty()), parseRequest(path, request), asyncResponse);
+        proxyClient.proxyRequest(signingController.validateAndParseAuthorization(fromRequest(request), SigningServiceType.S3), parseRequest(path, request), asyncResponse);
     }
 
     @PUT
@@ -83,7 +83,7 @@ public class TrinoS3ProxyResource
     @Path("{path:.*}")
     public void s3Put(@Context ContainerRequest request, @Suspended AsyncResponse asyncResponse, @PathParam("path") String path)
     {
-        proxyClient.proxyRequest(signingController.validateAndParseAuthorization(fromRequest(request), SigningServiceType.S3, Optional.empty()), parseRequest(path, request), asyncResponse);
+        proxyClient.proxyRequest(signingController.validateAndParseAuthorization(fromRequest(request), SigningServiceType.S3), parseRequest(path, request), asyncResponse);
     }
 
     @DELETE
@@ -96,7 +96,7 @@ public class TrinoS3ProxyResource
     @Path("{path:.*}")
     public void s3Delete(@Context ContainerRequest request, @Suspended AsyncResponse asyncResponse, @PathParam("path") String path)
     {
-        proxyClient.proxyRequest(signingController.validateAndParseAuthorization(fromRequest(request), SigningServiceType.S3, Optional.empty()), parseRequest(path, request), asyncResponse);
+        proxyClient.proxyRequest(signingController.validateAndParseAuthorization(fromRequest(request), SigningServiceType.S3), parseRequest(path, request), asyncResponse);
     }
 
     private ParsedS3Request parseRequest(String path, ContainerRequest request)

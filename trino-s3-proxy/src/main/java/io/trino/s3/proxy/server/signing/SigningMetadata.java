@@ -14,12 +14,13 @@
 package io.trino.s3.proxy.server.signing;
 
 import io.trino.s3.proxy.server.credentials.Credentials;
+import io.trino.s3.proxy.server.rest.RequestContent;
 
 import java.util.Optional;
 
 import static java.util.Objects.requireNonNull;
 
-public record SigningMetadata(SigningServiceType signingServiceType, Credentials credentials, Optional<String> session, String region)
+public record SigningMetadata(SigningServiceType signingServiceType, Credentials credentials, Optional<String> session, String region, RequestContent requestContent)
 {
     public SigningMetadata
     {
@@ -27,5 +28,11 @@ public record SigningMetadata(SigningServiceType signingServiceType, Credentials
         requireNonNull(credentials, "credentials is null");
         requireNonNull(session, "session is null");
         requireNonNull(region, "region is null");
+        requireNonNull(requestContent, "requestContent is null");
+    }
+
+    public SigningMetadata withoutRequestContent()
+    {
+        return new SigningMetadata(signingServiceType, credentials, session, region, RequestContent.EMPTY);
     }
 }
