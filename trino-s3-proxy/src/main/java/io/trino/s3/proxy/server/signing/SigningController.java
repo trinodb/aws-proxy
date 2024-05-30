@@ -70,8 +70,7 @@ public class SigningController
             URI requestURI,
             MultivaluedMap<String, String> requestHeaders,
             MultivaluedMap<String, String> queryParameters,
-            String httpMethod,
-            Optional<byte[]> entity)
+            String httpMethod)
     {
         SigningHeaders signingHeaders = SigningHeaders.build(requestHeaders);
 
@@ -81,11 +80,10 @@ public class SigningController
                 requestURI,
                 signingHeaders,
                 queryParameters,
-                httpMethod,
-                entity);
+                httpMethod);
     }
 
-    public SigningMetadata validateAndParseAuthorization(Request request, SigningServiceType signingServiceType, Optional<byte[]> entity)
+    public SigningMetadata validateAndParseAuthorization(Request request, SigningServiceType signingServiceType)
     {
         ParsedAuthorization parsedAuthorization = ParsedAuthorization.parse(firstNonNull(request.requestHeaders().getFirst("authorization"), ""));
         if (!parsedAuthorization.isValid()) {
@@ -95,8 +93,8 @@ public class SigningController
         Optional<String> session = Optional.ofNullable(request.requestHeaders().getFirst("x-amz-security-token"));
 
         return credentialsController.withCredentials(parsedAuthorization.accessKey(), session, credentials -> {
-            SigningMetadata metadata = new SigningMetadata(signingServiceType, credentials, session, parsedAuthorization.region());
-            if (isValidAuthorization(metadata, Credentials::emulated, parsedAuthorization, request.requestUri(), request.requestHeaders(), request.requestQueryParameters(), request.httpVerb(), entity)) {
+            SigningMetadata metadata = new SigningMetadata(signingServiceType, credentials, session, parsedAuthorization.region(), request.requestContent());
+            if (isValidAuthorization(metadata, Credentials::emulated, parsedAuthorization, request.requestUri(), request.requestHeaders(), request.requestQueryParameters(), request.httpVerb())) {
                 return Optional.of(metadata);
             }
             return Optional.empty();
@@ -109,10 +107,11 @@ public class SigningController
             URI requestURI,
             SigningHeaders signingHeaders,
             MultivaluedMap<String, String> queryParameters,
-            String httpMethod,
-            Optional<byte[]> entity)
+            String httpMethod)
     {
         Credential credential = credentialsSupplier.apply(metadata.credentials());
+
+        Optional<byte[]> entity = metadata.signingServiceType().contentIsSigned() ? metadata.requestContent().standardBytes() : Optional.empty();
 
         return Signer.sign(
                 metadata.signingServiceType().serviceName(),
@@ -134,13 +133,12 @@ public class SigningController
             URI requestURI,
             MultivaluedMap<String, String> requestHeaders,
             MultivaluedMap<String, String> queryParameters,
-            String httpMethod,
-            Optional<byte[]> entity)
+            String httpMethod)
     {
         // temp workaround until https://github.com/airlift/airlift/pull/1178 is accepted
         return Stream.of(Mode.values()).anyMatch(mode -> {
             SigningHeaders signingHeaders = SigningHeaders.build(mode, requestHeaders, parsedAuthorization.signedLowercaseHeaders());
-            String expectedAuthorization = internalSignRequest(metadata, credentialsSupplier, requestURI, signingHeaders, queryParameters, httpMethod, entity);
+            String expectedAuthorization = internalSignRequest(metadata, credentialsSupplier, requestURI, signingHeaders, queryParameters, httpMethod);
             return parsedAuthorization.authorization().equals(expectedAuthorization);
         });
     }

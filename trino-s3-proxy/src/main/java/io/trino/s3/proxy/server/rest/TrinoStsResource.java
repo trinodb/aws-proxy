@@ -34,13 +34,11 @@ import jakarta.ws.rs.core.Response;
 import org.glassfish.jersey.server.ContainerRequest;
 import org.glassfish.jersey.uri.UriComponent;
 
-import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.Optional;
 
 import static com.google.common.collect.ImmutableMap.toImmutableMap;
-import static com.google.common.io.ByteStreams.toByteArray;
 import static io.trino.s3.proxy.server.rest.RequestBuilder.fromRequest;
 import static io.trino.s3.proxy.server.signing.SigningController.formatResponseInstant;
 import static java.util.Objects.requireNonNull;
@@ -66,21 +64,13 @@ public class TrinoStsResource
     @POST
     public Response post(@Context ContainerRequest request)
     {
-        Optional<byte[]> entity;
-        try {
-            entity = request.hasEntity() ? Optional.of(toByteArray(request.getEntityStream())) : Optional.empty();
-        }
-        catch (IOException e) {
-            return Response.status(Response.Status.BAD_REQUEST).build();
-        }
-
-        SigningMetadata signingMetadata = signingController.validateAndParseAuthorization(fromRequest(request), SigningServiceType.STS, Optional.empty());
-        Map<String, String> arguments = deserializeRequest(request, entity);
+        SigningMetadata signingMetadata = signingController.validateAndParseAuthorization(fromRequest(request), SigningServiceType.STS);
+        Map<String, String> arguments = deserializeRequest(request, signingMetadata.requestContent().standardBytes());
 
         String action = Optional.ofNullable(arguments.get("Action")).orElse("");
 
         return switch (action) {
-            case "AssumeRole" -> assumeRole(request, signingMetadata, arguments, entity);
+            case "AssumeRole" -> assumeRole(signingMetadata, arguments);
             default -> {
                 log.debug("Request missing \"Action\". Arguments: %s", arguments);
                 yield Response.status(Response.Status.BAD_REQUEST).build();
@@ -88,7 +78,7 @@ public class TrinoStsResource
         };
     }
 
-    private Response assumeRole(ContainerRequest request, SigningMetadata signingMetadata, Map<String, String> arguments, Optional<byte[]> entity)
+    private Response assumeRole(SigningMetadata signingMetadata, Map<String, String> arguments)
     {
         String roleArn = arguments.get("RoleArn");
         if (roleArn == null) {

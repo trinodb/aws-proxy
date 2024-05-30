@@ -29,21 +29,17 @@ import jakarta.ws.rs.core.MultivaluedHashMap;
 import jakarta.ws.rs.core.MultivaluedMap;
 import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.UriBuilder;
-import org.apache.commons.httpclient.ChunkedInputStream;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.UncheckedIOException;
 import java.lang.annotation.Retention;
 import java.lang.annotation.Target;
 import java.net.URI;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 import static com.google.common.util.concurrent.MoreExecutors.shutdownAndAwaitTermination;
+import static io.airlift.http.client.StaticBodyGenerator.createStaticBodyGenerator;
 import static io.trino.s3.proxy.server.signing.SigningController.formatRequestInstant;
 import static java.lang.annotation.ElementType.FIELD;
 import static java.lang.annotation.ElementType.METHOD;
@@ -118,36 +114,24 @@ public class TrinoS3ProxyClient
                 .session()
                 .ifPresent(sessionToken -> remoteRequestHeaders.add("x-amz-security-token", sessionToken));
 
-        request.entitySupplier().ifPresent(entitySupplier -> {
-            InputStream entityStream;
-            if ("aws-chunked".equals(request.lowercaseHeaders().getFirst("content-encoding"))) {
-                // AWS's custom chunked encoding doesn't get handled by Jersey. Do it manually.
-                // TODO move this into a Jersey MessageBodyReader
-                try {
-                    entityStream = new ChunkedInputStream(entitySupplier.get());
-                }
-                catch (IOException e) {
-                    throw new UncheckedIOException(e);
-                }
-            }
-            else {
-                entityStream = entitySupplier.get();
-            }
-
-            // TODO we need to add a Jersey MessageBodyWriter that handles aws-chunked
-            remoteRequestBuilder.setBodyGenerator(new StreamingBodyGenerator(entityStream));
+        signingMetadata.requestContent().standardBytes().ifPresentOrElse(metadataEntity -> {
+            remoteRequestBuilder.setBodyGenerator(createStaticBodyGenerator(metadataEntity));
             remoteRequestHeaders.putSingle("x-amz-content-sha256", "UNSIGNED-PAYLOAD");
-        });
+            remoteRequestHeaders.putSingle("content-length", Integer.toString(metadataEntity.length));
+        }, () -> signingMetadata.requestContent().inputStream().ifPresent(inputStream -> {
+            remoteRequestBuilder.setBodyGenerator(new StreamingBodyGenerator(inputStream));
+            remoteRequestHeaders.putSingle("x-amz-content-sha256", "UNSIGNED-PAYLOAD");
+        }));
 
         // set the new signed request auth header
         String signature = signingController.signRequest(
-                signingMetadata,
+                // we don't sign request content to the remote server
+                signingMetadata.withoutRequestContent(),
                 Credentials::requiredRemoteCredential,
                 remoteUri,
                 remoteRequestHeaders,
                 request.queryParameters(),
-                request.httpVerb(),
-                Optional.empty());
+                request.httpVerb());
         remoteRequestHeaders.putSingle("Authorization", signature);
 
         // remoteRequestHeaders now has correct values, copy to the remote request
