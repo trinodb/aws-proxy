@@ -51,6 +51,7 @@
         <dep.jersey.version>3.1.6</dep.jersey.version>
         <dep.testcontainers.version>1.19.8</dep.testcontainers.version>
         <dep.minio.version>8.5.9</dep.minio.version>
+        <dep.commons-httpclient.version>3.1</dep.commons-httpclient.version>
     </properties>
 
     <dependencyManagement>
@@ -69,6 +70,22 @@
                 <version>${dep.aws-sdk.version}</version>
                 <type>pom</type>
                 <scope>import</scope>
+            </dependency>
+
+            <dependency>
+                <groupId>commons-httpclient</groupId>
+                <artifactId>commons-httpclient</artifactId>
+                <version>${dep.commons-httpclient.version}</version>
+                <exclusions>
+                    <exclusion>
+                        <groupId>commons-codec</groupId>
+                        <artifactId>commons-codec</artifactId>
+                    </exclusion>
+                    <exclusion>
+                        <groupId>commons-logging</groupId>
+                        <artifactId>commons-logging</artifactId>
+                    </exclusion>
+                </exclusions>
             </dependency>
 
             <dependency>

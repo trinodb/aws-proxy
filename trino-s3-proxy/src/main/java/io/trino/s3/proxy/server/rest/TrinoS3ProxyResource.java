@@ -16,8 +16,10 @@ package io.trino.s3.proxy.server.rest;
 import com.google.inject.Inject;
 import io.trino.s3.proxy.server.credentials.SigningController;
 import io.trino.s3.proxy.server.credentials.SigningServiceType;
+import jakarta.ws.rs.DELETE;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.HEAD;
+import jakarta.ws.rs.PUT;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.container.AsyncResponse;
@@ -66,6 +68,32 @@ public class TrinoS3ProxyResource
     @HEAD
     @Path("{path:.*}")
     public void s3Head(@Context ContainerRequest request, @Suspended AsyncResponse asyncResponse, @PathParam("path") String path)
+    {
+        proxyClient.proxyRequest(signingController.validateAndParseAuthorization(request, SigningServiceType.S3, Optional.empty()), parseRequest(path, request), asyncResponse);
+    }
+
+    @PUT
+    public void s3Put(@Context ContainerRequest request, @Suspended AsyncResponse asyncResponse)
+    {
+        s3Put(request, asyncResponse, "/");
+    }
+
+    @PUT
+    @Path("{path:.*}")
+    public void s3Put(@Context ContainerRequest request, @Suspended AsyncResponse asyncResponse, @PathParam("path") String path)
+    {
+        proxyClient.proxyRequest(signingController.validateAndParseAuthorization(request, SigningServiceType.S3, Optional.empty()), parseRequest(path, request), asyncResponse);
+    }
+
+    @DELETE
+    public void s3Delete(@Context ContainerRequest request, @Suspended AsyncResponse asyncResponse)
+    {
+        s3Delete(request, asyncResponse, "/");
+    }
+
+    @DELETE
+    @Path("{path:.*}")
+    public void s3Delete(@Context ContainerRequest request, @Suspended AsyncResponse asyncResponse, @PathParam("path") String path)
     {
         proxyClient.proxyRequest(signingController.validateAndParseAuthorization(request, SigningServiceType.S3, Optional.empty()), parseRequest(path, request), asyncResponse);
     }

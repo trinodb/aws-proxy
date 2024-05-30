@@ -13,16 +13,27 @@
  */
 package io.trino.s3.proxy.server;
 
+import com.google.common.io.Resources;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.Bucket;
 import software.amazon.awssdk.services.s3.model.Delete;
+import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
+import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.ListBucketsResponse;
+import software.amazon.awssdk.services.s3.model.ListObjectsResponse;
 import software.amazon.awssdk.services.s3.model.ObjectIdentifier;
+import software.amazon.awssdk.services.s3.model.PutObjectRequest;
+import software.amazon.awssdk.services.s3.model.PutObjectResponse;
 import software.amazon.awssdk.services.s3.model.S3Object;
 
+import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.List;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
@@ -82,5 +93,36 @@ public abstract class AbstractTestProxiedRequests
         assertThat(internalClient.listObjects(request -> request.bucket(bucketToTest)).contents())
                 .extracting(S3Object::key)
                 .containsOnly(testKey);
+    }
+
+    @Test
+    public void testUploadAndDelete()
+            throws IOException
+    {
+        Path path = new File(Resources.getResource("testFile.txt").getPath()).toPath();
+        PutObjectRequest putObjectRequest = PutObjectRequest.builder().bucket("two").key("test").build();
+        PutObjectResponse putObjectResponse = internalClient.putObject(putObjectRequest, path);
+        assertThat(putObjectResponse.sdkHttpResponse().statusCode()).isEqualTo(200);
+
+        GetObjectRequest getObjectRequest = GetObjectRequest.builder().bucket("two").key("test").build();
+        ByteArrayOutputStream readContents = new ByteArrayOutputStream();
+        internalClient.getObject(getObjectRequest).transferTo(readContents);
+
+        String expectedContents = Files.readString(path);
+
+        assertThat(readContents.toString()).isEqualTo(expectedContents);
+
+        ListObjectsResponse listObjectsResponse = internalClient.listObjects(request -> request.bucket("two"));
+        assertThat(listObjectsResponse.contents())
+                .hasSize(1)
+                .first()
+                .extracting(S3Object::key, S3Object::size)
+                .containsExactlyInAnyOrder("test", Files.size(path));
+
+        DeleteObjectRequest deleteObjectRequest = DeleteObjectRequest.builder().bucket("two").key("test").build();
+        internalClient.deleteObject(deleteObjectRequest);
+
+        listObjectsResponse = internalClient.listObjects(request -> request.bucket("two"));
+        assertThat(listObjectsResponse.contents()).isEmpty();
     }
 }

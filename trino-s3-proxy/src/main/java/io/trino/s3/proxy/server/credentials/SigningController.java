@@ -56,6 +56,7 @@ public class SigningController
         return instant.atZone(ZONE).format(RESPONSE_DATE_FORMAT);
     }
 
+    // temporary - remove once Airlift has been updated
     public enum Mode
     {
         ADJUSTED_HEADERS,
@@ -109,7 +110,7 @@ public class SigningController
 
         return Signer.sign(
                 mode,
-                metadata.signingServiceType().asServiceName(),
+                metadata.signingServiceType().serviceName(),
                 requestURI,
                 requestHeaders,
                 queryParameters,
