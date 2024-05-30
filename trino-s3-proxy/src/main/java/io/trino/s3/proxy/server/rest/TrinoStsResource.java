@@ -14,8 +14,6 @@
 package io.trino.s3.proxy.server.rest;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import com.fasterxml.jackson.dataformat.xml.XmlMapper;
 import com.google.inject.Inject;
 import io.airlift.log.Logger;
@@ -54,15 +52,14 @@ public class TrinoStsResource
 
     private final SigningController signingController;
     private final AssumedRoleProvider assumedRoleProvider;
-    private final ObjectMapper xmlMapper;
+    private final XmlMapper xmlMapper;
 
     @Inject
-    public TrinoStsResource(SigningController signingController, AssumedRoleProvider assumedRoleProvider)
+    public TrinoStsResource(SigningController signingController, AssumedRoleProvider assumedRoleProvider, XmlMapper xmlMapper)
     {
         this.signingController = requireNonNull(signingController, "signingController is null");
         this.assumedRoleProvider = requireNonNull(assumedRoleProvider, "assumedRoleProvider is null");
-
-        xmlMapper = new XmlMapper().setPropertyNamingStrategy(PropertyNamingStrategies.UPPER_CAMEL_CASE);
+        this.xmlMapper = requireNonNull(xmlMapper, "xmlMapper is null");
     }
 
     @SuppressWarnings("SwitchStatementWithTooFewBranches")

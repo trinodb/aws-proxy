@@ -13,7 +13,10 @@
  */
 package io.trino.s3.proxy.server;
 
+import com.fasterxml.jackson.databind.PropertyNamingStrategies;
+import com.fasterxml.jackson.dataformat.xml.XmlMapper;
 import com.google.inject.Binder;
+import com.google.inject.Provides;
 import com.google.inject.Scopes;
 import io.airlift.configuration.AbstractConfigurationAwareModule;
 import io.airlift.log.Logger;
@@ -68,6 +71,15 @@ public class TrinoS3ProxyServerModule
         installPlugins();
 
         moduleSpecificBinding(binder);
+    }
+
+    @Provides
+    public XmlMapper newXmlMapper()
+    {
+        // NOTE: this is _not_ a singleton on purpose. ObjectMappers/XmlMappers are mutable.
+        XmlMapper xmlMapper = new XmlMapper();
+        xmlMapper.setPropertyNamingStrategy(PropertyNamingStrategies.UPPER_CAMEL_CASE);
+        return xmlMapper;
     }
 
     protected void moduleSpecificBinding(Binder binder)
