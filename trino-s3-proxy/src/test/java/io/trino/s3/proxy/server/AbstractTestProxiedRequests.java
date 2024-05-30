@@ -14,13 +14,21 @@
 package io.trino.s3.proxy.server;
 
 import com.google.common.io.Resources;
+import jakarta.annotation.PreDestroy;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.Bucket;
+import software.amazon.awssdk.services.s3.model.CompleteMultipartUploadRequest;
+import software.amazon.awssdk.services.s3.model.CompleteMultipartUploadResponse;
+import software.amazon.awssdk.services.s3.model.CompletedMultipartUpload;
+import software.amazon.awssdk.services.s3.model.CompletedPart;
+import software.amazon.awssdk.services.s3.model.CreateMultipartUploadRequest;
+import software.amazon.awssdk.services.s3.model.CreateMultipartUploadResponse;
 import software.amazon.awssdk.services.s3.model.Delete;
 import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
+import software.amazon.awssdk.services.s3.model.DeleteObjectResponse;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.ListBucketsResponse;
 import software.amazon.awssdk.services.s3.model.ListObjectsResponse;
@@ -28,15 +36,26 @@ import software.amazon.awssdk.services.s3.model.ObjectIdentifier;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectResponse;
 import software.amazon.awssdk.services.s3.model.S3Object;
+import software.amazon.awssdk.services.s3.model.UploadPartRequest;
+import software.amazon.awssdk.services.s3.model.UploadPartResponse;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Duration;
+import java.util.Comparator;
 import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
+import static com.google.common.util.concurrent.MoreExecutors.shutdownAndAwaitTermination;
 import static java.util.Objects.requireNonNull;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -45,12 +64,19 @@ public abstract class AbstractTestProxiedRequests
     private final S3Client internalClient;
     private final S3Client remoteClient;
     private final List<String> configuredBuckets;
+    private final ExecutorService executorService = Executors.newVirtualThreadPerTaskExecutor();
 
     protected AbstractTestProxiedRequests(S3Client internalClient, S3Client remoteClient, List<String> configuredBuckets)
     {
         this.internalClient = requireNonNull(internalClient, "internalClient is null");
         this.remoteClient = requireNonNull(remoteClient, "remoteClient is null");
         this.configuredBuckets = requireNonNull(configuredBuckets, "configuredBuckets is null");
+    }
+
+    @PreDestroy
+    public void shutdown()
+    {
+        shutdownAndAwaitTermination(executorService, Duration.ofSeconds(30));
     }
 
     @AfterEach
@@ -124,5 +150,75 @@ public abstract class AbstractTestProxiedRequests
 
         listObjectsResponse = internalClient.listObjects(request -> request.bucket("two"));
         assertThat(listObjectsResponse.contents()).isEmpty();
+    }
+
+    @Test
+    public void testMultipartUpload()
+            throws IOException
+    {
+        CreateMultipartUploadRequest multipartUploadRequest = CreateMultipartUploadRequest.builder().bucket("three").key("multi").build();
+        CreateMultipartUploadResponse multipartUploadResponse = internalClient.createMultipartUpload(multipartUploadRequest);
+
+        String uploadId = multipartUploadResponse.uploadId();
+
+        List<CompletedPart> completedParts = new CopyOnWriteArrayList<>();
+
+        List<? extends Future<?>> futures = IntStream.rangeClosed(1, 5)
+                .mapToObj(partNumber -> executorService.submit(() -> {
+                    String content = buildLine(partNumber);
+                    UploadPartRequest part = UploadPartRequest.builder().bucket("three").key("multi").uploadId(uploadId).partNumber(partNumber).contentLength((long) content.length()).build();
+                    UploadPartResponse uploadPartResponse = internalClient.uploadPart(part, RequestBody.fromString(content));
+                    assertThat(uploadPartResponse.sdkHttpResponse().statusCode()).isEqualTo(200);
+
+                    completedParts.add(CompletedPart.builder().partNumber(partNumber).eTag(uploadPartResponse.eTag()).build());
+                }))
+                .collect(toImmutableList());
+
+        futures.forEach(f -> {
+            try {
+                f.get();
+            }
+            catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        });
+
+        List<CompletedPart> sortedCompletedParts = completedParts.stream()
+                .sorted(Comparator.comparing(CompletedPart::partNumber))
+                .collect(toImmutableList());
+
+        CompletedMultipartUpload completedUpload = CompletedMultipartUpload.builder()
+                .parts(sortedCompletedParts)
+                .build();
+
+        CompleteMultipartUploadRequest completeRequest = CompleteMultipartUploadRequest.builder()
+                .bucket("three")
+                .key("multi")
+                .uploadId(uploadId)
+                .multipartUpload(completedUpload)
+                .build();
+
+        CompleteMultipartUploadResponse completeResponse = internalClient.completeMultipartUpload(completeRequest);
+        assertThat(completeResponse.sdkHttpResponse().statusCode()).isEqualTo(200);
+
+        GetObjectRequest getObjectRequest = GetObjectRequest.builder().bucket("three").key("multi").build();
+        ByteArrayOutputStream readContents = new ByteArrayOutputStream();
+        internalClient.getObject(getObjectRequest).transferTo(readContents);
+
+        String expected = IntStream.rangeClosed(1, 5)
+                .mapToObj(AbstractTestProxiedRequests::buildLine)
+                .collect(Collectors.joining());
+
+        assertThat(readContents.toString()).isEqualTo(expected);
+
+        DeleteObjectRequest deleteObjectRequest = DeleteObjectRequest.builder().bucket("three").key("multi").build();
+        DeleteObjectResponse deleteObjectResponse = internalClient.deleteObject(deleteObjectRequest);
+        assertThat(deleteObjectResponse.sdkHttpResponse().statusCode()).isEqualTo(204);
+    }
+
+    private static String buildLine(int partNumber)
+    {
+        // min multi-part is 5MB
+        return Character.toString('a' + (partNumber - 1)).repeat(1024 * 1024 * 5);
     }
 }
