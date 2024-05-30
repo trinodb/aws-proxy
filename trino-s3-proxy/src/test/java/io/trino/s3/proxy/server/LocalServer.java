@@ -17,8 +17,11 @@ import io.airlift.http.server.testing.TestingHttpServer;
 import io.airlift.log.Logger;
 import io.trino.s3.proxy.server.credentials.Credential;
 import io.trino.s3.proxy.server.credentials.Credentials;
+import io.trino.s3.proxy.server.rest.TrinoS3ProxyResource;
 import io.trino.s3.proxy.server.testing.TestingTrinoS3ProxyServer;
+import jakarta.ws.rs.core.UriBuilder;
 
+import java.net.URI;
 import java.util.Optional;
 
 public final class LocalServer
@@ -27,7 +30,6 @@ public final class LocalServer
 
     private LocalServer() {}
 
-    @SuppressWarnings("resource")
     public static void main(String[] args)
     {
         if (args.length != 4) {
@@ -46,9 +48,16 @@ public final class LocalServer
 
         log.info("======== TESTING SERVER STARTED ========");
 
-        TestingHttpServer httpServer = trinoS3ProxyServer.getInjector().getInstance(TestingHttpServer.class);
+        logEndpoint(trinoS3ProxyServer);
+    }
+
+    static void logEndpoint(TestingTrinoS3ProxyServer trinoS3ProxyServer)
+    {
+        URI baseUri = trinoS3ProxyServer.getInjector().getInstance(TestingHttpServer.class).getBaseUrl();
+        URI endpoint = baseUri.resolve(UriBuilder.fromResource(TrinoS3ProxyResource.class).build());
+
         log.info("");
-        log.info("Endpoint: %s", httpServer.getBaseUrl());
+        log.info("Endpoint: %s", endpoint);
         log.info("");
     }
 }

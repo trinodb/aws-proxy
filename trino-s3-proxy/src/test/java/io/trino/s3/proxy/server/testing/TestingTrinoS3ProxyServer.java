@@ -24,9 +24,13 @@ import io.airlift.http.server.testing.TestingHttpServerModule;
 import io.airlift.jaxrs.JaxrsModule;
 import io.airlift.json.JsonModule;
 import io.airlift.node.testing.TestingNodeModule;
+import io.trino.s3.proxy.server.credentials.Credentials;
 
 import java.io.Closeable;
 import java.util.Collection;
+import java.util.Optional;
+
+import static io.trino.s3.proxy.server.testing.TestingConstants.TESTING_CREDENTIALS;
 
 public final class TestingTrinoS3ProxyServer
         implements Closeable
@@ -62,9 +66,22 @@ public final class TestingTrinoS3ProxyServer
     public static class Builder
     {
         private final ImmutableSet.Builder<Module> modules = ImmutableSet.builder();
+        private boolean addTestingCredentials;
 
         private Builder()
         {
+        }
+
+        public Builder addMockContainer(Optional<String> initialBuckets)
+        {
+            addTestingCredentials = true;
+
+            return addModule(binder -> {
+                binder.bind(String.class).annotatedWith(ManagedS3MockContainer.ForS3MockContainer.class).toInstance(initialBuckets.orElse(""));
+                binder.bind(Credentials.class).annotatedWith(TestingConstants.ForTestingCredentials.class).toInstance(TESTING_CREDENTIALS);
+                binder.bind(ManagedS3MockContainer.class).asEagerSingleton();
+                binder.bind(ContainerS3Facade.class).asEagerSingleton();
+            });
         }
 
         public Builder addModule(Module module)
@@ -75,7 +92,11 @@ public final class TestingTrinoS3ProxyServer
 
         public TestingTrinoS3ProxyServer buildAndStart()
         {
-            return start(modules.build());
+            TestingTrinoS3ProxyServer trinoS3ProxyServer = start(modules.build());
+            if (addTestingCredentials) {
+                trinoS3ProxyServer.getCredentialsController().addCredentials(TESTING_CREDENTIALS);
+            }
+            return trinoS3ProxyServer;
         }
     }
 
