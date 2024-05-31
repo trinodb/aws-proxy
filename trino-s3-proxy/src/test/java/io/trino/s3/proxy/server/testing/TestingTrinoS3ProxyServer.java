@@ -49,9 +49,9 @@ public final class TestingTrinoS3ProxyServer
         return injector;
     }
 
-    public TestingCredentialsController getCredentialsController()
+    public TestingCredentialsProvider getCredentialsController()
     {
-        return injector.getInstance(TestingCredentialsController.class);
+        return injector.getInstance(TestingCredentialsProvider.class);
     }
 
     public static Builder builder()

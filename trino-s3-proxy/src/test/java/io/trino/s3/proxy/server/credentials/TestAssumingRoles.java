@@ -15,7 +15,7 @@ package io.trino.s3.proxy.server.credentials;
 
 import com.google.inject.Inject;
 import io.trino.s3.proxy.server.testing.TestingConstants.ForTesting;
-import io.trino.s3.proxy.server.testing.TestingCredentialsController;
+import io.trino.s3.proxy.server.testing.TestingCredentialsProvider;
 import io.trino.s3.proxy.server.testing.TestingS3ClientProvider;
 import io.trino.s3.proxy.server.testing.harness.TrinoS3ProxyTest;
 import org.assertj.core.api.InstanceOfAssertFactories;
@@ -37,12 +37,12 @@ public class TestAssumingRoles
 {
     private static final String ARN = "test-arn";
 
-    private final TestingCredentialsController credentialsController;
+    private final TestingCredentialsProvider credentialsController;
     private final TestingS3ClientProvider s3ClientProvider;
     private final Credentials testingCredentials;
 
     @Inject
-    public TestAssumingRoles(TestingCredentialsController credentialsController, TestingS3ClientProvider s3ClientProvider, @ForTesting Credentials testingCredentials)
+    public TestAssumingRoles(TestingCredentialsProvider credentialsController, TestingS3ClientProvider s3ClientProvider, @ForTesting Credentials testingCredentials)
     {
         this.credentialsController = requireNonNull(credentialsController, "credentialsController is null");
         this.s3ClientProvider = requireNonNull(s3ClientProvider, "s3ClientProvider is null");
