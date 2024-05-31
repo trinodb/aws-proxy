@@ -17,11 +17,11 @@ import com.google.inject.BindingAnnotation;
 import com.google.inject.Inject;
 import io.airlift.http.client.HttpClient;
 import io.airlift.http.client.Request;
+import io.trino.s3.proxy.server.BackgroundTasks;
 import io.trino.s3.proxy.server.credentials.Credentials;
 import io.trino.s3.proxy.server.credentials.SigningController;
 import io.trino.s3.proxy.server.credentials.SigningMetadata;
 import io.trino.s3.proxy.server.remote.RemoteS3Facade;
-import jakarta.annotation.PreDestroy;
 import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.container.AsyncResponse;
 import jakarta.ws.rs.core.MultivaluedHashMap;
@@ -32,14 +32,10 @@ import org.glassfish.jersey.server.ContainerRequest;
 import java.lang.annotation.Retention;
 import java.lang.annotation.Target;
 import java.net.URI;
-import java.time.Duration;
 import java.time.Instant;
 import java.util.Optional;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 
 import static com.google.common.base.MoreObjects.firstNonNull;
-import static com.google.common.util.concurrent.MoreExecutors.shutdownAndAwaitTermination;
 import static io.trino.s3.proxy.server.credentials.SigningController.formatRequestInstant;
 import static java.lang.annotation.ElementType.FIELD;
 import static java.lang.annotation.ElementType.METHOD;
@@ -52,7 +48,7 @@ public class TrinoS3ProxyClient
     private final HttpClient httpClient;
     private final SigningController signingController;
     private final RemoteS3Facade remoteS3Facade;
-    private final ExecutorService executorService = Executors.newVirtualThreadPerTaskExecutor();
+    private final BackgroundTasks backgroundTasks;
 
     @Retention(RUNTIME)
     @Target({FIELD, PARAMETER, METHOD})
@@ -60,19 +56,12 @@ public class TrinoS3ProxyClient
     public @interface ForProxyClient {}
 
     @Inject
-    public TrinoS3ProxyClient(@ForProxyClient HttpClient httpClient, SigningController signingController, RemoteS3Facade remoteS3Facade)
+    public TrinoS3ProxyClient(@ForProxyClient HttpClient httpClient, SigningController signingController, RemoteS3Facade remoteS3Facade, BackgroundTasks backgroundTasks)
     {
         this.httpClient = requireNonNull(httpClient, "httpClient is null");
         this.signingController = requireNonNull(signingController, "signingController is null");
         this.remoteS3Facade = requireNonNull(remoteS3Facade, "objectStore is null");
-    }
-
-    @PreDestroy
-    public void shutDown()
-    {
-        if (!shutdownAndAwaitTermination(executorService, Duration.ofSeconds(30))) {
-            // TODO add logging - check for false result
-        }
+        this.backgroundTasks = requireNonNull(backgroundTasks, "backgroundTasks is null");
     }
 
     public void proxyRequest(SigningMetadata signingMetadata, ContainerRequest request, AsyncResponse asyncResponse, String bucket)
@@ -118,7 +107,7 @@ public class TrinoS3ProxyClient
 
         Request realRequest = realRequestBuilder.build();
 
-        executorService.submit(() -> httpClient.execute(realRequest, new StreamingResponseHandler(asyncResponse)));
+        backgroundTasks.executor().submit(() -> httpClient.execute(realRequest, new StreamingResponseHandler(asyncResponse)));
     }
 
     private static String buildRealHost(URI realUri)

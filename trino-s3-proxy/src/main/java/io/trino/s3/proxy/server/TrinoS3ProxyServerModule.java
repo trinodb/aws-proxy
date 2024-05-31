@@ -28,6 +28,7 @@ import io.trino.s3.proxy.server.rest.TrinoStsResource;
 import static io.airlift.configuration.ConfigBinder.configBinder;
 import static io.airlift.http.client.HttpClientBinder.httpClientBinder;
 import static io.airlift.jaxrs.JaxrsBinder.jaxrsBinder;
+import static io.trino.s3.proxy.server.BackgroundTasks.backgroundTasksBinder;
 
 public class TrinoS3ProxyServerModule
         implements Module
@@ -40,6 +41,10 @@ public class TrinoS3ProxyServerModule
 
         configBinder(binder).bindConfig(SigningControllerConfig.class);
         binder.bind(SigningController.class).in(Scopes.SINGLETON);
+
+        // initialize the background task multi-binder
+        backgroundTasksBinder(binder);
+        binder.bind(BackgroundTasks.class).asEagerSingleton();
 
         // TODO config, etc.
         httpClientBinder(binder).bindHttpClient("ProxyClient", ForProxyClient.class);

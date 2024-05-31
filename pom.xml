@@ -51,6 +51,7 @@
         <dep.jersey.version>3.1.6</dep.jersey.version>
         <dep.testcontainers.version>1.19.8</dep.testcontainers.version>
         <dep.minio.version>8.5.9</dep.minio.version>
+        <dep.awaitility.version>4.1.1</dep.awaitility.version>
     </properties>
 
     <dependencyManagement>
@@ -81,6 +82,18 @@
                 <groupId>io.minio</groupId>
                 <artifactId>minio</artifactId>
                 <version>${dep.minio.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>org.awaitility</groupId>
+                <artifactId>awaitility</artifactId>
+                <version>${dep.awaitility.version}</version>
+                <exclusions>
+                    <exclusion>
+                        <groupId>org.hamcrest</groupId>
+                        <artifactId>hamcrest</artifactId>
+                    </exclusion>
+                </exclusions>
             </dependency>
 
             <dependency>
