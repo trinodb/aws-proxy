@@ -18,33 +18,26 @@ import com.google.inject.Provider;
 import io.airlift.http.server.testing.TestingHttpServer;
 import io.trino.s3.proxy.server.credentials.Credential;
 import io.trino.s3.proxy.server.credentials.Credentials;
-import io.trino.s3.proxy.server.rest.TrinoS3ProxyResource;
-import io.trino.s3.proxy.server.testing.TestingConstants.ForTesting;
-import jakarta.ws.rs.core.UriBuilder;
+import io.trino.s3.proxy.server.testing.TestingUtil.ForTesting;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
-import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3Client;
-import software.amazon.awssdk.services.s3.S3ClientBuilder;
 
-import java.net.URI;
-
+import static io.trino.s3.proxy.server.testing.TestingUtil.clientBuilder;
 import static java.util.Objects.requireNonNull;
 
 public class TestingS3ClientProvider
         implements Provider<S3Client>
 {
     private final Credential testingCredentials;
-    private final URI localProxyServerUri;
+    private final TestingHttpServer httpServer;
 
     @Inject
     public TestingS3ClientProvider(
-            TestingTrinoS3ProxyServer trinoS3ProxyServer,
+            TestingHttpServer httpServer,
             @ForTesting Credentials testingCredentials)
     {
+        this.httpServer = requireNonNull(httpServer, "httpServer is null");
         this.testingCredentials = requireNonNull(testingCredentials, "testingCredentials is null").emulated();
-
-        URI baseUrl = trinoS3ProxyServer.getInjector().getInstance(TestingHttpServer.class).getBaseUrl();
-        localProxyServerUri = UriBuilder.fromUri(baseUrl).path(TrinoS3ProxyResource.class).build();
     }
 
     @Override
@@ -52,15 +45,8 @@ public class TestingS3ClientProvider
     {
         AwsBasicCredentials awsBasicCredentials = AwsBasicCredentials.create(testingCredentials.accessKey(), testingCredentials.secretKey());
 
-        return newClientBuilder()
+        return clientBuilder(httpServer)
                 .credentialsProvider(() -> awsBasicCredentials)
                 .build();
-    }
-
-    public S3ClientBuilder newClientBuilder()
-    {
-        return S3Client.builder()
-                .region(Region.US_EAST_1)
-                .endpointOverride(localProxyServerUri);
     }
 }

@@ -22,7 +22,7 @@ import com.google.inject.multibindings.OptionalBinder;
 import io.trino.s3.proxy.server.remote.RemoteS3Facade;
 import io.trino.s3.proxy.server.testing.ContainerS3Facade;
 import io.trino.s3.proxy.server.testing.ManagedS3MockContainer.ForS3MockContainer;
-import io.trino.s3.proxy.server.testing.TestingConstants.ForTesting;
+import io.trino.s3.proxy.server.testing.TestingUtil.ForTesting;
 
 import java.util.List;
 

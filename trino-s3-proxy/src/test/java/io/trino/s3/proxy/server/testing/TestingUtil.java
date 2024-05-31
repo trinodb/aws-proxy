@@ -14,11 +14,17 @@
 package io.trino.s3.proxy.server.testing;
 
 import com.google.inject.BindingAnnotation;
+import io.airlift.http.server.testing.TestingHttpServer;
 import io.trino.s3.proxy.server.credentials.Credential;
 import io.trino.s3.proxy.server.credentials.Credentials;
+import io.trino.s3.proxy.server.rest.TrinoS3ProxyRestConstants;
+import software.amazon.awssdk.regions.Region;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.S3ClientBuilder;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.Target;
+import java.net.URI;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -27,7 +33,7 @@ import static java.lang.annotation.ElementType.METHOD;
 import static java.lang.annotation.ElementType.PARAMETER;
 import static java.lang.annotation.RetentionPolicy.RUNTIME;
 
-public final class TestingConstants
+public final class TestingUtil
 {
     public static final Credentials TESTING_CREDENTIALS = new Credentials(
             new Credential(UUID.randomUUID().toString(), UUID.randomUUID().toString()),
@@ -41,5 +47,15 @@ public final class TestingConstants
     @BindingAnnotation
     public @interface ForTesting {}
 
-    private TestingConstants() {}
+    public static S3ClientBuilder clientBuilder(TestingHttpServer httpServer)
+    {
+        URI baseUrl = httpServer.getBaseUrl();
+        URI localProxyServerUri = baseUrl.resolve(TrinoS3ProxyRestConstants.S3_PATH);
+
+        return S3Client.builder()
+                .region(Region.US_EAST_1)
+                .endpointOverride(localProxyServerUri);
+    }
+
+    private TestingUtil() {}
 }

@@ -18,7 +18,7 @@ import com.google.inject.Inject;
 import com.google.inject.Provider;
 import io.trino.s3.proxy.server.credentials.Credential;
 import io.trino.s3.proxy.server.credentials.Credentials;
-import io.trino.s3.proxy.server.testing.TestingConstants.ForTesting;
+import io.trino.s3.proxy.server.testing.TestingUtil.ForTesting;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
 import org.testcontainers.containers.MinIOContainer;
@@ -32,7 +32,7 @@ import java.lang.annotation.Target;
 import java.net.URI;
 import java.util.List;
 
-import static io.trino.s3.proxy.server.testing.TestingConstants.LOCALHOST_DOMAIN;
+import static io.trino.s3.proxy.server.testing.TestingUtil.LOCALHOST_DOMAIN;
 import static java.lang.annotation.ElementType.FIELD;
 import static java.lang.annotation.ElementType.METHOD;
 import static java.lang.annotation.ElementType.PARAMETER;

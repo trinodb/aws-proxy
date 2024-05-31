@@ -19,7 +19,7 @@ import io.trino.s3.proxy.server.remote.VirtualHostStyleRemoteS3Facade;
 
 import java.util.Optional;
 
-import static io.trino.s3.proxy.server.testing.TestingConstants.LOCALHOST_DOMAIN;
+import static io.trino.s3.proxy.server.testing.TestingUtil.LOCALHOST_DOMAIN;
 
 public final class ContainerS3Facade
 {
