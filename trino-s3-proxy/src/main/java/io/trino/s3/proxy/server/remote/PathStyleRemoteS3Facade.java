@@ -13,29 +13,29 @@
  */
 package io.trino.s3.proxy.server.remote;
 
-import com.google.common.annotations.VisibleForTesting;
 import jakarta.ws.rs.core.UriBuilder;
 
 import java.net.URI;
 import java.util.Optional;
 
+import static io.trino.s3.proxy.server.remote.AwsRemoteS3FacadeConstants.PATH_BUILDER;
 import static java.util.Objects.requireNonNull;
 
 public class PathStyleRemoteS3Facade
         implements RemoteS3Facade
 {
-    private final String domain;
+    private final RemoteS3HostBuilder hostBuilder;
     private final boolean https;
     private final Optional<Integer> port;
 
     public PathStyleRemoteS3Facade()
     {
-        this("amazonaws.com", true, Optional.empty());
+        this(PATH_BUILDER, true, Optional.empty());
     }
 
-    public PathStyleRemoteS3Facade(String domain, boolean https, Optional<Integer> port)
+    public PathStyleRemoteS3Facade(RemoteS3HostBuilder hostBuilder, boolean https, Optional<Integer> port)
     {
-        this.domain = requireNonNull(domain, "domain is null");
+        this.hostBuilder = requireNonNull(hostBuilder, "hostBuilder is null");
         this.port = requireNonNull(port, "port is null");
         this.https = https;
     }
@@ -43,7 +43,7 @@ public class PathStyleRemoteS3Facade
     @Override
     public URI buildEndpoint(UriBuilder uriBuilder, String path, String bucket, String region)
     {
-        String host = buildHost(region);
+        String host = hostBuilder.build(bucket, region);
 
         UriBuilder builder = uriBuilder.host(host)
                 .scheme(https ? "https" : "http")
@@ -52,11 +52,5 @@ public class PathStyleRemoteS3Facade
         port.ifPresent(builder::port);
 
         return builder.build();
-    }
-
-    @VisibleForTesting
-    protected String buildHost(String region)
-    {
-        return "s3.%s.%s".formatted(region, domain);
     }
 }
