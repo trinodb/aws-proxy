@@ -13,6 +13,7 @@
  */
 package io.trino.s3.proxy.server.testing;
 
+import io.trino.s3.proxy.server.credentials.AssumedRoleProvider;
 import io.trino.s3.proxy.server.credentials.Credential;
 import io.trino.s3.proxy.server.credentials.Credentials;
 import io.trino.s3.proxy.server.credentials.CredentialsProvider;
@@ -35,8 +36,8 @@ import static java.util.Objects.requireNonNull;
  * meant for Production. A real, production ready implementation would
  * store credentials and assumed roles in a database, etc.
  */
-public class TestingCredentialsProvider
-        implements CredentialsProvider
+public class TestingCredentialsRolesProvider
+        implements CredentialsProvider, AssumedRoleProvider
 {
     private final Map<String, Credentials> credentials = new ConcurrentHashMap<>();
     private final Map<String, Session> assumedRoleSessions = new ConcurrentHashMap<>();
@@ -77,7 +78,7 @@ public class TestingCredentialsProvider
     }
 
     @Override
-    public Optional<EmulatedAssumedRole> assumeRole(
+    public Optional<EmulatedAssumedRole> assumeEmulatedRole(
             SigningMetadata signingMetadata,
             String requestArn,
             Optional<String> requestExternalId,

@@ -19,7 +19,7 @@ import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import com.fasterxml.jackson.dataformat.xml.XmlMapper;
 import com.google.inject.Inject;
 import io.airlift.log.Logger;
-import io.trino.s3.proxy.server.credentials.CredentialsProvider;
+import io.trino.s3.proxy.server.credentials.AssumedRoleProvider;
 import io.trino.s3.proxy.server.credentials.EmulatedAssumedRole;
 import io.trino.s3.proxy.server.credentials.SigningController;
 import io.trino.s3.proxy.server.credentials.SigningMetadata;
@@ -52,14 +52,14 @@ public class TrinoStsResource
     private static final Logger log = Logger.get(TrinoStsResource.class);
 
     private final SigningController signingController;
-    private final CredentialsProvider credentialsProvider;
+    private final AssumedRoleProvider assumedRoleProvider;
     private final ObjectMapper xmlMapper;
 
     @Inject
-    public TrinoStsResource(SigningController signingController, CredentialsProvider credentialsProvider)
+    public TrinoStsResource(SigningController signingController, AssumedRoleProvider assumedRoleProvider)
     {
         this.signingController = requireNonNull(signingController, "signingController is null");
-        this.credentialsProvider = requireNonNull(credentialsProvider, "credentialsController is null");
+        this.assumedRoleProvider = requireNonNull(assumedRoleProvider, "assumedRoleProvider is null");
 
         xmlMapper = new XmlMapper().setPropertyNamingStrategy(PropertyNamingStrategies.UPPER_CAMEL_CASE);
     }
@@ -101,7 +101,7 @@ public class TrinoStsResource
         Optional<String> externalId = Optional.ofNullable(arguments.get("ExternalId"));
         Optional<Integer> durationSeconds = Optional.ofNullable(arguments.get("DurationSeconds")).map(TrinoStsResource::mapToInt);
 
-        EmulatedAssumedRole assumedRole = credentialsProvider.assumeRole(signingMetadata, roleArn, externalId, roleSessionName, durationSeconds)
+        EmulatedAssumedRole assumedRole = assumedRoleProvider.assumeEmulatedRole(signingMetadata, roleArn, externalId, roleSessionName, durationSeconds)
                 .orElseThrow(() -> {
                     log.debug("Assume role failed. Arguments: %s", arguments);
                     return new WebApplicationException(Response.status(Response.Status.UNAUTHORIZED).build());
