@@ -16,6 +16,7 @@ package io.trino.s3.proxy.server.testing;
 import com.google.inject.Binder;
 import com.google.inject.Scopes;
 import io.trino.s3.proxy.server.TrinoS3ProxyServerModule;
+import io.trino.s3.proxy.server.credentials.AssumedRoleProvider;
 import io.trino.s3.proxy.server.credentials.CredentialsProvider;
 import io.trino.s3.proxy.server.remote.RemoteS3Facade;
 
@@ -25,8 +26,9 @@ public class TestingTrinoS3ProxyServerModule
     @Override
     protected void moduleSpecificBinding(Binder binder)
     {
-        binder.bind(CredentialsProvider.class).to(TestingCredentialsProvider.class).in(Scopes.SINGLETON);
-        binder.bind(TestingCredentialsProvider.class).in(Scopes.SINGLETON);
+        binder.bind(CredentialsProvider.class).to(TestingCredentialsRolesProvider.class).in(Scopes.SINGLETON);
+        binder.bind(AssumedRoleProvider.class).to(TestingCredentialsRolesProvider.class).in(Scopes.SINGLETON);
+        binder.bind(TestingCredentialsRolesProvider.class).in(Scopes.SINGLETON);
 
         binder.bind(RemoteS3Facade.class).to(TestingRemoteS3Facade.class).in(Scopes.SINGLETON);
         binder.bind(TestingRemoteS3Facade.class).in(Scopes.SINGLETON);

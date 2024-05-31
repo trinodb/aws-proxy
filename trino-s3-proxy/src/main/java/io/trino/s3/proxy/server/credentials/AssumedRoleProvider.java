@@ -15,12 +15,18 @@ package io.trino.s3.proxy.server.credentials;
 
 import java.util.Optional;
 
-public interface CredentialsProvider
+public interface AssumedRoleProvider
 {
     /**
-     * Return the credentials, if any, for the given access key and session.
-     * Your implementation should have a centralized credentials mechanism, likely
-     * some type of database along with a way of registering credentials, etc.
+     * Assume a role if possible. The details of role assuming are implementation
+     * specific. Your implementation should have a centralized role assuming
+     * mechanism, likely some type of database along with a way of registering
+     * roles assuming policies, etc.
      */
-    Optional<Credentials> credentials(String emulatedAccessKey, Optional<String> session);
+    Optional<EmulatedAssumedRole> assumeEmulatedRole(
+            SigningMetadata signingMetadata,
+            String requestArn,
+            Optional<String> requestExternalId,
+            Optional<String> requestRoleSessionName,
+            Optional<Integer> requestDurationSeconds);
 }
