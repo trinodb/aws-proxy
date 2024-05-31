@@ -19,7 +19,7 @@ import io.trino.s3.proxy.server.credentials.Credentials;
 import io.trino.s3.proxy.server.rest.TrinoS3ProxyRestConstants;
 import io.trino.s3.proxy.server.testing.ManagedS3MockContainer.ForS3MockContainer;
 import io.trino.s3.proxy.server.testing.TestingConstants.ForTesting;
-import io.trino.s3.proxy.server.testing.TestingCredentialsController;
+import io.trino.s3.proxy.server.testing.TestingCredentialsProvider;
 import io.trino.s3.proxy.server.testing.harness.TrinoS3ProxyTest;
 import io.trino.s3.proxy.server.testing.harness.TrinoS3ProxyTestCommonModules.WithConfiguredBuckets;
 import org.junit.jupiter.api.AfterAll;
@@ -43,10 +43,10 @@ public class TestProxiedAssumedRoleRequests
 {
     private static final String ARN = "arn:aws:iam::123456789012:role/assumed";
 
-    private final TestingCredentialsController credentialsController;
+    private final TestingCredentialsProvider credentialsController;
 
     @Inject
-    public TestProxiedAssumedRoleRequests(TestingHttpServer httpServer, @ForTesting Credentials testingCredentials, TestingCredentialsController credentialsController, @ForS3MockContainer S3Client storageClient, @ForS3MockContainer List<String> configuredBuckets)
+    public TestProxiedAssumedRoleRequests(TestingHttpServer httpServer, @ForTesting Credentials testingCredentials, TestingCredentialsProvider credentialsController, @ForS3MockContainer S3Client storageClient, @ForS3MockContainer List<String> configuredBuckets)
     {
         super(buildClient(httpServer, testingCredentials), storageClient, configuredBuckets);
         this.credentialsController = credentialsController;

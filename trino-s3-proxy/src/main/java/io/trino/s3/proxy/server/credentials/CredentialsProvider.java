@@ -15,8 +15,13 @@ package io.trino.s3.proxy.server.credentials;
 
 import java.util.Optional;
 
-public interface CredentialsController
+public interface CredentialsProvider
 {
+    /**
+     * Return the credentials, if any, for the given access key and session.
+     * Your implementation should have a centralized credentials mechanism, likely
+     * some type of database along with a way of registering credentials, etc.
+     */
     Optional<Credentials> credentials(String emulatedAccessKey, Optional<String> session);
 
     /**

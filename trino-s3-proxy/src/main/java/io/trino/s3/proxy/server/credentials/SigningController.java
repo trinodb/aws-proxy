@@ -34,13 +34,13 @@ import static java.util.Objects.requireNonNull;
 
 public class SigningController
 {
-    private final CredentialsController credentialsController;
+    private final CredentialsProvider credentialsProvider;
     private final Duration maxClockDrift;
 
     @Inject
-    public SigningController(CredentialsController credentialsController, SigningControllerConfig signingControllerConfig)
+    public SigningController(CredentialsProvider credentialsProvider, SigningControllerConfig signingControllerConfig)
     {
-        this.credentialsController = requireNonNull(credentialsController, "credentialsController is null");
+        this.credentialsProvider = requireNonNull(credentialsProvider, "credentialsController is null");
         maxClockDrift = signingControllerConfig.getMaxClockDrift().toJavaTime();
     }
 
@@ -127,7 +127,7 @@ public class SigningController
 
         Optional<String> session = Optional.ofNullable(requestHeaders.getFirst("x-amz-security-token"));
 
-        return credentialsController.credentials(emulatedAccessKey, session)
+        return credentialsProvider.credentials(emulatedAccessKey, session)
                 .map(credentials -> new SigningMetadata(signingServiceType, credentials, session, region))
                 .filter(metadata -> isValidAuthorization(metadata, credentialsSupplier, authorization, requestURI, requestHeaders, queryParameters, httpMethod, entity));
     }
