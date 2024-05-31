@@ -24,9 +24,9 @@ import io.trino.s3.proxy.server.remote.RemoteS3Facade;
 import io.trino.s3.proxy.server.testing.ContainerS3Facade;
 import io.trino.s3.proxy.server.testing.ManagedS3MockContainer;
 import io.trino.s3.proxy.server.testing.ManagedS3MockContainer.ForS3MockContainer;
-import io.trino.s3.proxy.server.testing.TestingConstants.ForTesting;
 import io.trino.s3.proxy.server.testing.TestingS3ClientProvider;
 import io.trino.s3.proxy.server.testing.TestingTrinoS3ProxyServer;
+import io.trino.s3.proxy.server.testing.TestingUtil.ForTesting;
 import org.junit.jupiter.api.extension.ExtensionContext;
 import org.junit.jupiter.api.extension.TestInstanceFactory;
 import org.junit.jupiter.api.extension.TestInstanceFactoryContext;
@@ -41,7 +41,7 @@ import java.util.stream.Stream;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.inject.multibindings.OptionalBinder.newOptionalBinder;
-import static io.trino.s3.proxy.server.testing.TestingConstants.TESTING_CREDENTIALS;
+import static io.trino.s3.proxy.server.testing.TestingUtil.TESTING_CREDENTIALS;
 
 public class TrinoS3ProxyTestExtension
         implements TestInstanceFactory, TestInstancePreDestroyCallback

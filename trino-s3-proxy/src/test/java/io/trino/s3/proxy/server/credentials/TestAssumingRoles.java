@@ -14,9 +14,9 @@
 package io.trino.s3.proxy.server.credentials;
 
 import com.google.inject.Inject;
-import io.trino.s3.proxy.server.testing.TestingConstants.ForTesting;
+import io.airlift.http.server.testing.TestingHttpServer;
 import io.trino.s3.proxy.server.testing.TestingCredentialsRolesProvider;
-import io.trino.s3.proxy.server.testing.TestingS3ClientProvider;
+import io.trino.s3.proxy.server.testing.TestingUtil.ForTesting;
 import io.trino.s3.proxy.server.testing.harness.TrinoS3ProxyTest;
 import org.assertj.core.api.InstanceOfAssertFactories;
 import org.junit.jupiter.api.AfterEach;
@@ -28,6 +28,7 @@ import software.amazon.awssdk.services.s3.model.S3Exception;
 
 import java.util.Optional;
 
+import static io.trino.s3.proxy.server.testing.TestingUtil.clientBuilder;
 import static java.util.Objects.requireNonNull;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -38,14 +39,14 @@ public class TestAssumingRoles
     private static final String ARN = "test-arn";
 
     private final TestingCredentialsRolesProvider credentialsController;
-    private final TestingS3ClientProvider s3ClientProvider;
+    private final TestingHttpServer httpServer;
     private final Credentials testingCredentials;
 
     @Inject
-    public TestAssumingRoles(TestingCredentialsRolesProvider credentialsController, TestingS3ClientProvider s3ClientProvider, @ForTesting Credentials testingCredentials)
+    public TestAssumingRoles(TestingCredentialsRolesProvider credentialsController, TestingHttpServer httpServer, @ForTesting Credentials testingCredentials)
     {
         this.credentialsController = requireNonNull(credentialsController, "credentialsController is null");
-        this.s3ClientProvider = requireNonNull(s3ClientProvider, "s3ClientProvider is null");
+        this.httpServer = requireNonNull(httpServer, "testingHttpServer is null");
         this.testingCredentials = requireNonNull(testingCredentials, "testingCredentials is null");
     }
 
@@ -62,7 +63,7 @@ public class TestAssumingRoles
         EmulatedAssumedRole emulatedAssumedRole = credentialsController.assumeEmulatedRole(mockedSigningMetadata, ARN, Optional.empty(), Optional.empty(), Optional.empty())
                 .orElseThrow(() -> new RuntimeException("Failed to assume role"));
 
-        try (S3Client client = s3ClientProvider.newClientBuilder()
+        try (S3Client client = clientBuilder(httpServer)
                 .credentialsProvider(() -> AwsSessionCredentials.create(emulatedAssumedRole.credential().accessKey(), emulatedAssumedRole.credential().secretKey(), emulatedAssumedRole.session()))
                 .build()) {
             // valid assumed role session - should work
