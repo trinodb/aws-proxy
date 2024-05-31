@@ -14,44 +14,61 @@
 package io.trino.s3.proxy.server.testing.harness;
 
 import com.google.common.collect.ImmutableList;
-import com.google.inject.Binder;
 import com.google.inject.Key;
-import com.google.inject.Module;
 import com.google.inject.TypeLiteral;
 import com.google.inject.multibindings.OptionalBinder;
 import io.trino.s3.proxy.server.remote.RemoteS3Facade;
 import io.trino.s3.proxy.server.testing.ContainerS3Facade;
 import io.trino.s3.proxy.server.testing.ManagedS3MockContainer.ForS3MockContainer;
+import io.trino.s3.proxy.server.testing.TestingS3ClientProvider.ForS3ClientProvider;
+import io.trino.s3.proxy.server.testing.TestingTrinoS3ProxyServer;
 import io.trino.s3.proxy.server.testing.TestingUtil.ForTesting;
 
 import java.util.List;
 
+import static io.trino.s3.proxy.server.testing.TestingUtil.LOCALHOST_DOMAIN;
+
 public final class TrinoS3ProxyTestCommonModules
 {
     public static final class WithConfiguredBuckets
-            implements Module
+            implements BuilderFilter
     {
         private static final List<String> CONFIGURED_BUCKETS = ImmutableList.of("one", "two", "three");
 
         @Override
-        public void configure(Binder binder)
+        public TestingTrinoS3ProxyServer.Builder filter(TestingTrinoS3ProxyServer.Builder builder)
         {
-            OptionalBinder.newOptionalBinder(binder, Key.get(new TypeLiteral<List<String>>() {}, ForS3MockContainer.class))
-                    .setBinding()
-                    .toInstance(CONFIGURED_BUCKETS);
+            return builder.addModule(binder ->
+                    OptionalBinder.newOptionalBinder(binder, Key.get(new TypeLiteral<List<String>>() {}, ForS3MockContainer.class))
+                            .setBinding()
+                            .toInstance(CONFIGURED_BUCKETS));
         }
     }
 
     public static final class WithVirtualHostAddressing
-            implements Module
+            implements BuilderFilter
     {
         @Override
-        public void configure(Binder binder)
+        public TestingTrinoS3ProxyServer.Builder filter(TestingTrinoS3ProxyServer.Builder builder)
         {
-            OptionalBinder.newOptionalBinder(binder, Key.get(RemoteS3Facade.class, ForTesting.class))
-                    .setBinding()
-                    .to(ContainerS3Facade.VirtualHostStyleContainerS3Facade.class)
-                    .asEagerSingleton();
+            return builder.addModule(binder ->
+                    OptionalBinder.newOptionalBinder(binder, Key.get(RemoteS3Facade.class, ForTesting.class))
+                            .setBinding()
+                            .to(ContainerS3Facade.VirtualHostStyleContainerS3Facade.class)
+                            .asEagerSingleton());
+        }
+    }
+
+    public static final class WithVirtualHostEnabledProxy
+            implements BuilderFilter
+    {
+        @Override
+        public TestingTrinoS3ProxyServer.Builder filter(TestingTrinoS3ProxyServer.Builder builder)
+        {
+            return builder
+                    .withServerHostName(LOCALHOST_DOMAIN)
+                    .addModule(
+                            binder -> OptionalBinder.newOptionalBinder(binder, Key.get(String.class, ForS3ClientProvider.class)).setBinding().toInstance(LOCALHOST_DOMAIN));
         }
     }
 

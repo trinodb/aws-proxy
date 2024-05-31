@@ -16,7 +16,6 @@ package io.trino.s3.proxy.server.credentials;
 import com.google.common.collect.ImmutableSet;
 import io.airlift.log.Logger;
 import jakarta.ws.rs.WebApplicationException;
-import jakarta.ws.rs.core.MultivaluedHashMap;
 import jakarta.ws.rs.core.MultivaluedMap;
 import jakarta.ws.rs.core.Response;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
@@ -33,11 +32,14 @@ import java.time.Duration;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.BiFunction;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
+import static io.trino.s3.proxy.server.collections.MultiMapHelper.lowercase;
 
 final class Signer
 {
@@ -73,8 +75,15 @@ final class Signer
             Duration maxClockDrift,
             Optional<byte[]> entity)
     {
-        requestHeaders = lowercase(requestHeaders);
-        queryParameters = lowercase(queryParameters);
+        BiFunction<String, List<String>, List<String>> lowercaseHeaderValues = (key, values) -> {
+            if (!LOWERCASE_HEADERS.contains(key)) {
+                return values;
+            }
+            return values.stream().map(value -> value.toLowerCase(Locale.ROOT)).collect(toImmutableList());
+        };
+
+        requestHeaders = lowercase(requestHeaders, lowercaseHeaderValues);
+        queryParameters = lowercase(queryParameters, lowercaseHeaderValues);
 
         SdkHttpFullRequest.Builder requestBuilder = SdkHttpFullRequest.builder()
                 .uri(requestURI)
@@ -122,18 +131,5 @@ final class Signer
             log.debug("Signer did not generate \"Authorization\" header");
             return new WebApplicationException(Response.Status.BAD_REQUEST);
         });
-    }
-
-    private static MultivaluedMap<String, String> lowercase(MultivaluedMap<String, String> map)
-    {
-        MultivaluedMap<String, String> result = new MultivaluedHashMap<>();
-        map.forEach((name, values) -> {
-            name = name.toLowerCase(Locale.ROOT);
-            if (LOWERCASE_HEADERS.contains(name)) {
-                values = values.stream().map(value -> value.toLowerCase(Locale.ROOT)).collect(toImmutableList());
-            }
-            result.put(name, values);
-        });
-        return result;
     }
 }

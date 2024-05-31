@@ -13,7 +13,6 @@
  */
 package io.trino.s3.proxy.server.testing.harness;
 
-import com.google.inject.Module;
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.extension.ExtendWith;
 
@@ -32,7 +31,5 @@ import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 @TestInstance(PER_CLASS)
 public @interface TrinoS3ProxyTest
 {
-    Class<? extends Module>[] modules() default {};
-
     Class<? extends BuilderFilter>[] filters() default {};
 }

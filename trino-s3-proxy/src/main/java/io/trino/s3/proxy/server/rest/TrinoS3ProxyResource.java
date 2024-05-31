@@ -13,7 +13,6 @@
  */
 package io.trino.s3.proxy.server.rest;
 
-import com.google.common.base.Splitter;
 import com.google.inject.Inject;
 import io.trino.s3.proxy.server.credentials.SigningController;
 import io.trino.s3.proxy.server.credentials.SigningServiceType;
@@ -26,7 +25,6 @@ import jakarta.ws.rs.container.Suspended;
 import jakarta.ws.rs.core.Context;
 import org.glassfish.jersey.server.ContainerRequest;
 
-import java.util.List;
 import java.util.Optional;
 
 import static java.util.Objects.requireNonNull;
@@ -36,12 +34,14 @@ public class TrinoS3ProxyResource
 {
     private final SigningController signingController;
     private final TrinoS3ProxyClient proxyClient;
+    private final Optional<String> serverHostName;
 
     @Inject
-    public TrinoS3ProxyResource(SigningController signingController, TrinoS3ProxyClient proxyClient)
+    public TrinoS3ProxyResource(SigningController signingController, TrinoS3ProxyClient proxyClient, TrinoS3ProxyConfig trinoS3ProxyConfig)
     {
         this.signingController = requireNonNull(signingController, "signingController is null");
         this.proxyClient = requireNonNull(proxyClient, "proxyClient is null");
+        this.serverHostName = requireNonNull(trinoS3ProxyConfig, "restConfig is null").getHostName();
     }
 
     @GET
@@ -54,7 +54,7 @@ public class TrinoS3ProxyResource
     @Path("{path:.*}")
     public void s3Get(@Context ContainerRequest request, @Suspended AsyncResponse asyncResponse, @PathParam("path") String path)
     {
-        proxyClient.proxyRequest(signingController.validateAndParseAuthorization(request, SigningServiceType.S3, Optional.empty()), request, asyncResponse, getBucket(path));
+        proxyClient.proxyRequest(signingController.validateAndParseAuthorization(request, SigningServiceType.S3, Optional.empty()), parseRequest(path, request), asyncResponse);
     }
 
     @HEAD
@@ -67,12 +67,11 @@ public class TrinoS3ProxyResource
     @Path("{path:.*}")
     public void s3Head(@Context ContainerRequest request, @Suspended AsyncResponse asyncResponse, @PathParam("path") String path)
     {
-        proxyClient.proxyRequest(signingController.validateAndParseAuthorization(request, SigningServiceType.S3, Optional.empty()), request, asyncResponse, getBucket(path));
+        proxyClient.proxyRequest(signingController.validateAndParseAuthorization(request, SigningServiceType.S3, Optional.empty()), parseRequest(path, request), asyncResponse);
     }
 
-    private String getBucket(String path)
+    private ParsedS3Request parseRequest(String path, ContainerRequest request)
     {
-        List<String> parts = Splitter.on("/").splitToList(path);
-        return parts.isEmpty() ? "" : parts.getFirst();
+        return ParsedS3Request.fromRequest(path, request, serverHostName);
     }
 }
