@@ -13,13 +13,10 @@
  */
 package io.trino.s3.proxy.server.testing.harness;
 
-import com.google.common.collect.ImmutableList;
 import com.google.inject.Injector;
 import com.google.inject.Key;
 import com.google.inject.Module;
 import com.google.inject.Scopes;
-import com.google.inject.TypeLiteral;
-import io.trino.s3.proxy.server.credentials.Credentials;
 import io.trino.s3.proxy.server.remote.RemoteS3Facade;
 import io.trino.s3.proxy.server.testing.ContainerS3Facade;
 import io.trino.s3.proxy.server.testing.ManagedS3MockContainer;
@@ -68,10 +65,8 @@ public class TrinoS3ProxyTestExtension
         }
 
         TestingTrinoS3ProxyServer trinoS3ProxyServer = builder
+                .withMockS3Container()
                 .addModule(binder -> {
-                    binder.bind(Credentials.class).annotatedWith(ForTesting.class).toInstance(TESTING_CREDENTIALS);
-                    newOptionalBinder(binder, Key.get(new TypeLiteral<List<String>>(){}, ForS3MockContainer.class)).setDefault().toInstance(ImmutableList.of());
-                    binder.bind(ManagedS3MockContainer.class).asEagerSingleton();
                     binder.bind(S3Client.class).annotatedWith(ForS3MockContainer.class).toProvider(ManagedS3MockContainer.class);
                     newOptionalBinder(binder, Key.get(RemoteS3Facade.class, ForTesting.class))
                             .setDefault()

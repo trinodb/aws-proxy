@@ -15,14 +15,14 @@ package io.trino.s3.proxy.server.testing;
 
 import com.google.inject.Binder;
 import com.google.inject.BindingAnnotation;
+import com.google.inject.Module;
 import com.google.inject.Provides;
 import com.google.inject.Scopes;
 import com.google.inject.Singleton;
+import io.trino.s3.proxy.server.TrinoS3ProxyModuleBuilder;
 import io.trino.s3.proxy.server.TrinoS3ProxyServerModule;
-import io.trino.s3.proxy.server.credentials.AssumedRoleProvider;
 import io.trino.s3.proxy.server.credentials.Credential;
 import io.trino.s3.proxy.server.credentials.Credentials;
-import io.trino.s3.proxy.server.credentials.CredentialsProvider;
 import io.trino.s3.proxy.server.remote.RemoteS3Facade;
 import io.trino.s3.proxy.server.remote.RemoteSessionRole;
 
@@ -47,8 +47,11 @@ public class TestingTrinoS3ProxyServerModule
     @Override
     protected void moduleSpecificBinding(Binder binder)
     {
-        binder.bind(CredentialsProvider.class).to(TestingCredentialsRolesProvider.class).in(Scopes.SINGLETON);
-        binder.bind(AssumedRoleProvider.class).to(TestingCredentialsRolesProvider.class).in(Scopes.SINGLETON);
+        Module module = TrinoS3ProxyModuleBuilder.builder()
+                .withAssumedRoleProvider(binding -> binding.to(TestingCredentialsRolesProvider.class).in(Scopes.SINGLETON))
+                .withCredentialsProvider(binding -> binding.to(TestingCredentialsRolesProvider.class).in(Scopes.SINGLETON))
+                .build();
+        binder.install(module);
         binder.bind(TestingCredentialsRolesProvider.class).in(Scopes.SINGLETON);
 
         binder.bind(RemoteS3Facade.class).to(TestingRemoteS3Facade.class).in(Scopes.SINGLETON);

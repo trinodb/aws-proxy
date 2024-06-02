@@ -16,7 +16,9 @@ package io.trino.s3.proxy.server;
 import com.google.inject.Binder;
 import com.google.inject.Module;
 import com.google.inject.Scopes;
+import io.trino.s3.proxy.server.credentials.AssumedRoleProvider;
 import io.trino.s3.proxy.server.credentials.CredentialsController;
+import io.trino.s3.proxy.server.credentials.CredentialsProvider;
 import io.trino.s3.proxy.server.credentials.SigningController;
 import io.trino.s3.proxy.server.credentials.SigningControllerConfig;
 import io.trino.s3.proxy.server.remote.RemoteS3Facade;
@@ -26,6 +28,9 @@ import io.trino.s3.proxy.server.rest.TrinoS3ProxyClient.ForProxyClient;
 import io.trino.s3.proxy.server.rest.TrinoS3ProxyResource;
 import io.trino.s3.proxy.server.rest.TrinoStsResource;
 
+import java.util.Optional;
+
+import static com.google.inject.multibindings.OptionalBinder.newOptionalBinder;
 import static io.airlift.configuration.ConfigBinder.configBinder;
 import static io.airlift.http.client.HttpClientBinder.httpClientBinder;
 import static io.airlift.jaxrs.JaxrsBinder.jaxrsBinder;
@@ -47,6 +52,9 @@ public class TrinoS3ProxyServerModule
         // TODO config, etc.
         httpClientBinder(binder).bindHttpClient("ProxyClient", ForProxyClient.class);
         binder.bind(TrinoS3ProxyClient.class).in(Scopes.SINGLETON);
+
+        newOptionalBinder(binder, CredentialsProvider.class).setDefault().toInstance((_, _) -> Optional.empty());
+        newOptionalBinder(binder, AssumedRoleProvider.class).setDefault().toInstance((_, _, _, _, _, _) -> Optional.empty());
 
         moduleSpecificBinding(binder);
     }

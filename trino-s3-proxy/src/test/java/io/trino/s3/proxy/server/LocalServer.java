@@ -39,7 +39,9 @@ public final class LocalServer
         String realSecretKey = args[3];
         Credentials credentials = Credentials.build(new Credential(emulatedAccessKey, emulatedSecretKey), new Credential(realAccessKey, realSecretKey));
 
-        TestingTrinoS3ProxyServer trinoS3ProxyServer = TestingTrinoS3ProxyServer.builder().buildAndStart();
+        TestingTrinoS3ProxyServer trinoS3ProxyServer = TestingTrinoS3ProxyServer.builder()
+                .withMockS3Container()
+                .buildAndStart();
         trinoS3ProxyServer.getCredentialsController().addCredentials(credentials);
 
         log.info("======== TESTING SERVER STARTED ========");

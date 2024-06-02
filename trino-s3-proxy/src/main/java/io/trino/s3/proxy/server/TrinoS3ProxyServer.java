@@ -19,7 +19,6 @@ import com.google.inject.Module;
 import io.airlift.bootstrap.Bootstrap;
 import io.airlift.event.client.EventModule;
 import io.airlift.http.server.HttpServerModule;
-import io.airlift.http.server.testing.TestingHttpServer;
 import io.airlift.jaxrs.JaxrsModule;
 import io.airlift.json.JsonModule;
 import io.airlift.log.Logger;
@@ -34,6 +33,7 @@ public final class TrinoS3ProxyServer
     public static void main(String[] args)
     {
         ImmutableList.Builder<Module> modules = ImmutableList.<Module>builder()
+                .add(new TrinoS3ProxyServerModule())
                 .add(new NodeModule())
                 .add(new EventModule())
                 .add(new HttpServerModule())
@@ -44,10 +44,5 @@ public final class TrinoS3ProxyServer
         Injector injector = app.initialize();
 
         log.info("======== SERVER STARTED ========");
-
-        TestingHttpServer httpServer = injector.getInstance(TestingHttpServer.class);
-        log.info("");
-        log.info("Endpoint: %s", httpServer.getBaseUrl());
-        log.info("");
     }
 }
