@@ -16,7 +16,9 @@ package io.trino.s3.proxy.server.testing;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.inject.Injector;
+import com.google.inject.Key;
 import com.google.inject.Module;
+import com.google.inject.TypeLiteral;
 import io.airlift.bootstrap.Bootstrap;
 import io.airlift.bootstrap.LifeCycleManager;
 import io.airlift.event.client.EventModule;
@@ -24,9 +26,14 @@ import io.airlift.http.server.testing.TestingHttpServerModule;
 import io.airlift.jaxrs.JaxrsModule;
 import io.airlift.json.JsonModule;
 import io.airlift.node.testing.TestingNodeModule;
+import io.trino.s3.proxy.server.credentials.Credentials;
 
 import java.io.Closeable;
 import java.util.Collection;
+import java.util.List;
+
+import static com.google.inject.multibindings.OptionalBinder.newOptionalBinder;
+import static io.trino.s3.proxy.server.testing.TestingUtil.TESTING_CREDENTIALS;
 
 public final class TestingTrinoS3ProxyServer
         implements Closeable
@@ -70,6 +77,16 @@ public final class TestingTrinoS3ProxyServer
         public Builder addModule(Module module)
         {
             this.modules.add(module);
+            return this;
+        }
+
+        public Builder withMockS3Container()
+        {
+            this.modules.add(binder -> {
+                binder.bind(ManagedS3MockContainer.class).asEagerSingleton();
+                binder.bind(Credentials.class).annotatedWith(TestingUtil.ForTesting.class).toInstance(TESTING_CREDENTIALS);
+                newOptionalBinder(binder, Key.get(new TypeLiteral<List<String>>(){}, ManagedS3MockContainer.ForS3MockContainer.class)).setDefault().toInstance(ImmutableList.of());
+            });
             return this;
         }
 
