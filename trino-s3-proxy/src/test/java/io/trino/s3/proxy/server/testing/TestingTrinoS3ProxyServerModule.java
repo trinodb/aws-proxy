@@ -16,21 +16,14 @@ package io.trino.s3.proxy.server.testing;
 import com.google.inject.Binder;
 import com.google.inject.BindingAnnotation;
 import com.google.inject.Module;
-import com.google.inject.Provides;
 import com.google.inject.Scopes;
-import com.google.inject.Singleton;
 import io.trino.s3.proxy.server.TrinoS3ProxyModuleBuilder;
 import io.trino.s3.proxy.server.TrinoS3ProxyServerModule;
-import io.trino.s3.proxy.server.credentials.Credential;
-import io.trino.s3.proxy.server.credentials.Credentials;
 import io.trino.s3.proxy.server.remote.RemoteS3Facade;
-import io.trino.s3.proxy.server.remote.RemoteSessionRole;
 import io.trino.s3.proxy.server.security.SecurityFacadeProvider;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.Target;
-import java.util.Optional;
-import java.util.UUID;
 
 import static com.google.inject.multibindings.OptionalBinder.newOptionalBinder;
 import static java.lang.annotation.ElementType.FIELD;
@@ -61,19 +54,5 @@ public class TestingTrinoS3ProxyServerModule
 
         newOptionalBinder(binder, SecurityFacadeProvider.class).setDefault().to(TestingSecurityFacade.class).in(Scopes.SINGLETON);
         binder.bind(TestingSecurityFacade.class).in(Scopes.SINGLETON);
-    }
-
-    @ForTestingRemoteCredentials
-    @Provides
-    @Singleton
-    public Credentials provideRemoteCredentials(ManagedS3MockContainer s3MockContainer, TestingCredentialsRolesProvider credentialsController)
-    {
-        Credential policyUserCredential = s3MockContainer.policyUserCredential();
-
-        RemoteSessionRole remoteSessionRole = new RemoteSessionRole("us-east-1", "minio-doesnt-care", Optional.empty());
-        Credentials remoteCredentials = Credentials.build(new Credential(UUID.randomUUID().toString(), UUID.randomUUID().toString()), policyUserCredential, remoteSessionRole);
-        credentialsController.addCredentials(remoteCredentials);
-
-        return remoteCredentials;
     }
 }
