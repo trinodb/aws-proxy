@@ -14,8 +14,9 @@
 package io.trino.s3.proxy.server;
 
 import com.google.inject.Binder;
-import com.google.inject.Module;
 import com.google.inject.Scopes;
+import io.airlift.configuration.AbstractConfigurationAwareModule;
+import io.airlift.log.Logger;
 import io.trino.s3.proxy.server.credentials.AssumedRoleProvider;
 import io.trino.s3.proxy.server.credentials.CredentialsController;
 import io.trino.s3.proxy.server.credentials.CredentialsProvider;
@@ -33,6 +34,7 @@ import io.trino.s3.proxy.server.security.SecurityFacadeProvider;
 import io.trino.s3.proxy.server.security.SecurityResponse;
 
 import java.util.Optional;
+import java.util.ServiceLoader;
 
 import static com.google.inject.multibindings.OptionalBinder.newOptionalBinder;
 import static io.airlift.configuration.ConfigBinder.configBinder;
@@ -40,10 +42,12 @@ import static io.airlift.http.client.HttpClientBinder.httpClientBinder;
 import static io.airlift.jaxrs.JaxrsBinder.jaxrsBinder;
 
 public class TrinoS3ProxyServerModule
-        implements Module
+        extends AbstractConfigurationAwareModule
 {
+    private static final Logger log = Logger.get(TrinoS3ProxyServerModule.class);
+
     @Override
-    public final void configure(Binder binder)
+    protected void setup(Binder binder)
     {
         jaxrsBinder(binder).bind(TrinoS3ProxyResource.class);
         jaxrsBinder(binder).bind(TrinoStsResource.class);
@@ -61,6 +65,8 @@ public class TrinoS3ProxyServerModule
         newOptionalBinder(binder, CredentialsProvider.class).setDefault().toInstance((_, _) -> Optional.empty());
         newOptionalBinder(binder, AssumedRoleProvider.class).setDefault().toInstance((_, _, _, _, _, _) -> Optional.empty());
 
+        installPlugins();
+
         moduleSpecificBinding(binder);
     }
 
@@ -68,5 +74,14 @@ public class TrinoS3ProxyServerModule
     {
         newOptionalBinder(binder, SecurityFacadeProvider.class).setDefault().toInstance((_, _, _) -> (_, _) -> SecurityResponse.DEFAULT);
         binder.bind(RemoteS3Facade.class).to(VirtualHostStyleRemoteS3Facade.class).in(Scopes.SINGLETON);
+    }
+
+    private void installPlugins()
+    {
+        ServiceLoader.load(TrinoS3ProxyServerPlugin.class)
+                .forEach(plugin -> {
+                    log.info("Loading plugin: %s", plugin.name());
+                    install(plugin.module());
+                });
     }
 }
