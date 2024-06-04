@@ -19,18 +19,18 @@ import java.util.Optional;
 
 import static java.util.Objects.requireNonNull;
 
-public record Credentials(Credential emulated, Optional<Credential> real, Optional<RemoteSessionRole> realSessionRole)
+public record Credentials(Credential emulated, Optional<Credential> remote, Optional<RemoteSessionRole> remoteSessionRole)
 {
     public Credentials
     {
         requireNonNull(emulated, "emulated is null");
-        requireNonNull(real, "real is null");
-        requireNonNull(realSessionRole, "realSessionRole is null");
+        requireNonNull(remote, "remote is null");
+        requireNonNull(remoteSessionRole, "remoteSessionRole is null");
     }
 
-    public Credential requiredRealCredential()
+    public Credential requiredRemoteCredential()
     {
-        return real.orElseThrow(() -> new IllegalStateException("Credentials are emulated only and cannot be used for remote access"));
+        return remote.orElseThrow(() -> new IllegalStateException("Credentials are emulated only and cannot be used for remote access"));
     }
 
     public static Credentials build(Credential emulated)
@@ -38,18 +38,18 @@ public record Credentials(Credential emulated, Optional<Credential> real, Option
         return new Credentials(emulated, Optional.empty(), Optional.empty());
     }
 
-    public static Credentials build(Credential emulated, Credential real)
+    public static Credentials build(Credential emulated, Credential remote)
     {
-        return new Credentials(emulated, Optional.of(real), Optional.empty());
+        return new Credentials(emulated, Optional.of(remote), Optional.empty());
     }
 
-    public static Credentials build(Credential emulated, Optional<Credential> real)
+    public static Credentials build(Credential emulated, Optional<Credential> remote)
     {
-        return new Credentials(emulated, real, Optional.empty());
+        return new Credentials(emulated, remote, Optional.empty());
     }
 
-    public static Credentials build(Credential emulated, Credential real, RemoteSessionRole realSessionRole)
+    public static Credentials build(Credential emulated, Credential remote, RemoteSessionRole remoteSessionRole)
     {
-        return new Credentials(emulated, Optional.of(real), Optional.of(realSessionRole));
+        return new Credentials(emulated, Optional.of(remote), Optional.of(remoteSessionRole));
     }
 }

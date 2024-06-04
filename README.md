@@ -5,7 +5,7 @@ To run testing server:
 
 ```shell
 ./mvnw clean package
-./mvnw -pl trino-s3-proxy exec:java -Dexec.classpathScope=test -Dexec.mainClass=io.trino.s3.proxy.server.LocalServer <fake access key> <fake secret key> <real S3 access key> <real S3 secret key>
+./mvnw -pl trino-s3-proxy exec:java -Dexec.classpathScope=test -Dexec.mainClass=io.trino.s3.proxy.server.LocalServer <fake access key> <fake secret key> <remote S3 access key> <remote S3 secret key>
 ```
 
 Make note of the logged `Endpoint`

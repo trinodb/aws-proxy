@@ -77,62 +77,62 @@ public class TrinoS3ProxyClient
 
     public void proxyRequest(SigningMetadata signingMetadata, ContainerRequest request, AsyncResponse asyncResponse, String bucket)
     {
-        String realPath = rewriteRequestPath(request, bucket);
+        String remotePath = rewriteRequestPath(request, bucket);
 
-        URI realUri = remoteS3Facade.buildEndpoint(request.getUriInfo().getRequestUriBuilder(), realPath, bucket, signingMetadata.region());
+        URI remoteUri = remoteS3Facade.buildEndpoint(request.getUriInfo().getRequestUriBuilder(), remotePath, bucket, signingMetadata.region());
 
-        Request.Builder realRequestBuilder = new Request.Builder()
+        Request.Builder remoteRequestBuilder = new Request.Builder()
                 .setMethod(request.getMethod())
-                .setUri(realUri)
+                .setUri(remoteUri)
                 .setFollowRedirects(true);
 
-        if (realUri.getHost() == null) {
+        if (remoteUri.getHost() == null) {
             throw new WebApplicationException(Response.Status.BAD_REQUEST);
         }
 
-        MultivaluedMap<String, String> realRequestHeaders = new MultivaluedHashMap<>();
+        MultivaluedMap<String, String> remoteRequestHeaders = new MultivaluedHashMap<>();
         request.getRequestHeaders().forEach((key, value) -> {
             switch (key.toLowerCase()) {
                 case "x-amz-security-token" -> {}  // we add this below
                 case "amz-sdk-invocation-id", "amz-sdk-request" -> {}   // don't send these
-                case "x-amz-date" -> realRequestHeaders.putSingle("X-Amz-Date", formatRequestInstant(Instant.now())); // use now for the real request
-                case "host" -> realRequestHeaders.putSingle("Host", buildRealHost(realUri)); // replace source host with the real AWS host
-                default -> realRequestHeaders.put(key, value);
+                case "x-amz-date" -> remoteRequestHeaders.putSingle("X-Amz-Date", formatRequestInstant(Instant.now())); // use now for the remote request
+                case "host" -> remoteRequestHeaders.putSingle("Host", buildRemoteHost(remoteUri)); // replace source host with the remote AWS host
+                default -> remoteRequestHeaders.put(key, value);
             }
         });
 
         signingMetadata.credentials()
-                .requiredRealCredential()
+                .requiredRemoteCredential()
                 .session()
-                .ifPresent(sessionToken -> realRequestHeaders.add("x-amz-security-token", sessionToken));
+                .ifPresent(sessionToken -> remoteRequestHeaders.add("x-amz-security-token", sessionToken));
 
         // set the new signed request auth header
-        String encodedPath = firstNonNull(realUri.getRawPath(), "");
+        String encodedPath = firstNonNull(remoteUri.getRawPath(), "");
         String signature = signingController.signRequest(
                 signingMetadata,
-                Credentials::requiredRealCredential,
-                realUri,
-                realRequestHeaders,
+                Credentials::requiredRemoteCredential,
+                remoteUri,
+                remoteRequestHeaders,
                 request.getUriInfo().getQueryParameters(),
                 request.getMethod(),
                 Optional.empty());
-        realRequestHeaders.putSingle("Authorization", signature);
+        remoteRequestHeaders.putSingle("Authorization", signature);
 
-        // requestHeaders now has correct values, copy to the real request
-        realRequestHeaders.forEach((name, values) -> values.forEach(value -> realRequestBuilder.addHeader(name, value)));
+        // remoteRequestHeaders now has correct values, copy to the remote request
+        remoteRequestHeaders.forEach((name, values) -> values.forEach(value -> remoteRequestBuilder.addHeader(name, value)));
 
-        Request realRequest = realRequestBuilder.build();
+        Request remoteRequest = remoteRequestBuilder.build();
 
-        executorService.submit(() -> httpClient.execute(realRequest, new StreamingResponseHandler(asyncResponse)));
+        executorService.submit(() -> httpClient.execute(remoteRequest, new StreamingResponseHandler(asyncResponse)));
     }
 
-    private static String buildRealHost(URI realUri)
+    private static String buildRemoteHost(URI remoteUri)
     {
-        int port = realUri.getPort();
+        int port = remoteUri.getPort();
         if ((port < 0) || (port == 80) || (port == 443)) {
-            return realUri.getHost();
+            return remoteUri.getHost();
         }
-        return realUri.getHost() + ":" + port;
+        return remoteUri.getHost() + ":" + port;
     }
 
     private static String rewriteRequestPath(ContainerRequest request, String bucket)

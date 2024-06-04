@@ -130,7 +130,7 @@ public class CredentialsController
     public <T> Optional<T> withCredentials(String emulatedAccessKey, Optional<String> emulatedSessionToken, Function<Credentials, Optional<T>> credentialsConsumer)
     {
         return credentialsProvider.credentials(emulatedAccessKey, emulatedSessionToken)
-                .flatMap(credentials -> credentials.realSessionRole()
+                .flatMap(credentials -> credentials.remoteSessionRole()
                         .flatMap(remoteSessionRole -> internalRemoteSession(remoteSessionRole, credentials).withUsage(credentials, credentialsConsumer))
                         .or(() -> credentialsConsumer.apply(credentials)));
     }
@@ -138,14 +138,14 @@ public class CredentialsController
     private Session internalRemoteSession(RemoteSessionRole remoteSessionRole, Credentials credentials)
     {
         String emulatedAccessKey = credentials.emulated().accessKey();
-        return remoteSessions.computeIfAbsent(emulatedAccessKey, _ -> internalStartRemoteSession(remoteSessionRole, credentials.requiredRealCredential(), emulatedAccessKey));
+        return remoteSessions.computeIfAbsent(emulatedAccessKey, _ -> internalStartRemoteSession(remoteSessionRole, credentials.requiredRemoteCredential(), emulatedAccessKey));
     }
 
-    private Session internalStartRemoteSession(RemoteSessionRole remoteSessionRole, Credential realCredential, String sessionName)
+    private Session internalStartRemoteSession(RemoteSessionRole remoteSessionRole, Credential remoteCredential, String sessionName)
     {
-        AwsCredentials awsCredentials = realCredential.session()
-                .map(session -> (AwsCredentials) AwsSessionCredentials.create(realCredential.accessKey(), realCredential.secretKey(), session))
-                .orElseGet(() -> AwsBasicCredentials.create(realCredential.accessKey(), realCredential.secretKey()));
+        AwsCredentials awsCredentials = remoteCredential.session()
+                .map(session -> (AwsCredentials) AwsSessionCredentials.create(remoteCredential.accessKey(), remoteCredential.secretKey(), session))
+                .orElseGet(() -> AwsBasicCredentials.create(remoteCredential.accessKey(), remoteCredential.secretKey()));
 
         StsClient stsClient = StsClient.builder()
                 .region(Region.of(remoteSessionRole.region()))

@@ -113,7 +113,7 @@ public class ManagedS3MockContainer
     public ManagedS3MockContainer(@ForS3MockContainer List<String> initialBuckets, @ForTesting Credentials credentials)
     {
         this.initialBuckets = requireNonNull(initialBuckets, "initialBuckets is null");
-        this.credential = requireNonNull(credentials, "credentials is null").requiredRealCredential();
+        this.credential = requireNonNull(credentials, "credentials is null").requiredRemoteCredential();
 
         Transferable config = Transferable.of(CONFIG_TEMPLATE.formatted(credential.accessKey(), credential.secretKey()));
         Transferable policyFile = Transferable.of(POLICY);

@@ -69,7 +69,7 @@ public class TestingCredentialsRolesProvider
                 checkState(emulatedAccessKey.equals(session.sessionCredential.accessKey()), "emulatedAccessKey and session accessKey mismatch");
 
                 Credentials originalCredentials = requireNonNull(credentials.get(session.originalEmulatedAccessKey), "original credentials missing for: " + session.originalEmulatedAccessKey);
-                return Optional.of(Credentials.build(session.sessionCredential, originalCredentials.real()));
+                return Optional.of(Credentials.build(session.sessionCredential, originalCredentials.remote()));
             });
         }
 

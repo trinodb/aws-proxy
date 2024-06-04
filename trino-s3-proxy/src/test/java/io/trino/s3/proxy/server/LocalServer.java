@@ -29,15 +29,15 @@ public final class LocalServer
     public static void main(String[] args)
     {
         if (args.length != 4) {
-            System.err.println("Usage: TestingTrinoS3ProxyServer <emulatedAccessKey> <emulatedSecretKey> <realAccessKey> <realSecretKey>");
+            System.err.println("Usage: TestingTrinoS3ProxyServer <emulatedAccessKey> <emulatedSecretKey> <remoteAccessKey> <remoteSecretKey>");
             System.exit(1);
         }
 
         String emulatedAccessKey = args[0];
         String emulatedSecretKey = args[1];
-        String realAccessKey = args[2];
-        String realSecretKey = args[3];
-        Credentials credentials = Credentials.build(new Credential(emulatedAccessKey, emulatedSecretKey), new Credential(realAccessKey, realSecretKey));
+        String remoteAccessKey = args[2];
+        String remoteSecretKey = args[3];
+        Credentials credentials = Credentials.build(new Credential(emulatedAccessKey, emulatedSecretKey), new Credential(remoteAccessKey, remoteSecretKey));
 
         TestingTrinoS3ProxyServer trinoS3ProxyServer = TestingTrinoS3ProxyServer.builder()
                 .withMockS3Container()
