@@ -42,6 +42,7 @@ class RequestBuilder
         String httpVerb = request.getMethod();
         MultivaluedMap<String, String> queryParameters = request.getUriInfo().getQueryParameters();
         MultivaluedMap<String, String> headers = lowercase(request.getHeaders());
+        Optional<String> rawQuery = Optional.ofNullable(request.getRequestUri().getRawQuery());
 
         return serverHostName
                 .flatMap(serverHostNameValue -> {
@@ -52,13 +53,13 @@ class RequestBuilder
                             .map(value -> value.substring(0, value.length() - lowercaseServerHostName.length()))
                             .map(value -> value.endsWith(".") ? value.substring(0, value.length() - 1) : value);
                 })
-                .map(bucket -> new ParsedS3Request(bucket, requestPath, headers, queryParameters, httpVerb, entitySupplier))
+                .map(bucket -> new ParsedS3Request(bucket, requestPath, headers, queryParameters, httpVerb, rawQuery, entitySupplier))
                 .orElseGet(() -> {
                     List<String> parts = Splitter.on("/").limit(2).splitToList(requestPath);
                     if (parts.size() <= 1) {
-                        return new ParsedS3Request(requestPath, "", headers, queryParameters, httpVerb, entitySupplier);
+                        return new ParsedS3Request(requestPath, "", headers, queryParameters, httpVerb, rawQuery, entitySupplier);
                     }
-                    return new ParsedS3Request(parts.get(0), parts.get(1), headers, queryParameters, httpVerb, entitySupplier);
+                    return new ParsedS3Request(parts.get(0), parts.get(1), headers, queryParameters, httpVerb, rawQuery, entitySupplier);
                 });
     }
 }

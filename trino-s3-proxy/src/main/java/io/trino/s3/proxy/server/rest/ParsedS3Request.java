@@ -27,6 +27,7 @@ public record ParsedS3Request(
         MultivaluedMap<String, String> lowercaseHeaders,
         MultivaluedMap<String, String> queryParameters,
         String httpVerb,
+        Optional<String> rawQuery,
         Optional<Supplier<InputStream>> entitySupplier)
 {
     public ParsedS3Request
@@ -36,6 +37,7 @@ public record ParsedS3Request(
         requireNonNull(lowercaseHeaders, "lowercaseHeaders is null");
         requireNonNull(queryParameters, "queryParameters is null");
         requireNonNull(httpVerb, "httpVerb is null");
+        requireNonNull(rawQuery, "rawQuery is null");
         requireNonNull(entitySupplier, "entitySupplier is null");
     }
 }

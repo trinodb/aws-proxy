@@ -21,6 +21,7 @@ import io.trino.s3.proxy.server.credentials.Credentials;
 import io.trino.s3.proxy.server.credentials.SigningController;
 import io.trino.s3.proxy.server.credentials.SigningMetadata;
 import io.trino.s3.proxy.server.remote.RemoteS3Facade;
+import io.trino.s3.proxy.server.security.SecurityController;
 import jakarta.annotation.PreDestroy;
 import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.container.AsyncResponse;
@@ -57,6 +58,7 @@ public class TrinoS3ProxyClient
     private final HttpClient httpClient;
     private final SigningController signingController;
     private final RemoteS3Facade remoteS3Facade;
+    private final SecurityController securityController;
     private final ExecutorService executorService = Executors.newVirtualThreadPerTaskExecutor();
 
     @Retention(RUNTIME)
@@ -65,11 +67,12 @@ public class TrinoS3ProxyClient
     public @interface ForProxyClient {}
 
     @Inject
-    public TrinoS3ProxyClient(@ForProxyClient HttpClient httpClient, SigningController signingController, RemoteS3Facade remoteS3Facade)
+    public TrinoS3ProxyClient(@ForProxyClient HttpClient httpClient, SigningController signingController, RemoteS3Facade remoteS3Facade, SecurityController securityController)
     {
         this.httpClient = requireNonNull(httpClient, "httpClient is null");
         this.signingController = requireNonNull(signingController, "signingController is null");
         this.remoteS3Facade = requireNonNull(remoteS3Facade, "objectStore is null");
+        this.securityController = requireNonNull(securityController, "securityController is null");
     }
 
     @PreDestroy
@@ -83,6 +86,11 @@ public class TrinoS3ProxyClient
     public void proxyRequest(SigningMetadata signingMetadata, ParsedS3Request request, AsyncResponse asyncResponse)
     {
         URI remoteUri = remoteS3Facade.buildEndpoint(uriBuilder(request.queryParameters()), request.keyInBucket(), request.bucketName(), signingMetadata.region());
+
+        // TODO log/expose any securityController error
+        if (!securityController.apply(request, signingMetadata).canProceed()) {
+            throw new WebApplicationException(Response.Status.UNAUTHORIZED);
+        }
 
         Request.Builder remoteRequestBuilder = new Request.Builder()
                 .setMethod(request.httpVerb())

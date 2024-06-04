@@ -17,6 +17,7 @@ import com.google.inject.Module;
 import com.google.inject.binder.LinkedBindingBuilder;
 import io.trino.s3.proxy.server.credentials.AssumedRoleProvider;
 import io.trino.s3.proxy.server.credentials.CredentialsProvider;
+import io.trino.s3.proxy.server.security.SecurityFacadeProvider;
 
 import java.util.Optional;
 import java.util.function.Consumer;
@@ -34,6 +35,7 @@ public interface TrinoS3ProxyModuleBuilder
     {
         private Optional<Consumer<LinkedBindingBuilder<CredentialsProvider>>> credentialsProviderBinder = Optional.empty();
         private Optional<Consumer<LinkedBindingBuilder<AssumedRoleProvider>>> assumedRoleProviderBinder = Optional.empty();
+        private Optional<Consumer<LinkedBindingBuilder<SecurityFacadeProvider>>> securityFacadeProviderBinder = Optional.empty();
 
         private Builder() {}
 
@@ -49,11 +51,18 @@ public interface TrinoS3ProxyModuleBuilder
             return this;
         }
 
+        public Builder withSecurityFacadeProvider(Consumer<LinkedBindingBuilder<SecurityFacadeProvider>> securityFacadeProviderBinder)
+        {
+            this.securityFacadeProviderBinder = Optional.of(securityFacadeProviderBinder);
+            return this;
+        }
+
         public Module build()
         {
             return binder -> {
                 credentialsProviderBinder.ifPresent(binding -> binding.accept(newOptionalBinder(binder, CredentialsProvider.class).setBinding()));
                 assumedRoleProviderBinder.ifPresent(binding -> binding.accept(newOptionalBinder(binder, AssumedRoleProvider.class).setBinding()));
+                securityFacadeProviderBinder.ifPresent(binding -> binding.accept(newOptionalBinder(binder, SecurityFacadeProvider.class).setBinding()));
             };
         }
     }

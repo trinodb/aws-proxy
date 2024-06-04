@@ -28,6 +28,9 @@ import io.trino.s3.proxy.server.rest.TrinoS3ProxyClient.ForProxyClient;
 import io.trino.s3.proxy.server.rest.TrinoS3ProxyConfig;
 import io.trino.s3.proxy.server.rest.TrinoS3ProxyResource;
 import io.trino.s3.proxy.server.rest.TrinoStsResource;
+import io.trino.s3.proxy.server.security.SecurityController;
+import io.trino.s3.proxy.server.security.SecurityFacadeProvider;
+import io.trino.s3.proxy.server.security.SecurityResponse;
 
 import java.util.Optional;
 
@@ -49,6 +52,7 @@ public class TrinoS3ProxyServerModule
         configBinder(binder).bindConfig(TrinoS3ProxyConfig.class);
         binder.bind(SigningController.class).in(Scopes.SINGLETON);
         binder.bind(CredentialsController.class).in(Scopes.SINGLETON);
+        binder.bind(SecurityController.class).in(Scopes.SINGLETON);
 
         // TODO config, etc.
         httpClientBinder(binder).bindHttpClient("ProxyClient", ForProxyClient.class);
@@ -62,6 +66,7 @@ public class TrinoS3ProxyServerModule
 
     protected void moduleSpecificBinding(Binder binder)
     {
+        newOptionalBinder(binder, SecurityFacadeProvider.class).setDefault().toInstance((_, _, _) -> (_, _) -> SecurityResponse.DEFAULT);
         binder.bind(RemoteS3Facade.class).to(VirtualHostStyleRemoteS3Facade.class).in(Scopes.SINGLETON);
     }
 }

@@ -25,12 +25,14 @@ import io.trino.s3.proxy.server.credentials.Credential;
 import io.trino.s3.proxy.server.credentials.Credentials;
 import io.trino.s3.proxy.server.remote.RemoteS3Facade;
 import io.trino.s3.proxy.server.remote.RemoteSessionRole;
+import io.trino.s3.proxy.server.security.SecurityFacadeProvider;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.Target;
 import java.util.Optional;
 import java.util.UUID;
 
+import static com.google.inject.multibindings.OptionalBinder.newOptionalBinder;
 import static java.lang.annotation.ElementType.FIELD;
 import static java.lang.annotation.ElementType.METHOD;
 import static java.lang.annotation.ElementType.PARAMETER;
@@ -56,6 +58,9 @@ public class TestingTrinoS3ProxyServerModule
 
         binder.bind(RemoteS3Facade.class).to(TestingRemoteS3Facade.class).in(Scopes.SINGLETON);
         binder.bind(TestingRemoteS3Facade.class).in(Scopes.SINGLETON);
+
+        newOptionalBinder(binder, SecurityFacadeProvider.class).setDefault().to(TestingSecurityFacade.class).in(Scopes.SINGLETON);
+        binder.bind(TestingSecurityFacade.class).in(Scopes.SINGLETON);
     }
 
     @ForTestingRemoteCredentials
