@@ -120,7 +120,14 @@ public class TrinoS3ProxyClient
 
         Request remoteRequest = remoteRequestBuilder.build();
 
-        executorService.submit(() -> httpClient.execute(remoteRequest, new StreamingResponseHandler(asyncResponse)));
+        executorService.submit(() -> {
+            try {
+                httpClient.execute(remoteRequest, new StreamingResponseHandler(asyncResponse));
+            }
+            catch (Throwable e) {
+                asyncResponse.resume(e);
+            }
+        });
     }
 
     private static String buildRemoteHost(URI remoteUri)
