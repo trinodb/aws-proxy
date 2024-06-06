@@ -14,6 +14,7 @@
 package io.trino.s3.proxy.server.testing;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.inject.Injector;
 import com.google.inject.Key;
@@ -31,6 +32,7 @@ import io.trino.s3.proxy.server.credentials.Credentials;
 import java.io.Closeable;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 
 import static com.google.inject.multibindings.OptionalBinder.newOptionalBinder;
 import static io.trino.s3.proxy.server.testing.TestingUtil.TESTING_CREDENTIALS;
@@ -69,6 +71,7 @@ public final class TestingTrinoS3ProxyServer
     public static class Builder
     {
         private final ImmutableSet.Builder<Module> modules = ImmutableSet.builder();
+        private final ImmutableMap.Builder<String, String> properties = ImmutableMap.builder();
 
         private Builder()
         {
@@ -85,18 +88,24 @@ public final class TestingTrinoS3ProxyServer
             this.modules.add(binder -> {
                 binder.bind(ManagedS3MockContainer.class).asEagerSingleton();
                 binder.bind(Credentials.class).annotatedWith(TestingUtil.ForTesting.class).toInstance(TESTING_CREDENTIALS);
-                newOptionalBinder(binder, Key.get(new TypeLiteral<List<String>>(){}, ManagedS3MockContainer.ForS3MockContainer.class)).setDefault().toInstance(ImmutableList.of());
+                newOptionalBinder(binder, Key.get(new TypeLiteral<List<String>>() {}, ManagedS3MockContainer.ForS3MockContainer.class)).setDefault().toInstance(ImmutableList.of());
             });
+            return this;
+        }
+
+        public Builder withServerHostName(String serverHostName)
+        {
+            properties.put("s3proxy.hostname", serverHostName);
             return this;
         }
 
         public TestingTrinoS3ProxyServer buildAndStart()
         {
-            return start(modules.build());
+            return start(modules.build(), properties.buildKeepingLast());
         }
     }
 
-    private static TestingTrinoS3ProxyServer start(Collection<Module> extraModules)
+    private static TestingTrinoS3ProxyServer start(Collection<Module> extraModules, Map<String, String> properties)
     {
         ImmutableList.Builder<Module> modules = ImmutableList.<Module>builder()
                 .add(new TestingTrinoS3ProxyServerModule())
@@ -109,7 +118,7 @@ public final class TestingTrinoS3ProxyServer
         extraModules.forEach(modules::add);
 
         Bootstrap app = new Bootstrap(modules.build());
-        Injector injector = app.initialize();
+        Injector injector = app.setOptionalConfigurationProperties(properties).initialize();
         return new TestingTrinoS3ProxyServer(injector);
     }
 }

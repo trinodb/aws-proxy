@@ -37,7 +37,7 @@ import java.util.concurrent.CompletableFuture;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-@TrinoS3ProxyTest(modules = WithConfiguredBuckets.class)
+@TrinoS3ProxyTest(filters = WithConfiguredBuckets.class)
 public class TestProxiedAssumedRoleRequests
         extends AbstractTestProxiedRequests
 {

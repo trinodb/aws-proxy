@@ -27,7 +27,7 @@ import jakarta.ws.rs.container.AsyncResponse;
 import jakarta.ws.rs.core.MultivaluedHashMap;
 import jakarta.ws.rs.core.MultivaluedMap;
 import jakarta.ws.rs.core.Response;
-import org.glassfish.jersey.server.ContainerRequest;
+import jakarta.ws.rs.core.UriBuilder;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.Target;
@@ -38,7 +38,6 @@ import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-import static com.google.common.base.MoreObjects.firstNonNull;
 import static com.google.common.util.concurrent.MoreExecutors.shutdownAndAwaitTermination;
 import static io.trino.s3.proxy.server.credentials.SigningController.formatRequestInstant;
 import static java.lang.annotation.ElementType.FIELD;
@@ -75,14 +74,12 @@ public class TrinoS3ProxyClient
         }
     }
 
-    public void proxyRequest(SigningMetadata signingMetadata, ContainerRequest request, AsyncResponse asyncResponse, String bucket)
+    public void proxyRequest(SigningMetadata signingMetadata, ParsedS3Request request, AsyncResponse asyncResponse)
     {
-        String remotePath = rewriteRequestPath(request, bucket);
-
-        URI remoteUri = remoteS3Facade.buildEndpoint(request.getUriInfo().getRequestUriBuilder(), remotePath, bucket, signingMetadata.region());
+        URI remoteUri = remoteS3Facade.buildEndpoint(UriBuilder.newInstance(), request.keyInBucket(), request.bucketName(), signingMetadata.region());
 
         Request.Builder remoteRequestBuilder = new Request.Builder()
-                .setMethod(request.getMethod())
+                .setMethod(request.httpVerb())
                 .setUri(remoteUri)
                 .setFollowRedirects(true);
 
@@ -91,9 +88,10 @@ public class TrinoS3ProxyClient
         }
 
         MultivaluedMap<String, String> remoteRequestHeaders = new MultivaluedHashMap<>();
-        request.getRequestHeaders().forEach((key, value) -> {
-            switch (key.toLowerCase()) {
+        request.requestHeaders().forEach((key, value) -> {
+            switch (key) {
                 case "x-amz-security-token" -> {}  // we add this below
+                case "authorization" -> {} // we will create our own authorization header
                 case "amz-sdk-invocation-id", "amz-sdk-request" -> {}   // don't send these
                 case "x-amz-date" -> remoteRequestHeaders.putSingle("X-Amz-Date", formatRequestInstant(Instant.now())); // use now for the remote request
                 case "host" -> remoteRequestHeaders.putSingle("Host", buildRemoteHost(remoteUri)); // replace source host with the remote AWS host
@@ -107,14 +105,13 @@ public class TrinoS3ProxyClient
                 .ifPresent(sessionToken -> remoteRequestHeaders.add("x-amz-security-token", sessionToken));
 
         // set the new signed request auth header
-        String encodedPath = firstNonNull(remoteUri.getRawPath(), "");
         String signature = signingController.signRequest(
                 signingMetadata,
                 Credentials::requiredRemoteCredential,
                 remoteUri,
                 remoteRequestHeaders,
-                request.getUriInfo().getQueryParameters(),
-                request.getMethod(),
+                request.requestQueryParameters(),
+                request.httpVerb(),
                 Optional.empty());
         remoteRequestHeaders.putSingle("Authorization", signature);
 
@@ -133,24 +130,5 @@ public class TrinoS3ProxyClient
             return remoteUri.getHost();
         }
         return remoteUri.getHost() + ":" + port;
-    }
-
-    private static String rewriteRequestPath(ContainerRequest request, String bucket)
-    {
-        String path = "/" + request.getPath(false);
-        if (!path.startsWith(TrinoS3ProxyRestConstants.S3_PATH)) {
-            throw new WebApplicationException(Response.Status.BAD_REQUEST);
-        }
-
-        path = path.substring(TrinoS3ProxyRestConstants.S3_PATH.length());
-        if (path.startsWith("/" + bucket)) {
-            path = path.substring(("/" + bucket).length());
-        }
-
-        if (path.isEmpty() && bucket.isEmpty()) {
-            path = "/";
-        }
-
-        return path;
     }
 }

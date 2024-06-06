@@ -22,6 +22,7 @@ import io.trino.s3.proxy.server.testing.ContainerS3Facade;
 import io.trino.s3.proxy.server.testing.ManagedS3MockContainer;
 import io.trino.s3.proxy.server.testing.ManagedS3MockContainer.ForS3MockContainer;
 import io.trino.s3.proxy.server.testing.TestingS3ClientProvider;
+import io.trino.s3.proxy.server.testing.TestingS3ClientProvider.ForS3ClientProvider;
 import io.trino.s3.proxy.server.testing.TestingTrinoS3ProxyServer;
 import io.trino.s3.proxy.server.testing.TestingUtil.ForTesting;
 import org.junit.jupiter.api.extension.ExtensionContext;
@@ -53,10 +54,6 @@ public class TrinoS3ProxyTestExtension
 
         TestingTrinoS3ProxyServer.Builder builder = TestingTrinoS3ProxyServer.builder();
 
-        Stream.of(trinoS3ProxyTest.modules())
-                .map(TrinoS3ProxyTestExtension::instantiateModule)
-                .forEach(builder::addModule);
-
         List<BuilderFilter> filters = Stream.of(trinoS3ProxyTest.filters())
                 .map(TrinoS3ProxyTestExtension::instantiateBuilderFilter)
                 .collect(toImmutableList());
@@ -67,6 +64,7 @@ public class TrinoS3ProxyTestExtension
         TestingTrinoS3ProxyServer trinoS3ProxyServer = builder
                 .withMockS3Container()
                 .addModule(binder -> {
+                    newOptionalBinder(binder, Key.get(String.class, ForS3ClientProvider.class));
                     binder.bind(S3Client.class).annotatedWith(ForS3MockContainer.class).toProvider(ManagedS3MockContainer.class);
                     newOptionalBinder(binder, Key.get(RemoteS3Facade.class, ForTesting.class))
                             .setDefault()

@@ -14,7 +14,6 @@
 package io.trino.s3.proxy.server.testing;
 
 import com.google.inject.BindingAnnotation;
-import io.airlift.http.server.testing.TestingHttpServer;
 import io.trino.s3.proxy.server.credentials.Credential;
 import io.trino.s3.proxy.server.credentials.Credentials;
 import io.trino.s3.proxy.server.rest.TrinoS3ProxyRestConstants;
@@ -46,9 +45,8 @@ public final class TestingUtil
     @BindingAnnotation
     public @interface ForTesting {}
 
-    public static S3ClientBuilder clientBuilder(TestingHttpServer httpServer)
+    public static S3ClientBuilder clientBuilder(URI baseUrl)
     {
-        URI baseUrl = httpServer.getBaseUrl();
         URI localProxyServerUri = baseUrl.resolve(TrinoS3ProxyRestConstants.S3_PATH);
 
         return S3Client.builder()

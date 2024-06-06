@@ -62,7 +62,7 @@ public class TestAssumingRoles
         EmulatedAssumedRole emulatedAssumedRole = credentialsController.assumeEmulatedRole(testingCredentials.emulated(), "us-east-1", ARN, Optional.empty(), Optional.empty(), Optional.empty())
                 .orElseThrow(() -> new RuntimeException("Failed to assume role"));
 
-        try (S3Client client = clientBuilder(httpServer)
+        try (S3Client client = clientBuilder(httpServer.getBaseUrl())
                 .credentialsProvider(() -> AwsSessionCredentials.create(emulatedAssumedRole.credential().accessKey(), emulatedAssumedRole.credential().secretKey(), emulatedAssumedRole.session()))
                 .build()) {
             // valid assumed role session - should work

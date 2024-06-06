@@ -27,7 +27,7 @@ import java.util.List;
 
 import static io.trino.s3.proxy.server.testing.TestingUtil.clientBuilder;
 
-@TrinoS3ProxyTest(modules = TrinoS3ProxyTestCommonModules.WithConfiguredBuckets.class)
+@TrinoS3ProxyTest(filters = TrinoS3ProxyTestCommonModules.WithConfiguredBuckets.class)
 public class TestRemoteSessionProxiedRequests
         extends AbstractTestProxiedRequests
 {
@@ -41,7 +41,7 @@ public class TestRemoteSessionProxiedRequests
     {
         AwsBasicCredentials awsBasicCredentials = AwsBasicCredentials.create(credentials.emulated().accessKey(), credentials.emulated().secretKey());
 
-        return clientBuilder(httpServer)
+        return clientBuilder(httpServer.getBaseUrl())
                 .credentialsProvider(() -> awsBasicCredentials)
                 .build();
     }

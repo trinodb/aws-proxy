@@ -22,7 +22,7 @@ import software.amazon.awssdk.services.s3.S3Client;
 
 import java.util.List;
 
-@TrinoS3ProxyTest(modules = {WithConfiguredBuckets.class, WithVirtualHostAddressing.class})
+@TrinoS3ProxyTest(filters = {WithConfiguredBuckets.class, WithVirtualHostAddressing.class})
 public class TestProxiedRequestsToVirtualHostEndpoint
         extends AbstractTestProxiedRequests
 {

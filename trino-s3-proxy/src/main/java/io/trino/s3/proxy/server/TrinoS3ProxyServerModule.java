@@ -25,6 +25,7 @@ import io.trino.s3.proxy.server.remote.RemoteS3Facade;
 import io.trino.s3.proxy.server.remote.VirtualHostStyleRemoteS3Facade;
 import io.trino.s3.proxy.server.rest.TrinoS3ProxyClient;
 import io.trino.s3.proxy.server.rest.TrinoS3ProxyClient.ForProxyClient;
+import io.trino.s3.proxy.server.rest.TrinoS3ProxyConfig;
 import io.trino.s3.proxy.server.rest.TrinoS3ProxyResource;
 import io.trino.s3.proxy.server.rest.TrinoStsResource;
 
@@ -45,7 +46,7 @@ public class TrinoS3ProxyServerModule
         jaxrsBinder(binder).bind(TrinoStsResource.class);
 
         configBinder(binder).bindConfig(SigningControllerConfig.class);
-
+        configBinder(binder).bindConfig(TrinoS3ProxyConfig.class);
         binder.bind(SigningController.class).in(Scopes.SINGLETON);
         binder.bind(CredentialsController.class).in(Scopes.SINGLETON);
 
