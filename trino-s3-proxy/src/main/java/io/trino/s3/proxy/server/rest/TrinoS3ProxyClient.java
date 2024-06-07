@@ -94,7 +94,7 @@ public class TrinoS3ProxyClient
         }
 
         MultivaluedMap<String, String> remoteRequestHeaders = new MultivaluedHashMap<>();
-        request.requestHeaders().forEach((key, value) -> {
+        request.lowercaseHeaders().forEach((key, value) -> {
             switch (key) {
                 case "x-amz-security-token" -> {}  // we add this below
                 case "authorization" -> {} // we will create our own authorization header
@@ -112,7 +112,7 @@ public class TrinoS3ProxyClient
 
         request.entitySupplier().ifPresent(entitySupplier -> {
             InputStream entityStream;
-            if ("aws-chunked".equals(request.requestHeaders().getFirst("content-encoding"))) {
+            if ("aws-chunked".equals(request.lowercaseHeaders().getFirst("content-encoding"))) {
                 // AWS's custom chunked encoding doesn't get handled by Jersey. Do it manually.
                 // TODO move this into a Jersey MessageBodyReader
                 try {
@@ -137,7 +137,7 @@ public class TrinoS3ProxyClient
                 Credentials::requiredRemoteCredential,
                 remoteUri,
                 remoteRequestHeaders,
-                request.requestQueryParameters(),
+                request.queryParameters(),
                 request.httpVerb(),
                 Optional.empty());
         remoteRequestHeaders.putSingle("Authorization", signature);
