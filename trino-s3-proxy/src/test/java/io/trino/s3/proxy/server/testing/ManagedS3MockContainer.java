@@ -13,6 +13,7 @@
  */
 package io.trino.s3.proxy.server.testing;
 
+import com.google.common.net.HostAndPort;
 import com.google.inject.BindingAnnotation;
 import com.google.inject.Inject;
 import com.google.inject.Provider;
@@ -100,15 +101,6 @@ public class ManagedS3MockContainer
     @BindingAnnotation
     public @interface ForS3MockContainer {}
 
-    public record ContainerHost(String host, Integer port)
-    {
-        public ContainerHost
-        {
-            requireNonNull(host, "host is null");
-            requireNonNull(port, "port is null");
-        }
-    }
-
     @Inject
     public ManagedS3MockContainer(@ForS3MockContainer List<String> initialBuckets, @ForTesting Credentials credentials)
     {
@@ -138,9 +130,9 @@ public class ManagedS3MockContainer
         policyUserCredential = new Credential(UUID.randomUUID().toString(), UUID.randomUUID().toString());
     }
 
-    public ContainerHost getContainerHost()
+    public HostAndPort containerHost()
     {
-        return new ContainerHost(container.getHost(), container.getFirstMappedPort());
+        return HostAndPort.fromParts(container.getHost(), container.getFirstMappedPort());
     }
 
     public Credential policyUserCredential()
