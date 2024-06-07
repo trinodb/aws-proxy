@@ -29,6 +29,7 @@ import org.glassfish.jersey.server.ContainerRequest;
 
 import java.util.Optional;
 
+import static io.trino.s3.proxy.server.rest.RequestBuilder.fromRequest;
 import static java.util.Objects.requireNonNull;
 
 @Path(TrinoS3ProxyRestConstants.S3_PATH)
@@ -56,7 +57,7 @@ public class TrinoS3ProxyResource
     @Path("{path:.*}")
     public void s3Get(@Context ContainerRequest request, @Suspended AsyncResponse asyncResponse, @PathParam("path") String path)
     {
-        proxyClient.proxyRequest(signingController.validateAndParseAuthorization(request, SigningServiceType.S3, Optional.empty()), parseRequest(path, request), asyncResponse);
+        proxyClient.proxyRequest(signingController.validateAndParseAuthorization(fromRequest(request), SigningServiceType.S3, Optional.empty()), parseRequest(path, request), asyncResponse);
     }
 
     @HEAD
@@ -69,7 +70,7 @@ public class TrinoS3ProxyResource
     @Path("{path:.*}")
     public void s3Head(@Context ContainerRequest request, @Suspended AsyncResponse asyncResponse, @PathParam("path") String path)
     {
-        proxyClient.proxyRequest(signingController.validateAndParseAuthorization(request, SigningServiceType.S3, Optional.empty()), parseRequest(path, request), asyncResponse);
+        proxyClient.proxyRequest(signingController.validateAndParseAuthorization(fromRequest(request), SigningServiceType.S3, Optional.empty()), parseRequest(path, request), asyncResponse);
     }
 
     @PUT
@@ -82,7 +83,7 @@ public class TrinoS3ProxyResource
     @Path("{path:.*}")
     public void s3Put(@Context ContainerRequest request, @Suspended AsyncResponse asyncResponse, @PathParam("path") String path)
     {
-        proxyClient.proxyRequest(signingController.validateAndParseAuthorization(request, SigningServiceType.S3, Optional.empty()), parseRequest(path, request), asyncResponse);
+        proxyClient.proxyRequest(signingController.validateAndParseAuthorization(fromRequest(request), SigningServiceType.S3, Optional.empty()), parseRequest(path, request), asyncResponse);
     }
 
     @DELETE
@@ -95,11 +96,11 @@ public class TrinoS3ProxyResource
     @Path("{path:.*}")
     public void s3Delete(@Context ContainerRequest request, @Suspended AsyncResponse asyncResponse, @PathParam("path") String path)
     {
-        proxyClient.proxyRequest(signingController.validateAndParseAuthorization(request, SigningServiceType.S3, Optional.empty()), parseRequest(path, request), asyncResponse);
+        proxyClient.proxyRequest(signingController.validateAndParseAuthorization(fromRequest(request), SigningServiceType.S3, Optional.empty()), parseRequest(path, request), asyncResponse);
     }
 
     private ParsedS3Request parseRequest(String path, ContainerRequest request)
     {
-        return ParsedS3RequestBuilder.fromRequest(path, request, serverHostName);
+        return fromRequest(path, request, serverHostName);
     }
 }

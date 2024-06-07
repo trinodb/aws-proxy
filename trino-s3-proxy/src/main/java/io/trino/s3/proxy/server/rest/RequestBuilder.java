@@ -26,9 +26,15 @@ import java.util.function.Supplier;
 
 import static io.trino.s3.proxy.server.collections.MultiMapHelper.lowercase;
 
-class ParsedS3RequestBuilder
+class RequestBuilder
 {
-    private ParsedS3RequestBuilder() {}
+    private RequestBuilder() {}
+
+    static Request fromRequest(ContainerRequest request)
+    {
+        Optional<Supplier<InputStream>> entitySupplier = request.hasEntity() ? Optional.of(request::getEntityStream) : Optional.empty();
+        return new Request(request.getRequestUri(), request.getRequestHeaders(), request.getUriInfo().getQueryParameters(), request.getMethod(), entitySupplier);
+    }
 
     static ParsedS3Request fromRequest(String requestPath, ContainerRequest request, Optional<String> serverHostName)
     {

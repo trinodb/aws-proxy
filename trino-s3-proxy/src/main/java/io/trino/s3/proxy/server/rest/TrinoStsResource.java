@@ -44,6 +44,7 @@ import java.util.Optional;
 import static com.google.common.collect.ImmutableMap.toImmutableMap;
 import static com.google.common.io.ByteStreams.toByteArray;
 import static io.trino.s3.proxy.server.credentials.SigningController.formatResponseInstant;
+import static io.trino.s3.proxy.server.rest.RequestBuilder.fromRequest;
 import static java.util.Objects.requireNonNull;
 
 @Path(TrinoS3ProxyRestConstants.STS_PATH)
@@ -76,7 +77,7 @@ public class TrinoStsResource
             return Response.status(Response.Status.BAD_REQUEST).build();
         }
 
-        SigningMetadata signingMetadata = signingController.validateAndParseAuthorization(request, SigningServiceType.STS, entity);
+        SigningMetadata signingMetadata = signingController.validateAndParseAuthorization(fromRequest(request), SigningServiceType.STS, entity);
         Map<String, String> arguments = deserializeRequest(request, entity);
 
         String action = Optional.ofNullable(arguments.get("Action")).orElse("");

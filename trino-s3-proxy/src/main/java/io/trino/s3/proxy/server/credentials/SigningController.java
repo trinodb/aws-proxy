@@ -15,10 +15,10 @@ package io.trino.s3.proxy.server.credentials;
 
 import com.google.common.base.Splitter;
 import com.google.inject.Inject;
+import io.trino.s3.proxy.server.rest.Request;
 import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.core.MultivaluedMap;
 import jakarta.ws.rs.core.Response;
-import org.glassfish.jersey.server.ContainerRequest;
 
 import java.net.URI;
 import java.time.Duration;
@@ -83,15 +83,15 @@ public class SigningController
                 entity);
     }
 
-    public SigningMetadata validateAndParseAuthorization(ContainerRequest request, SigningServiceType signingServiceType, Optional<byte[]> entity)
+    public SigningMetadata validateAndParseAuthorization(Request request, SigningServiceType signingServiceType, Optional<byte[]> entity)
     {
         return signingMetadataFromRequest(
                 signingServiceType,
                 Credentials::emulated,
-                request.getRequestUri(),
-                request.getRequestHeaders(),
-                request.getUriInfo().getQueryParameters(),
-                request.getMethod(),
+                request.requestUri(),
+                request.requestHeaders(),
+                request.requestQueryParameters(),
+                request.httpVerb(),
                 entity)
                 .orElseThrow(() -> new WebApplicationException(Response.Status.UNAUTHORIZED));
     }
