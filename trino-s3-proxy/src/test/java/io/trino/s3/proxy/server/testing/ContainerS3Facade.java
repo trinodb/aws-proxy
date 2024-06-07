@@ -29,7 +29,7 @@ public final class ContainerS3Facade
         @Inject
         public PathStyleContainerS3Facade(ManagedS3MockContainer s3MockContainer, TestingRemoteS3Facade delegatingFacade)
         {
-            super((ignored1, ignored2) -> s3MockContainer.getContainerHost().host(), false, Optional.of(s3MockContainer.getContainerHost().port()));
+            super((ignored1, ignored2) -> s3MockContainer.containerHost().getHost(), false, Optional.of(s3MockContainer.containerHost().getPort()));
             delegatingFacade.setDelegate(this);
         }
     }
@@ -40,7 +40,7 @@ public final class ContainerS3Facade
         @Inject
         public VirtualHostStyleContainerS3Facade(ManagedS3MockContainer s3MockContainer, TestingRemoteS3Facade delegatingFacade)
         {
-            super((bucket, ignored) -> bucket.isEmpty() ? LOCALHOST_DOMAIN : "%s.%s".formatted(bucket, LOCALHOST_DOMAIN), false, Optional.of(s3MockContainer.getContainerHost().port()));
+            super((bucket, ignored) -> bucket.isEmpty() ? LOCALHOST_DOMAIN : "%s.%s".formatted(bucket, LOCALHOST_DOMAIN), false, Optional.of(s3MockContainer.containerHost().getPort()));
             delegatingFacade.setDelegate(this);
         }
     }
