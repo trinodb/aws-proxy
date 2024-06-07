@@ -100,6 +100,6 @@ public class TrinoS3ProxyResource
 
     private ParsedS3Request parseRequest(String path, ContainerRequest request)
     {
-        return ParsedS3Request.fromRequest(path, request, serverHostName);
+        return ParsedS3RequestBuilder.fromRequest(path, request, serverHostName);
     }
 }
