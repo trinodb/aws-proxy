@@ -20,6 +20,7 @@ import jakarta.ws.rs.core.MultivaluedMap;
 import jakarta.ws.rs.core.Response;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.signer.internal.AbstractAwsS3V4Signer;
+import software.amazon.awssdk.auth.signer.internal.CopiedAbstractAwsS3V4Signer;
 import software.amazon.awssdk.auth.signer.params.AwsS3V4SignerParams;
 import software.amazon.awssdk.core.checksums.SdkChecksum;
 import software.amazon.awssdk.http.SdkHttpFullRequest;
@@ -53,18 +54,29 @@ final class Signer
 
     private static final String OVERRIDE_CONTENT_HASH = "__TRINO__OVERRIDE_CONTENT_HASH__";
 
-    private static final Set<String> IGNORED_HEADERS = ImmutableSet.of(
+    private static final Set<String> BASE_IGNORED_HEADERS = ImmutableSet.of(
             "x-amz-decoded-content-length",
             "x-amzn-trace-id",
             "expect",
             "accept-encoding",
             "authorization",
-            "user-agent",
             "connection");
+
+    private static final Set<String> LEGACY_IGNORED_HEADERS = BASE_IGNORED_HEADERS;
+    private static final Set<String> IGNORED_HEADERS = ImmutableSet.<String>builder().addAll(BASE_IGNORED_HEADERS).add("user-agent").build();
 
     private static final Set<String> LOWERCASE_HEADERS = ImmutableSet.of("content-type");
 
     private static final AbstractAwsS3V4Signer aws4Signer = new AbstractAwsS3V4Signer()
+    {
+        @Override
+        protected String calculateContentHash(SdkHttpFullRequest.Builder mutableRequest, AwsS3V4SignerParams signerParams, SdkChecksum contentFlexibleChecksum)
+        {
+            return extractOverrideContentHash(mutableRequest).orElseGet(() -> super.calculateContentHash(mutableRequest, signerParams, contentFlexibleChecksum));
+        }
+    };
+
+    private static final CopiedAbstractAwsS3V4Signer legacyAws4Signer = new CopiedAbstractAwsS3V4Signer()
     {
         @Override
         protected String calculateContentHash(SdkHttpFullRequest.Builder mutableRequest, AwsS3V4SignerParams signerParams, SdkChecksum contentFlexibleChecksum)
@@ -86,6 +98,8 @@ final class Signer
 
     static String sign(
             SigningControllerImpl.Mode mode,
+            boolean isLegacy,
+            boolean signatureHasContentLength,
             String serviceName,
             URI requestURI,
             MultivaluedMap<String, String> requestHeaders,
@@ -113,10 +127,12 @@ final class Signer
 
         entity.ifPresent(entityBytes -> requestBuilder.contentStreamProvider(() -> new ByteArrayInputStream(entityBytes)));
 
+        Set<String> ignoredHeaders = isLegacy ? LEGACY_IGNORED_HEADERS : IGNORED_HEADERS;
         requestHeaders
                 .entrySet()
                 .stream()
-                .filter(entry -> !IGNORED_HEADERS.contains(entry.getKey()))
+                .filter(entry -> !ignoredHeaders.contains(entry.getKey()))
+                .filter(entry -> !entry.getKey().equals("content-length") || signatureHasContentLength)
                 .forEach(entry -> entry.getValue().forEach(value -> requestBuilder.appendHeader(entry.getKey(), value)));
 
         queryParameters.forEach(requestBuilder::putRawQueryParameter);
@@ -171,7 +187,10 @@ final class Signer
         Clock clock = Clock.fixed(zonedRequestDateTime.toInstant(), zonedRequestDateTime.getZone());
         signerParamsBuilder.signingClockOverride(clock);
 
-        return aws4Signer.sign(requestBuilder.build(), signerParamsBuilder.build()).firstMatchingHeader("Authorization").orElseThrow(() -> {
+        BiFunction<SdkHttpFullRequest, AwsS3V4SignerParams, SdkHttpFullRequest> signingProc = isLegacy ? legacyAws4Signer::sign : aws4Signer::sign;
+        SdkHttpFullRequest signedRequest = signingProc.apply(requestBuilder.build(), signerParamsBuilder.build());
+
+        return signedRequest.firstMatchingHeader("Authorization").orElseThrow(() -> {
             log.debug("Signer did not generate \"Authorization\" header");
             return new WebApplicationException(Response.Status.BAD_REQUEST);
         });

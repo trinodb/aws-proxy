@@ -40,7 +40,7 @@ public class TestSigningController
 
     private final CredentialsProvider credentialsProvider = (emulatedAccessKey, session) -> Optional.of(CREDENTIALS);
     private final CredentialsController credentialsController = new CredentialsController(new TestingRemoteS3Facade(), credentialsProvider);
-    private final SigningController signingController = new SigningControllerImpl(credentialsController, new SigningControllerConfig().setMaxClockDrift(new Duration(99999, TimeUnit.DAYS)));
+    private final SigningControllerImpl signingController = new SigningControllerImpl(credentialsController, new SigningControllerConfig().setMaxClockDrift(new Duration(99999, TimeUnit.DAYS)));
 
     @Test
     public void testRootLs()
@@ -118,5 +118,34 @@ public class TestSigningController
                 Optional.empty());
 
         assertThat(signature).isEqualTo("AWS4-HMAC-SHA256 Credential=THIS_IS_AN_ACCESS_KEY/20240516/us-east-1/s3/aws4_request, SignedHeaders=host;x-amz-content-sha256;x-amz-date;x-amz-security-token, Signature=222d7b7fcd4d5560c944e8fecd9424ee3915d131c3ad9e000d65db93e87946c4");
+    }
+
+    @Test
+    public void testLegacy()
+    {
+        // values discovered from a Spark/Hive request sent to proxy LocalServer
+        MultivaluedMap<String, String> requestHeaders = new MultivaluedHashMap<>();
+        requestHeaders.putSingle("x-amz-content-sha256", "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855");
+        requestHeaders.putSingle("X-Amz-Date", "20240609T072007Z");
+        requestHeaders.putSingle("User-Agent", "Hadoop 3.3.4, aws-sdk-java/1.12.262 Linux/6.5.11-linuxkit OpenJDK_64-Bit_Server_VM/11.0.23+9 java/11.0.23 scala/2.12.18 vendor/Eclipse_Adoptium cfg/retry-mode/legacy");
+        requestHeaders.putSingle("Host", "host.docker.internal:57579");
+        requestHeaders.putSingle("amz-sdk-invocation-id", "fbb83f4e-a245-cc19-a318-001245fd3bc8");
+        requestHeaders.putSingle("amz-sdk-request", "attempt=1;max=21");
+        requestHeaders.putSingle("amz-sdk-retry", "0/0/500");
+        requestHeaders.putSingle("Content-Type", "application/octet-stream");
+
+        String signature = signingController.internalSignRequest(
+                SigningControllerImpl.Mode.UNADJUSTED_HEADERS,
+                true,
+                false,
+                new SigningMetadata(SigningServiceType.S3, CREDENTIALS, Optional.empty(), "us-east-1"),
+                Credentials::emulated,
+                URI.create("http://host.docker.internal:57579/api/v1/s3Proxy/s3/sparkbyexamples/csv/text01.txt"),
+                requestHeaders,
+                new MultivaluedHashMap<>(),
+                "HEAD",
+                Optional.empty());
+
+        assertThat(signature).isEqualTo("AWS4-HMAC-SHA256 Credential=THIS_IS_AN_ACCESS_KEY/20240609/us-east-1/s3/aws4_request, SignedHeaders=amz-sdk-invocation-id;amz-sdk-request;amz-sdk-retry;content-type;host;user-agent;x-amz-content-sha256;x-amz-date, Signature=40d64a548e32b70a3b2a606b716ff8f16953f146b5365b6efd3a91125e304fd7");
     }
 }

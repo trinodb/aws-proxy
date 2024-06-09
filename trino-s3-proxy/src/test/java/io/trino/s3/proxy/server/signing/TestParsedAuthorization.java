@@ -11,13 +11,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.trino.s3.proxy.server.credentials;
+package io.trino.s3.proxy.server.signing;
 
 import com.google.common.collect.ImmutableSet;
 import org.junit.jupiter.api.Test;
 
-import static io.trino.s3.proxy.server.credentials.ParsedAuthorization.Credential;
-import static io.trino.s3.proxy.server.credentials.ParsedAuthorization.parse;
+import static io.trino.s3.proxy.server.signing.ParsedAuthorization.Credential;
+import static io.trino.s3.proxy.server.signing.ParsedAuthorization.parse;
 import static org.assertj.core.api.Assertions.assertThat;
 
 public class TestParsedAuthorization
