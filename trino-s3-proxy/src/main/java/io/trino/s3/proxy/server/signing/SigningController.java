@@ -13,7 +13,6 @@
  */
 package io.trino.s3.proxy.server.signing;
 
-import com.google.common.base.Splitter;
 import com.google.inject.Inject;
 import io.trino.s3.proxy.server.credentials.Credential;
 import io.trino.s3.proxy.server.credentials.Credentials;
@@ -26,11 +25,11 @@ import jakarta.ws.rs.core.Response;
 import java.net.URI;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.List;
 import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
+import static com.google.common.base.MoreObjects.firstNonNull;
 import static io.trino.s3.proxy.server.signing.Signer.AMZ_DATE_FORMAT;
 import static io.trino.s3.proxy.server.signing.Signer.RESPONSE_DATE_FORMAT;
 import static io.trino.s3.proxy.server.signing.Signer.ZONE;
@@ -134,36 +133,16 @@ public class SigningController
             String httpMethod,
             Optional<byte[]> entity)
     {
-        String authorization = requestHeaders.getFirst("Authorization");
-        if (authorization == null) {
+        ParsedAuthorization parsedAuthorization = ParsedAuthorization.parse(firstNonNull(requestHeaders.getFirst("authorization"), ""));
+        if (!parsedAuthorization.isValid()) {
             return Optional.empty();
         }
-
-        List<String> authorizationParts = Splitter.on(",").trimResults().splitToList(authorization);
-        if (authorizationParts.isEmpty()) {
-            return Optional.empty();
-        }
-
-        String credential = authorizationParts.getFirst();
-        List<String> credentialParts = Splitter.on("=").splitToList(credential);
-        if (credentialParts.size() < 2) {
-            return Optional.empty();
-        }
-
-        String credentialValue = credentialParts.get(1);
-        List<String> credentialValueParts = Splitter.on("/").splitToList(credentialValue);
-        if (credentialValueParts.size() < 3) {
-            return Optional.empty();
-        }
-
-        String emulatedAccessKey = credentialValueParts.getFirst();
-        String region = credentialValueParts.get(2);
 
         Optional<String> session = Optional.ofNullable(requestHeaders.getFirst("x-amz-security-token"));
 
-        return credentialsController.withCredentials(emulatedAccessKey, session, credentials -> {
-            SigningMetadata metadata = new SigningMetadata(signingServiceType, credentials, session, region);
-            if (isValidAuthorization(metadata, credentialsSupplier, authorization, requestURI, requestHeaders, queryParameters, httpMethod, entity)) {
+        return credentialsController.withCredentials(parsedAuthorization.accessKey(), session, credentials -> {
+            SigningMetadata metadata = new SigningMetadata(signingServiceType, credentials, session, parsedAuthorization.region());
+            if (isValidAuthorization(metadata, credentialsSupplier, parsedAuthorization.authorization(), requestURI, requestHeaders, queryParameters, httpMethod, entity)) {
                 return Optional.of(metadata);
             }
             return Optional.empty();
