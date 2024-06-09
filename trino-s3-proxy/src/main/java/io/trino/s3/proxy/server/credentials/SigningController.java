@@ -13,6 +13,7 @@
  */
 package io.trino.s3.proxy.server.credentials;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.inject.Inject;
 import io.trino.s3.proxy.server.rest.Request;
 import jakarta.ws.rs.WebApplicationException;
@@ -55,7 +56,7 @@ public class SigningController
     }
 
     // temporary - remove once Airlift has been updated
-    public enum Mode
+    enum Mode
     {
         ADJUSTED_HEADERS,
         UNADJUSTED_HEADERS,
@@ -72,6 +73,8 @@ public class SigningController
     {
         return internalSignRequest(
                 UNADJUSTED_HEADERS,
+                false,
+                entity.isPresent(),
                 metadata,
                 credentialsSupplier,
                 requestURI,
@@ -94,8 +97,11 @@ public class SigningController
                 .orElseThrow(() -> new WebApplicationException(Response.Status.UNAUTHORIZED));
     }
 
-    private String internalSignRequest(
+    @VisibleForTesting
+    String internalSignRequest(
             Mode mode,
+            boolean isLegacy,
+            boolean signatureHasContentLength,
             SigningMetadata metadata,
             Function<Credentials, Credential> credentialsSupplier,
             URI requestURI,
@@ -108,6 +114,8 @@ public class SigningController
 
         return Signer.sign(
                 mode,
+                isLegacy,
+                signatureHasContentLength,
                 metadata.signingServiceType().serviceName(),
                 requestURI,
                 requestHeaders,
@@ -136,9 +144,12 @@ public class SigningController
 
         Optional<String> session = Optional.ofNullable(requestHeaders.getFirst("x-amz-security-token"));
 
+        boolean isLegacy = parsedAuthorization.signedHeaders().contains("user-agent");
+        boolean signatureHasContentLength = parsedAuthorization.signedHeaders().contains("content-length");
+
         return credentialsController.withCredentials(parsedAuthorization.credential().accessKey(), session, credentials -> {
             SigningMetadata metadata = new SigningMetadata(signingServiceType, credentials, session, parsedAuthorization.credential().region());
-            if (isValidAuthorization(metadata, credentialsSupplier, parsedAuthorization.authorization(), requestURI, requestHeaders, queryParameters, httpMethod, entity)) {
+            if (isValidAuthorization(metadata, isLegacy, signatureHasContentLength, credentialsSupplier, parsedAuthorization.authorization(), requestURI, requestHeaders, queryParameters, httpMethod, entity)) {
                 return Optional.of(metadata);
             }
             return Optional.empty();
@@ -147,6 +158,8 @@ public class SigningController
 
     private boolean isValidAuthorization(
             SigningMetadata metadata,
+            boolean isLegacy,
+            boolean signatureHasContentLength,
             Function<Credentials, Credential> credentialsSupplier,
             String authorizationHeader,
             URI requestURI,
@@ -157,7 +170,7 @@ public class SigningController
     {
         // temp workaround until https://github.com/airlift/airlift/pull/1178 is accepted
         return Stream.of(Mode.values()).anyMatch(mode -> {
-            String expectedAuthorization = internalSignRequest(mode, metadata, credentialsSupplier, requestURI, requestHeaders, queryParameters, httpMethod, entity);
+            String expectedAuthorization = internalSignRequest(mode, isLegacy, signatureHasContentLength, metadata, credentialsSupplier, requestURI, requestHeaders, queryParameters, httpMethod, entity);
             return authorizationHeader.equals(expectedAuthorization);
         });
     }
