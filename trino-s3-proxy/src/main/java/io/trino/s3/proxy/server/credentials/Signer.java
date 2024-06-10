@@ -19,8 +19,9 @@ import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.core.MultivaluedMap;
 import jakarta.ws.rs.core.Response;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
-import software.amazon.awssdk.auth.signer.AwsS3V4Signer;
+import software.amazon.awssdk.auth.signer.internal.AbstractAwsS3V4Signer;
 import software.amazon.awssdk.auth.signer.params.AwsS3V4SignerParams;
+import software.amazon.awssdk.core.checksums.SdkChecksum;
 import software.amazon.awssdk.http.SdkHttpFullRequest;
 import software.amazon.awssdk.http.SdkHttpMethod;
 import software.amazon.awssdk.regions.Region;
@@ -50,6 +51,8 @@ final class Signer
     static final DateTimeFormatter AMZ_DATE_FORMAT = DateTimeFormatter.ofPattern("yyyyMMdd'T'HHmmss'Z'", Locale.US).withZone(ZONE);
     static final DateTimeFormatter RESPONSE_DATE_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH':'mm':'ss'.'SSS'Z'", Locale.US).withZone(ZONE);
 
+    private static final String OVERRIDE_CONTENT_HASH = "__TRINO__OVERRIDE_CONTENT_HASH__";
+
     private static final Set<String> IGNORED_HEADERS = ImmutableSet.of(
             "x-amz-decoded-content-length",
             "x-amzn-trace-id",
@@ -60,7 +63,24 @@ final class Signer
             "connection");
 
     private static final Set<String> LOWERCASE_HEADERS = ImmutableSet.of("content-type");
-    private static final AwsS3V4Signer aws4Signer = AwsS3V4Signer.create();
+
+    private static final AbstractAwsS3V4Signer aws4Signer = new AbstractAwsS3V4Signer()
+    {
+        @Override
+        protected String calculateContentHash(SdkHttpFullRequest.Builder mutableRequest, AwsS3V4SignerParams signerParams, SdkChecksum contentFlexibleChecksum)
+        {
+            return extractOverrideContentHash(mutableRequest).orElseGet(() -> super.calculateContentHash(mutableRequest, signerParams, contentFlexibleChecksum));
+        }
+    };
+
+    private static Optional<String> extractOverrideContentHash(SdkHttpFullRequest.Builder mutableRequest)
+    {
+        // look for the stashed OVERRIDE_CONTENT_HASH, remove the hacked header and then return the stashed hash value
+        return mutableRequest.firstMatchingHeader(OVERRIDE_CONTENT_HASH).map(hash -> {
+            mutableRequest.removeHeader(OVERRIDE_CONTENT_HASH);
+            return hash;
+        });
+    }
 
     private Signer() {}
 
@@ -101,9 +121,21 @@ final class Signer
 
         queryParameters.forEach(requestBuilder::putRawQueryParameter);
 
-        boolean enablePayloadSigning = Optional.ofNullable(requestHeaders.getFirst("x-amz-content-sha256"))
+        Optional<String> maybeAmazonContentHash = Optional.ofNullable(requestHeaders.getFirst("x-amz-content-sha256"));
+        boolean enablePayloadSigning = maybeAmazonContentHash
                 .map(contentHashHeader -> !contentHashHeader.equals("UNSIGNED-PAYLOAD"))
                 .orElse(true);
+        if (enablePayloadSigning) {
+            maybeAmazonContentHash.ifPresent(contentHashHeader -> {
+                if (!contentHashHeader.startsWith("STREAMING-")) {
+                    // because we stream content without spooling we want to re-use the provided content hash
+                    // so that we don't have to calculate it to validate the incoming signature.
+                    // Stash the hash in the OVERRIDE_CONTENT_HASH so that aws4Signer can find it and
+                    // return it.
+                    requestBuilder.putHeader(OVERRIDE_CONTENT_HASH, contentHashHeader);
+                }
+            });
+        }
 
         boolean enableChunkedEncoding = Optional.ofNullable(requestHeaders.getFirst("content-encoding"))
                 .map(contentHashHeader -> contentHashHeader.equals("aws-chunked"))
