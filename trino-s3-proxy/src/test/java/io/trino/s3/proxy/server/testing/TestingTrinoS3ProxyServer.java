@@ -31,6 +31,7 @@ import io.airlift.node.testing.TestingNodeModule;
 import io.trino.s3.proxy.server.credentials.Credentials;
 import io.trino.s3.proxy.server.remote.RemoteS3Facade;
 import io.trino.s3.proxy.server.testing.TestingUtil.ForTesting;
+import io.trino.s3.proxy.server.testing.containers.MetastoreContainer;
 import io.trino.s3.proxy.server.testing.containers.PostgresContainer;
 import io.trino.s3.proxy.server.testing.containers.S3Container;
 import io.trino.s3.proxy.server.testing.containers.S3Container.ForS3Container;
@@ -80,6 +81,7 @@ public final class TestingTrinoS3ProxyServer
         private final ImmutableMap.Builder<String, String> properties = ImmutableMap.builder();
         private boolean mockS3ContainerAdded;
         private boolean postgresContainerAdded;
+        private boolean metastoreContainerAdded;
 
         public Builder addModule(Module module)
         {
@@ -123,6 +125,21 @@ public final class TestingTrinoS3ProxyServer
             postgresContainerAdded = true;
 
             modules.add(binder -> binder.bind(PostgresContainer.class).asEagerSingleton());
+            return this;
+        }
+
+        public Builder withMetastoreContainer()
+        {
+            // metastore requires postgres and S3
+            withPostgresContainer();
+            withS3Container();
+
+            if (metastoreContainerAdded) {
+                return this;
+            }
+            metastoreContainerAdded = true;
+
+            modules.add(binder -> binder.bind(MetastoreContainer.class).asEagerSingleton());
             return this;
         }
 
