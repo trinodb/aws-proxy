@@ -13,11 +13,13 @@
  */
 package io.trino.s3.proxy.server;
 
+import com.google.inject.Key;
 import io.airlift.http.server.testing.TestingHttpServer;
 import io.airlift.log.Logger;
-import io.trino.s3.proxy.server.credentials.Credential;
 import io.trino.s3.proxy.server.credentials.Credentials;
+import io.trino.s3.proxy.server.rest.TrinoS3ProxyRestConstants;
 import io.trino.s3.proxy.server.testing.TestingTrinoS3ProxyServer;
+import io.trino.s3.proxy.server.testing.TestingUtil.ForTesting;
 
 public final class LocalServer
 {
@@ -28,27 +30,19 @@ public final class LocalServer
     @SuppressWarnings("resource")
     public static void main(String[] args)
     {
-        if (args.length != 4) {
-            System.err.println("Usage: TestingTrinoS3ProxyServer <emulatedAccessKey> <emulatedSecretKey> <remoteAccessKey> <remoteSecretKey>");
-            System.exit(1);
-        }
-
-        String emulatedAccessKey = args[0];
-        String emulatedSecretKey = args[1];
-        String remoteAccessKey = args[2];
-        String remoteSecretKey = args[3];
-        Credentials credentials = Credentials.build(new Credential(emulatedAccessKey, emulatedSecretKey), new Credential(remoteAccessKey, remoteSecretKey));
-
         TestingTrinoS3ProxyServer trinoS3ProxyServer = TestingTrinoS3ProxyServer.builder()
                 .withMockS3Container()
                 .buildAndStart();
-        trinoS3ProxyServer.getCredentialsController().addCredentials(credentials);
 
         log.info("======== TESTING SERVER STARTED ========");
 
         TestingHttpServer httpServer = trinoS3ProxyServer.getInjector().getInstance(TestingHttpServer.class);
+        Credentials testingCredentials = trinoS3ProxyServer.getInjector().getInstance(Key.get(Credentials.class, ForTesting.class));
+
         log.info("");
-        log.info("Endpoint: %s", httpServer.getBaseUrl());
+        log.info("Endpoint:   %s", httpServer.getBaseUrl().resolve(TrinoS3ProxyRestConstants.S3_PATH));
+        log.info("Access Key: %s", testingCredentials.emulated().accessKey());
+        log.info("Secret Key: %s", testingCredentials.emulated().secretKey());
         log.info("");
     }
 }

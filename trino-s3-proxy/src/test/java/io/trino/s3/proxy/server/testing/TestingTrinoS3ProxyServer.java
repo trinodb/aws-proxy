@@ -16,6 +16,7 @@ package io.trino.s3.proxy.server.testing;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
+import com.google.inject.Inject;
 import com.google.inject.Injector;
 import com.google.inject.Key;
 import com.google.inject.Module;
@@ -28,6 +29,8 @@ import io.airlift.jaxrs.JaxrsModule;
 import io.airlift.json.JsonModule;
 import io.airlift.node.testing.TestingNodeModule;
 import io.trino.s3.proxy.server.credentials.Credentials;
+import io.trino.s3.proxy.server.remote.RemoteS3Facade;
+import io.trino.s3.proxy.server.testing.TestingUtil.ForTesting;
 
 import java.io.Closeable;
 import java.util.Collection;
@@ -86,9 +89,16 @@ public final class TestingTrinoS3ProxyServer
         public Builder withMockS3Container()
         {
             this.modules.add(binder -> {
+                binder.bind(TestingCredentialsInitializer.class).asEagerSingleton();
+
                 binder.bind(ManagedS3MockContainer.class).asEagerSingleton();
-                binder.bind(Credentials.class).annotatedWith(TestingUtil.ForTesting.class).toInstance(TESTING_CREDENTIALS);
+                binder.bind(Credentials.class).annotatedWith(ForTesting.class).toInstance(TESTING_CREDENTIALS);
                 newOptionalBinder(binder, Key.get(new TypeLiteral<List<String>>() {}, ManagedS3MockContainer.ForS3MockContainer.class)).setDefault().toInstance(ImmutableList.of());
+
+                newOptionalBinder(binder, Key.get(RemoteS3Facade.class, ForTesting.class))
+                        .setDefault()
+                        .to(ContainerS3Facade.PathStyleContainerS3Facade.class)
+                        .asEagerSingleton();
             });
             return this;
         }
@@ -102,6 +112,15 @@ public final class TestingTrinoS3ProxyServer
         public TestingTrinoS3ProxyServer buildAndStart()
         {
             return start(modules.build(), properties.buildKeepingLast());
+        }
+    }
+
+    static class TestingCredentialsInitializer
+    {
+        @Inject
+        TestingCredentialsInitializer(TestingCredentialsRolesProvider credentialsController)
+        {
+            credentialsController.addCredentials(TESTING_CREDENTIALS);
         }
     }
 
