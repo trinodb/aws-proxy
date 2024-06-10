@@ -32,6 +32,7 @@ public final class LocalServer
     {
         TestingTrinoS3ProxyServer trinoS3ProxyServer = TestingTrinoS3ProxyServer.builder()
                 .withS3Container()
+                .withPostgresContainer()
                 .buildAndStart();
 
         log.info("======== TESTING SERVER STARTED ========");
