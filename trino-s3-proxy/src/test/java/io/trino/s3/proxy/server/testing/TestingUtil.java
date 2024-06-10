@@ -20,12 +20,15 @@ import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.S3ClientBuilder;
 
+import java.io.File;
 import java.lang.annotation.Retention;
 import java.lang.annotation.Target;
 import java.net.URI;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.stream.Stream;
 
+import static com.google.common.base.MoreObjects.firstNonNull;
 import static java.lang.annotation.ElementType.FIELD;
 import static java.lang.annotation.ElementType.METHOD;
 import static java.lang.annotation.ElementType.PARAMETER;
@@ -33,12 +36,18 @@ import static java.lang.annotation.RetentionPolicy.RUNTIME;
 
 public final class TestingUtil
 {
+    private TestingUtil() {}
+
     public static final Credentials TESTING_CREDENTIALS = Credentials.build(
             new Credential(UUID.randomUUID().toString(), UUID.randomUUID().toString()),
             new Credential(UUID.randomUUID().toString(), UUID.randomUUID().toString()));
 
     // Domain name with a wildcard CNAME pointing to localhost - needed to test Virtual Host style addressing
     public static final String LOCALHOST_DOMAIN = "local.gate0.net";
+
+    private static final File targetDirectory = new File(TestingUtil.class.getProtectionDomain().getCodeSource().getLocation().getPath())
+            .getParentFile();
+    private static final File testJarsDirectory = new File(targetDirectory, "test-jars");
 
     @Retention(RUNTIME)
     @Target({FIELD, PARAMETER, METHOD})
@@ -58,5 +67,12 @@ public final class TestingUtil
                 .endpointOverride(localProxyServerUri);
     }
 
-    private TestingUtil() {}
+    public static File findTestJar(String name)
+    {
+        File[] files = firstNonNull(testJarsDirectory.listFiles(), new File[0]);
+        return Stream.of(files)
+                .filter(file -> file.getName().startsWith(name))
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("Unable to find test jar: " + name));
+    }
 }

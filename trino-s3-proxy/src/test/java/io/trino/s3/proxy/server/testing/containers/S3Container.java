@@ -17,6 +17,7 @@ import com.google.common.net.HostAndPort;
 import com.google.inject.BindingAnnotation;
 import com.google.inject.Inject;
 import com.google.inject.Provider;
+import io.airlift.log.Logger;
 import io.trino.s3.proxy.server.credentials.Credential;
 import io.trino.s3.proxy.server.credentials.Credentials;
 import io.trino.s3.proxy.server.testing.TestingUtil.ForTesting;
@@ -46,6 +47,8 @@ import static java.util.Objects.requireNonNull;
 public class S3Container
         implements Provider<S3Client>
 {
+    private static final Logger log = Logger.get(S3Container.class);
+
     public static final String POLICY_NAME = "managedPolicy";
 
     private static final String IMAGE_NAME = "minio/minio";
@@ -120,6 +123,8 @@ public class S3Container
 
         container.withEnv("MINIO_DOMAIN", LOCALHOST_DOMAIN);
         container.start();
+
+        log.info("S3 container started on port: %s", container.getFirstMappedPort());
 
         storageClient = S3Client.builder()
                 .region(Region.US_EAST_1)
