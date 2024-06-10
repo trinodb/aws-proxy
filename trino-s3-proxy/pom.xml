@@ -190,6 +190,12 @@
 
         <dependency>
             <groupId>org.testcontainers</groupId>
+            <artifactId>postgresql</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.testcontainers</groupId>
             <artifactId>testcontainers</artifactId>
             <scope>test</scope>
         </dependency>
@@ -234,6 +240,36 @@
                         <ignoredDependency>software.amazon.awssdk:sdk-core</ignoredDependency>
                     </ignoredDependencies>
                 </configuration>
+                <executions>
+                    <!-- Some testing containers need special JARs. Resolve them to target/test-jars so that they can be mounted in containers -->
+                    <execution>
+                        <id>get-test-jars</id>
+                        <goals>
+                            <goal>copy</goal>
+                        </goals>
+                        <phase>generate-test-sources</phase>
+                        <configuration>
+                            <artifactItems>
+                                <artifactItem>
+                                    <groupId>com.amazonaws</groupId>
+                                    <artifactId>aws-java-sdk-bundle</artifactId>
+                                    <version>1.12.262</version>
+                                </artifactItem>
+                                <artifactItem>
+                                    <groupId>org.apache.hadoop</groupId>
+                                    <artifactId>hadoop-aws</artifactId>
+                                    <version>3.3.4</version>
+                                </artifactItem>
+                                <artifactItem>
+                                    <groupId>org.postgresql</groupId>
+                                    <artifactId>postgresql</artifactId>
+                                    <version>42.7.3</version>
+                                </artifactItem>
+                            </artifactItems>
+                            <outputDirectory>${project.build.directory}/test-jars</outputDirectory>
+                        </configuration>
+                    </execution>
+                </executions>
             </plugin>
         </plugins>
     </build>

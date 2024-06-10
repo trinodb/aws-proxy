@@ -32,6 +32,7 @@ import io.trino.s3.proxy.server.credentials.Credentials;
 import io.trino.s3.proxy.server.remote.RemoteS3Facade;
 import io.trino.s3.proxy.server.testing.TestingUtil.ForTesting;
 import io.trino.s3.proxy.server.testing.containers.ExposeHttpServer;
+import io.trino.s3.proxy.server.testing.containers.PostgresContainer;
 import io.trino.s3.proxy.server.testing.containers.S3Container;
 
 import java.io.Closeable;
@@ -77,6 +78,8 @@ public final class TestingTrinoS3ProxyServer
     {
         private final ImmutableSet.Builder<Module> modules = ImmutableSet.builder();
         private final ImmutableMap.Builder<String, String> properties = ImmutableMap.builder();
+        private boolean mockS3ContainerAdded;
+        private boolean postgresContainerAdded;
 
         private Builder()
         {
@@ -85,13 +88,18 @@ public final class TestingTrinoS3ProxyServer
 
         public Builder addModule(Module module)
         {
-            this.modules.add(module);
+            modules.add(module);
             return this;
         }
 
         public Builder withS3Container()
         {
-            this.modules.add(binder -> {
+            if (mockS3ContainerAdded) {
+                return this;
+            }
+            mockS3ContainerAdded = true;
+
+            modules.add(binder -> {
                 binder.bind(TestingCredentialsInitializer.class).asEagerSingleton();
 
                 binder.bind(S3Container.class).asEagerSingleton();
@@ -103,6 +111,17 @@ public final class TestingTrinoS3ProxyServer
                         .to(ContainerS3Facade.PathStyleContainerS3Facade.class)
                         .asEagerSingleton();
             });
+            return this;
+        }
+
+        public Builder withPostgresContainer()
+        {
+            if (postgresContainerAdded) {
+                return this;
+            }
+            postgresContainerAdded = true;
+
+            modules.add(binder -> binder.bind(PostgresContainer.class).asEagerSingleton());
             return this;
         }
 
