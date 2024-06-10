@@ -82,7 +82,7 @@ public class TrinoS3ProxyClient
 
     public void proxyRequest(SigningMetadata signingMetadata, ParsedS3Request request, AsyncResponse asyncResponse)
     {
-        URI remoteUri = remoteS3Facade.buildEndpoint(UriBuilder.newInstance(), request.keyInBucket(), request.bucketName(), signingMetadata.region());
+        URI remoteUri = remoteS3Facade.buildEndpoint(uriBuilder(request.queryParameters()), request.keyInBucket(), request.bucketName(), signingMetadata.region());
 
         Request.Builder remoteRequestBuilder = new Request.Builder()
                 .setMethod(request.httpVerb())
@@ -164,5 +164,12 @@ public class TrinoS3ProxyClient
             return remoteUri.getHost();
         }
         return remoteUri.getHost() + ":" + port;
+    }
+
+    private static UriBuilder uriBuilder(MultivaluedMap<String, String> queryParameters)
+    {
+        UriBuilder uriBuilder = UriBuilder.newInstance();
+        queryParameters.forEach((name, values) -> uriBuilder.queryParam(name, values.toArray()));
+        return uriBuilder;
     }
 }
