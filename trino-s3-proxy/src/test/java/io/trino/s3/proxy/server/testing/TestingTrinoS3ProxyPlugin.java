@@ -22,6 +22,7 @@ import io.trino.s3.proxy.server.credentials.Credential;
 import io.trino.s3.proxy.server.credentials.Credentials;
 import io.trino.s3.proxy.server.remote.RemoteSessionRole;
 import io.trino.s3.proxy.server.testing.TestingTrinoS3ProxyServerModule.ForTestingRemoteCredentials;
+import io.trino.s3.proxy.server.testing.containers.S3Container;
 
 import java.util.Optional;
 import java.util.UUID;
@@ -39,7 +40,7 @@ public class TestingTrinoS3ProxyPlugin
     @ForTestingRemoteCredentials
     @Provides
     @Singleton
-    public Credentials provideRemoteCredentials(ManagedS3MockContainer s3MockContainer, TestingCredentialsRolesProvider credentialsController)
+    public Credentials provideRemoteCredentials(S3Container s3MockContainer, TestingCredentialsRolesProvider credentialsController)
     {
         Credential policyUserCredential = s3MockContainer.policyUserCredential();
 

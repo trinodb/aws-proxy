@@ -11,7 +11,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.trino.s3.proxy.server.testing;
+package io.trino.s3.proxy.server.testing.containers;
 
 import com.google.common.net.HostAndPort;
 import com.google.inject.BindingAnnotation;
@@ -25,6 +25,7 @@ import jakarta.annotation.PreDestroy;
 import org.testcontainers.containers.Container;
 import org.testcontainers.containers.MinIOContainer;
 import org.testcontainers.images.builder.Transferable;
+import org.testcontainers.utility.DockerImageName;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3Client;
@@ -42,13 +43,13 @@ import static java.lang.annotation.ElementType.PARAMETER;
 import static java.lang.annotation.RetentionPolicy.RUNTIME;
 import static java.util.Objects.requireNonNull;
 
-public class ManagedS3MockContainer
+public class S3Container
         implements Provider<S3Client>
 {
     public static final String POLICY_NAME = "managedPolicy";
 
-    private static final String MINIO_IMAGE_NAME = "minio/minio";
-    private static final String MINIO_IMAGE_TAG = "RELEASE.2023-09-04T19-57-37Z";
+    private static final String IMAGE_NAME = "minio/minio";
+    private static final String IMAGE_TAG = "RELEASE.2023-09-04T19-57-37Z";
 
     private static final String CONFIG_TEMPLATE = """
             {
@@ -99,10 +100,10 @@ public class ManagedS3MockContainer
     @Retention(RUNTIME)
     @Target({FIELD, PARAMETER, METHOD})
     @BindingAnnotation
-    public @interface ForS3MockContainer {}
+    public @interface ForS3Container {}
 
     @Inject
-    public ManagedS3MockContainer(@ForS3MockContainer List<String> initialBuckets, @ForTesting Credentials credentials)
+    public S3Container(@ForS3Container List<String> initialBuckets, @ForTesting Credentials credentials)
     {
         this.initialBuckets = requireNonNull(initialBuckets, "initialBuckets is null");
         this.credential = requireNonNull(credentials, "credentials is null").requiredRemoteCredential();
@@ -110,7 +111,7 @@ public class ManagedS3MockContainer
         Transferable config = Transferable.of(CONFIG_TEMPLATE.formatted(credential.accessKey(), credential.secretKey()));
         Transferable policyFile = Transferable.of(POLICY);
 
-        container = new MinIOContainer(MINIO_IMAGE_NAME + ":" + MINIO_IMAGE_TAG)
+        container = new MinIOContainer(DockerImageName.parse(IMAGE_NAME).withTag(IMAGE_TAG))
                 .withUserName(credential.accessKey())
                 .withPassword(credential.secretKey())
                 // setting this allows us to shell into the container and run "mc" commands
