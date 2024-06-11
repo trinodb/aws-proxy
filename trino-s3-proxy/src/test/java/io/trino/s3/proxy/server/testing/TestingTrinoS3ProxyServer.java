@@ -33,6 +33,7 @@ import io.trino.s3.proxy.server.remote.RemoteS3Facade;
 import io.trino.s3.proxy.server.testing.TestingUtil.ForTesting;
 import io.trino.s3.proxy.server.testing.containers.MetastoreContainer;
 import io.trino.s3.proxy.server.testing.containers.PostgresContainer;
+import io.trino.s3.proxy.server.testing.containers.PySparkContainer;
 import io.trino.s3.proxy.server.testing.containers.S3Container;
 
 import java.io.Closeable;
@@ -81,6 +82,7 @@ public final class TestingTrinoS3ProxyServer
         private boolean mockS3ContainerAdded;
         private boolean postgresContainerAdded;
         private boolean metastoreContainerAdded;
+        private boolean pySparkContainerAdded;
 
         public Builder addModule(Module module)
         {
@@ -133,6 +135,21 @@ public final class TestingTrinoS3ProxyServer
             metastoreContainerAdded = true;
 
             modules.add(binder -> binder.bind(MetastoreContainer.class).asEagerSingleton());
+            return this;
+        }
+
+        public Builder withPySparkContainer()
+        {
+            // pyspark requires metastore and S3
+            withMetastoreContainer();
+            withS3Container();
+
+            if (pySparkContainerAdded) {
+                return this;
+            }
+            pySparkContainerAdded = true;
+
+            modules.add(binder -> binder.bind(PySparkContainer.class).asEagerSingleton());
             return this;
         }
 
