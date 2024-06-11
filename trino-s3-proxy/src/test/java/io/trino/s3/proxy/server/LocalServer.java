@@ -31,7 +31,7 @@ public final class LocalServer
     public static void main(String[] args)
     {
         TestingTrinoS3ProxyServer trinoS3ProxyServer = TestingTrinoS3ProxyServer.builder()
-                .withMockS3Container()
+                .withS3Container()
                 .buildAndStart();
 
         log.info("======== TESTING SERVER STARTED ========");

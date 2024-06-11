@@ -17,9 +17,9 @@ import com.google.inject.Inject;
 import io.airlift.http.server.testing.TestingHttpServer;
 import io.trino.s3.proxy.server.credentials.Credentials;
 import io.trino.s3.proxy.server.rest.TrinoS3ProxyConfig;
-import io.trino.s3.proxy.server.testing.ManagedS3MockContainer.ForS3MockContainer;
 import io.trino.s3.proxy.server.testing.TestingCredentialsRolesProvider;
 import io.trino.s3.proxy.server.testing.TestingUtil.ForTesting;
+import io.trino.s3.proxy.server.testing.containers.S3Container.ForS3Container;
 import io.trino.s3.proxy.server.testing.harness.TrinoS3ProxyTest;
 import io.trino.s3.proxy.server.testing.harness.TrinoS3ProxyTestCommonModules.WithConfiguredBuckets;
 import org.junit.jupiter.api.AfterAll;
@@ -50,8 +50,8 @@ public class TestProxiedAssumedRoleRequests
             TestingHttpServer httpServer,
             @ForTesting Credentials testingCredentials,
             TestingCredentialsRolesProvider credentialsController,
-            @ForS3MockContainer S3Client storageClient,
-            @ForS3MockContainer List<String> configuredBuckets,
+            @ForS3Container S3Client storageClient,
+            @ForS3Container List<String> configuredBuckets,
             TrinoS3ProxyConfig trinoS3ProxyConfig)
     {
         this(buildClient(httpServer, testingCredentials, trinoS3ProxyConfig.getS3Path(), trinoS3ProxyConfig.getStsPath()), testingCredentials, credentialsController, storageClient, configuredBuckets);

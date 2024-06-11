@@ -22,10 +22,10 @@ import io.airlift.units.Duration;
 import io.trino.s3.proxy.server.credentials.Credential;
 import io.trino.s3.proxy.server.credentials.Credentials;
 import io.trino.s3.proxy.server.rest.TrinoS3ProxyConfig;
-import io.trino.s3.proxy.server.testing.ManagedS3MockContainer.ForS3MockContainer;
 import io.trino.s3.proxy.server.testing.TestingCredentialsRolesProvider;
 import io.trino.s3.proxy.server.testing.TestingTrinoS3ProxyServer;
 import io.trino.s3.proxy.server.testing.TestingUtil.ForTesting;
+import io.trino.s3.proxy.server.testing.containers.S3Container.ForS3Container;
 import io.trino.s3.proxy.server.testing.harness.TrinoS3ProxyTest;
 import io.trino.s3.proxy.server.testing.harness.TrinoS3ProxyTestCommonModules.WithTestingHttpClient;
 import jakarta.ws.rs.core.UriBuilder;
@@ -100,7 +100,7 @@ public class TestGenericRestRequests
             TestingCredentialsRolesProvider credentialsRolesProvider,
             @ForTesting HttpClient httpClient,
             @ForTesting Credentials testingCredentials,
-            @ForS3MockContainer S3Client storageClient,
+            @ForS3Container S3Client storageClient,
             TrinoS3ProxyConfig trinoS3ProxyConfig)
     {
         baseUri = httpServer.getBaseUrl().resolve(trinoS3ProxyConfig.getS3Path());
