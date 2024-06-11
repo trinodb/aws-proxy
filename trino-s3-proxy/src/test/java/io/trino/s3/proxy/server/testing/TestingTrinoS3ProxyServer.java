@@ -77,10 +77,6 @@ public final class TestingTrinoS3ProxyServer
         private final ImmutableSet.Builder<Module> modules = ImmutableSet.builder();
         private final ImmutableMap.Builder<String, String> properties = ImmutableMap.builder();
 
-        private Builder()
-        {
-        }
-
         public Builder addModule(Module module)
         {
             this.modules.add(module);
