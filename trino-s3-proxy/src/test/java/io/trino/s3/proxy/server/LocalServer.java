@@ -34,6 +34,7 @@ public final class LocalServer
                 .withS3Container()
                 .withPostgresContainer()
                 .withMetastoreContainer()
+                .withPySparkContainer()
                 .buildAndStart();
 
         log.info("======== TESTING SERVER STARTED ========");

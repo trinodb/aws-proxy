@@ -79,5 +79,18 @@ public final class TrinoS3ProxyTestCommonModules
         }
     }
 
+    public static class WithAllContainers
+            implements BuilderFilter
+    {
+        @Override
+        public TestingTrinoS3ProxyServer.Builder filter(TestingTrinoS3ProxyServer.Builder builder)
+        {
+            return builder.withPySparkContainer()
+                    .withS3Container()
+                    .withPostgresContainer()
+                    .withMetastoreContainer();
+        }
+    }
+
     private TrinoS3ProxyTestCommonModules() {}
 }
