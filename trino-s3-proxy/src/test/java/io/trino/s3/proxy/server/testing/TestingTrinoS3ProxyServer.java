@@ -31,6 +31,7 @@ import io.airlift.node.testing.TestingNodeModule;
 import io.trino.s3.proxy.server.credentials.Credentials;
 import io.trino.s3.proxy.server.remote.RemoteS3Facade;
 import io.trino.s3.proxy.server.testing.TestingUtil.ForTesting;
+import io.trino.s3.proxy.server.testing.containers.S3Container;
 
 import java.io.Closeable;
 import java.util.Collection;
@@ -86,14 +87,14 @@ public final class TestingTrinoS3ProxyServer
             return this;
         }
 
-        public Builder withMockS3Container()
+        public Builder withS3Container()
         {
             this.modules.add(binder -> {
                 binder.bind(TestingCredentialsInitializer.class).asEagerSingleton();
 
-                binder.bind(ManagedS3MockContainer.class).asEagerSingleton();
+                binder.bind(S3Container.class).asEagerSingleton();
                 binder.bind(Credentials.class).annotatedWith(ForTesting.class).toInstance(TESTING_CREDENTIALS);
-                newOptionalBinder(binder, Key.get(new TypeLiteral<List<String>>() {}, ManagedS3MockContainer.ForS3MockContainer.class)).setDefault().toInstance(ImmutableList.of());
+                newOptionalBinder(binder, Key.get(new TypeLiteral<List<String>>() {}, S3Container.ForS3Container.class)).setDefault().toInstance(ImmutableList.of());
 
                 newOptionalBinder(binder, Key.get(RemoteS3Facade.class, ForTesting.class))
                         .setDefault()

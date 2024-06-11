@@ -14,7 +14,7 @@
 package io.trino.s3.proxy.server;
 
 import com.google.inject.Inject;
-import io.trino.s3.proxy.server.testing.ManagedS3MockContainer.ForS3MockContainer;
+import io.trino.s3.proxy.server.testing.containers.S3Container.ForS3Container;
 import io.trino.s3.proxy.server.testing.harness.TrinoS3ProxyTest;
 import io.trino.s3.proxy.server.testing.harness.TrinoS3ProxyTestCommonModules.WithConfiguredBuckets;
 import software.amazon.awssdk.services.s3.S3Client;
@@ -26,7 +26,7 @@ public class TestProxiedRequests
         extends AbstractTestProxiedRequests
 {
     @Inject
-    public TestProxiedRequests(S3Client s3Client, @ForS3MockContainer S3Client storageClient, @ForS3MockContainer List<String> configuredBuckets)
+    public TestProxiedRequests(S3Client s3Client, @ForS3Container S3Client storageClient, @ForS3Container List<String> configuredBuckets)
     {
         super(s3Client, storageClient, configuredBuckets);
     }
