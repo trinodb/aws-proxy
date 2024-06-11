@@ -11,7 +11,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.trino.s3.proxy.server.testing;
+package io.trino.s3.proxy.server.testing.containers;
 
 import com.google.common.net.HostAndPort;
 import com.google.inject.BindingAnnotation;
@@ -42,7 +42,7 @@ import static java.lang.annotation.ElementType.PARAMETER;
 import static java.lang.annotation.RetentionPolicy.RUNTIME;
 import static java.util.Objects.requireNonNull;
 
-public class ManagedS3MockContainer
+public class S3Container
         implements Provider<S3Client>
 {
     public static final String POLICY_NAME = "managedPolicy";
@@ -99,10 +99,10 @@ public class ManagedS3MockContainer
     @Retention(RUNTIME)
     @Target({FIELD, PARAMETER, METHOD})
     @BindingAnnotation
-    public @interface ForS3MockContainer {}
+    public @interface ForS3Container {}
 
     @Inject
-    public ManagedS3MockContainer(@ForS3MockContainer List<String> initialBuckets, @ForTesting Credentials credentials)
+    public S3Container(@ForS3Container List<String> initialBuckets, @ForTesting Credentials credentials)
     {
         this.initialBuckets = requireNonNull(initialBuckets, "initialBuckets is null");
         this.credential = requireNonNull(credentials, "credentials is null").requiredRemoteCredential();

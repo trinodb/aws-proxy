@@ -18,6 +18,7 @@ import com.google.inject.Module;
 import com.google.inject.Provides;
 import com.google.inject.Singleton;
 import io.trino.s3.proxy.server.testing.TestingTrinoS3ProxyServerModule.ForTestingRemoteCredentials;
+import io.trino.s3.proxy.server.testing.containers.S3Container;
 import io.trino.s3.proxy.spi.TrinoS3ProxyServerPlugin;
 import io.trino.s3.proxy.spi.credentials.Credential;
 import io.trino.s3.proxy.spi.credentials.Credentials;
@@ -39,7 +40,7 @@ public class TestingTrinoS3ProxyPlugin
     @ForTestingRemoteCredentials
     @Provides
     @Singleton
-    public Credentials provideRemoteCredentials(ManagedS3MockContainer s3MockContainer, TestingCredentialsRolesProvider credentialsController)
+    public Credentials provideRemoteCredentials(S3Container s3MockContainer, TestingCredentialsRolesProvider credentialsController)
     {
         Credential policyUserCredential = s3MockContainer.policyUserCredential();
 

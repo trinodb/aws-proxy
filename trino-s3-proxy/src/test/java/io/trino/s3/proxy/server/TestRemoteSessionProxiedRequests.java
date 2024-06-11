@@ -15,8 +15,8 @@ package io.trino.s3.proxy.server;
 
 import com.google.inject.Inject;
 import io.airlift.http.server.testing.TestingHttpServer;
-import io.trino.s3.proxy.server.testing.ManagedS3MockContainer.ForS3MockContainer;
 import io.trino.s3.proxy.server.testing.TestingTrinoS3ProxyServerModule.ForTestingRemoteCredentials;
+import io.trino.s3.proxy.server.testing.containers.S3Container.ForS3Container;
 import io.trino.s3.proxy.server.testing.harness.TrinoS3ProxyTest;
 import io.trino.s3.proxy.server.testing.harness.TrinoS3ProxyTestCommonModules;
 import io.trino.s3.proxy.spi.credentials.Credentials;
@@ -32,7 +32,7 @@ public class TestRemoteSessionProxiedRequests
         extends AbstractTestProxiedRequests
 {
     @Inject
-    public TestRemoteSessionProxiedRequests(@ForS3MockContainer S3Client storageClient, @ForTestingRemoteCredentials Credentials remoteCredentials, TestingHttpServer httpServer, @ForS3MockContainer List<String> configuredBuckets)
+    public TestRemoteSessionProxiedRequests(@ForS3Container S3Client storageClient, @ForTestingRemoteCredentials Credentials remoteCredentials, TestingHttpServer httpServer, @ForS3Container List<String> configuredBuckets)
     {
         super(buildInternalClient(remoteCredentials, httpServer), storageClient, configuredBuckets);
     }
