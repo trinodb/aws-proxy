@@ -17,10 +17,10 @@ import com.google.common.io.Resources;
 import com.google.inject.Inject;
 import io.airlift.http.server.testing.TestingHttpServer;
 import io.airlift.log.Logger;
-import io.trino.s3.proxy.server.credentials.Credentials;
 import io.trino.s3.proxy.server.rest.TrinoS3ProxyRestConstants;
 import io.trino.s3.proxy.server.testing.TestingUtil;
 import io.trino.s3.proxy.server.testing.TestingUtil.ForTesting;
+import io.trino.s3.proxy.spi.credentials.Credentials;
 import jakarta.annotation.PreDestroy;
 import org.testcontainers.containers.BindMode;
 import org.testcontainers.containers.GenericContainer;
@@ -80,6 +80,11 @@ public class MetastoreContainer
         container.start();
 
         log.info("Hive Metastore Server started on port: " + container.getFirstMappedPort());
+    }
+
+    public int port()
+    {
+        return container.getFirstMappedPort();
     }
 
     @PreDestroy
