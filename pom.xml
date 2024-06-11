@@ -27,6 +27,7 @@
 
     <modules>
         <module>trino-s3-proxy</module>
+        <module>trino-s3-proxy-hms</module>
         <module>trino-s3-proxy-spi</module>
     </modules>
 
@@ -55,6 +56,7 @@
         <dep.commons-httpclient.version>3.1</dep.commons-httpclient.version>
         <dep.docker.version>3.3.6</dep.docker.version>
         <dep.awaitility.version>4.1.1</dep.awaitility.version>
+        <dep.postgresql.version>42.7.3</dep.postgresql.version>
     </properties>
 
     <dependencyManagement>
@@ -78,6 +80,19 @@
             <dependency>
                 <groupId>${project.groupId}</groupId>
                 <artifactId>trino-s3-proxy</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>${project.groupId}</groupId>
+                <artifactId>trino-s3-proxy</artifactId>
+                <version>${project.version}</version>
+                <type>test-jar</type>
+            </dependency>
+
+            <dependency>
+                <groupId>${project.groupId}</groupId>
+                <artifactId>trino-s3-proxy-hms</artifactId>
                 <version>${project.version}</version>
             </dependency>
 
@@ -143,6 +158,12 @@
                 <groupId>org.glassfish.jersey.core</groupId>
                 <artifactId>jersey-server</artifactId>
                 <version>${dep.jersey.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>org.postgresql</groupId>
+                <artifactId>postgresql</artifactId>
+                <version>${dep.postgresql.version}</version>
             </dependency>
 
             <dependency>

@@ -17,6 +17,7 @@ import com.google.inject.Module;
 import com.google.inject.binder.LinkedBindingBuilder;
 import io.trino.s3.proxy.spi.credentials.AssumedRoleProvider;
 import io.trino.s3.proxy.spi.credentials.CredentialsProvider;
+import io.trino.s3.proxy.spi.hms.HmsSecurityFacadeProvider;
 import io.trino.s3.proxy.spi.security.SecurityFacadeProvider;
 
 import java.util.Optional;
@@ -36,6 +37,7 @@ public interface TrinoS3ProxyModuleBuilder
         private Optional<Consumer<LinkedBindingBuilder<CredentialsProvider>>> credentialsProviderBinder = Optional.empty();
         private Optional<Consumer<LinkedBindingBuilder<AssumedRoleProvider>>> assumedRoleProviderBinder = Optional.empty();
         private Optional<Consumer<LinkedBindingBuilder<SecurityFacadeProvider>>> securityFacadeProviderBinder = Optional.empty();
+        private Optional<Consumer<LinkedBindingBuilder<HmsSecurityFacadeProvider>>> hmsSecurityFacadeProviderBinder = Optional.empty();
 
         private Builder() {}
 
@@ -57,12 +59,19 @@ public interface TrinoS3ProxyModuleBuilder
             return this;
         }
 
+        public Builder withHmsSecurityFacadeProvider(Consumer<LinkedBindingBuilder<HmsSecurityFacadeProvider>> hmsSecurityFacadeProviderBinder)
+        {
+            this.hmsSecurityFacadeProviderBinder = Optional.of(hmsSecurityFacadeProviderBinder);
+            return this;
+        }
+
         public Module build()
         {
             return binder -> {
                 credentialsProviderBinder.ifPresent(binding -> binding.accept(newOptionalBinder(binder, CredentialsProvider.class).setBinding()));
                 assumedRoleProviderBinder.ifPresent(binding -> binding.accept(newOptionalBinder(binder, AssumedRoleProvider.class).setBinding()));
                 securityFacadeProviderBinder.ifPresent(binding -> binding.accept(newOptionalBinder(binder, SecurityFacadeProvider.class).setBinding()));
+                hmsSecurityFacadeProviderBinder.ifPresent(binding -> binding.accept(newOptionalBinder(binder, HmsSecurityFacadeProvider.class).setBinding()));
             };
         }
     }
