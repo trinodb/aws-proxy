@@ -17,11 +17,11 @@ import com.google.inject.Injector;
 import com.google.inject.Key;
 import com.google.inject.Module;
 import com.google.inject.Scopes;
-import io.trino.s3.proxy.server.testing.ManagedS3MockContainer;
-import io.trino.s3.proxy.server.testing.ManagedS3MockContainer.ForS3MockContainer;
 import io.trino.s3.proxy.server.testing.TestingS3ClientProvider;
 import io.trino.s3.proxy.server.testing.TestingS3ClientProvider.ForS3ClientProvider;
 import io.trino.s3.proxy.server.testing.TestingTrinoS3ProxyServer;
+import io.trino.s3.proxy.server.testing.containers.S3Container;
+import io.trino.s3.proxy.server.testing.containers.S3Container.ForS3Container;
 import org.junit.jupiter.api.extension.ExtensionContext;
 import org.junit.jupiter.api.extension.TestInstanceFactory;
 import org.junit.jupiter.api.extension.TestInstanceFactoryContext;
@@ -58,10 +58,10 @@ public class TrinoS3ProxyTestExtension
         }
 
         TestingTrinoS3ProxyServer trinoS3ProxyServer = builder
-                .withMockS3Container()
+                .withS3Container()
                 .addModule(binder -> {
                     newOptionalBinder(binder, Key.get(String.class, ForS3ClientProvider.class));
-                    binder.bind(S3Client.class).annotatedWith(ForS3MockContainer.class).toProvider(ManagedS3MockContainer.class);
+                    binder.bind(S3Client.class).annotatedWith(ForS3Container.class).toProvider(S3Container.class);
                 })
                 .buildAndStart();
         testingServersRegistry.put(extensionContext.getUniqueId(), trinoS3ProxyServer);

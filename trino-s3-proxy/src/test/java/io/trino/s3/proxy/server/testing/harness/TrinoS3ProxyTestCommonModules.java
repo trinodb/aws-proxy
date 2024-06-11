@@ -19,10 +19,10 @@ import com.google.inject.TypeLiteral;
 import com.google.inject.multibindings.OptionalBinder;
 import io.trino.s3.proxy.server.remote.RemoteS3Facade;
 import io.trino.s3.proxy.server.testing.ContainerS3Facade;
-import io.trino.s3.proxy.server.testing.ManagedS3MockContainer.ForS3MockContainer;
 import io.trino.s3.proxy.server.testing.TestingS3ClientProvider.ForS3ClientProvider;
 import io.trino.s3.proxy.server.testing.TestingTrinoS3ProxyServer;
 import io.trino.s3.proxy.server.testing.TestingUtil.ForTesting;
+import io.trino.s3.proxy.server.testing.containers.S3Container.ForS3Container;
 
 import java.util.List;
 
@@ -39,7 +39,7 @@ public final class TrinoS3ProxyTestCommonModules
         public TestingTrinoS3ProxyServer.Builder filter(TestingTrinoS3ProxyServer.Builder builder)
         {
             return builder.addModule(binder ->
-                    OptionalBinder.newOptionalBinder(binder, Key.get(new TypeLiteral<List<String>>() {}, ForS3MockContainer.class))
+                    OptionalBinder.newOptionalBinder(binder, Key.get(new TypeLiteral<List<String>>() {}, ForS3Container.class))
                             .setBinding()
                             .toInstance(CONFIGURED_BUCKETS));
         }
