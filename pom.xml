@@ -52,6 +52,8 @@
         <dep.testcontainers.version>1.19.8</dep.testcontainers.version>
         <dep.minio.version>8.5.9</dep.minio.version>
         <dep.commons-httpclient.version>3.1</dep.commons-httpclient.version>
+        <dep.docker.version>3.3.6</dep.docker.version>
+        <dep.awaitility.version>4.1.1</dep.awaitility.version>
     </properties>
 
     <dependencyManagement>
@@ -70,6 +72,12 @@
                 <version>${dep.aws-sdk.version}</version>
                 <type>pom</type>
                 <scope>import</scope>
+            </dependency>
+
+            <dependency>
+                <groupId>com.github.docker-java</groupId>
+                <artifactId>docker-java-api</artifactId>
+                <version>${dep.docker.version}</version>
             </dependency>
 
             <dependency>
@@ -98,6 +106,18 @@
                 <groupId>io.minio</groupId>
                 <artifactId>minio</artifactId>
                 <version>${dep.minio.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>org.awaitility</groupId>
+                <artifactId>awaitility</artifactId>
+                <version>${dep.awaitility.version}</version>
+                <exclusions>
+                    <exclusion>
+                        <groupId>org.hamcrest</groupId>
+                        <artifactId>hamcrest</artifactId>
+                    </exclusion>
+                </exclusions>
             </dependency>
 
             <dependency>

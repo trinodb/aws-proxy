@@ -80,6 +80,11 @@ public class MetastoreContainer
         log.info("Hive Metastore Server started on port: " + container.getFirstMappedPort());
     }
 
+    public int port()
+    {
+        return container.getFirstMappedPort();
+    }
+
     @PreDestroy
     public void shutdown()
     {
