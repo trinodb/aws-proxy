@@ -31,6 +31,7 @@ import io.airlift.node.testing.TestingNodeModule;
 import io.trino.s3.proxy.server.credentials.Credentials;
 import io.trino.s3.proxy.server.remote.RemoteS3Facade;
 import io.trino.s3.proxy.server.testing.TestingUtil.ForTesting;
+import io.trino.s3.proxy.server.testing.containers.ExposeHttpServer;
 import io.trino.s3.proxy.server.testing.containers.S3Container;
 
 import java.io.Closeable;
@@ -79,6 +80,7 @@ public final class TestingTrinoS3ProxyServer
 
         private Builder()
         {
+            modules.add(binder -> binder.bind(ExposeHttpServer.class).asEagerSingleton());
         }
 
         public Builder addModule(Module module)
