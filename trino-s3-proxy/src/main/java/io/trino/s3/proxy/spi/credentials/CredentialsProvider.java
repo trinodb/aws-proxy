@@ -11,20 +11,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.trino.s3.proxy.server.security;
-
-import io.trino.s3.proxy.server.credentials.Credentials;
-import io.trino.s3.proxy.server.rest.ParsedS3Request;
-import jakarta.ws.rs.WebApplicationException;
+package io.trino.s3.proxy.spi.credentials;
 
 import java.util.Optional;
 
-public interface SecurityFacadeProvider
+public interface CredentialsProvider
 {
     /**
-     * Return a validated/authenticated facade for the given request or
-     * throw {@link jakarta.ws.rs.WebApplicationException}
+     * Return the credentials, if any, for the given access key and session.
+     * Your implementation should have a centralized credentials mechanism, likely
+     * some type of database along with a way of registering credentials, etc.
      */
-    SecurityFacade securityFacadeForRequest(ParsedS3Request request, Credentials credentials, Optional<String> session)
-            throws WebApplicationException;
+    Optional<Credentials> credentials(String emulatedAccessKey, Optional<String> session);
 }

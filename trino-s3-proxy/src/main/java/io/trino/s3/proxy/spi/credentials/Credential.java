@@ -11,16 +11,23 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.trino.s3.proxy.server.credentials;
+package io.trino.s3.proxy.spi.credentials;
 
 import java.util.Optional;
 
-public interface CredentialsProvider
+import static java.util.Objects.requireNonNull;
+
+public record Credential(String accessKey, String secretKey, Optional<String> session)
 {
-    /**
-     * Return the credentials, if any, for the given access key and session.
-     * Your implementation should have a centralized credentials mechanism, likely
-     * some type of database along with a way of registering credentials, etc.
-     */
-    Optional<Credentials> credentials(String emulatedAccessKey, Optional<String> session);
+    public Credential
+    {
+        requireNonNull(accessKey, "accessKey is null");
+        requireNonNull(secretKey, "secretKey is null");
+        requireNonNull(session, "session is null");
+    }
+
+    public Credential(String accessKey, String secretKey)
+    {
+        this(accessKey, secretKey, Optional.empty());
+    }
 }

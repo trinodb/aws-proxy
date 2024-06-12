@@ -11,7 +11,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.trino.s3.proxy.server.security;
+package io.trino.s3.proxy.spi.security;
 
 import java.util.Optional;
 

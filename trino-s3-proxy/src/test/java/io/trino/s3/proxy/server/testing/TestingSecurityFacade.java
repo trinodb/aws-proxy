@@ -13,11 +13,11 @@
  */
 package io.trino.s3.proxy.server.testing;
 
-import io.trino.s3.proxy.server.credentials.Credentials;
-import io.trino.s3.proxy.server.rest.ParsedS3Request;
-import io.trino.s3.proxy.server.security.SecurityFacade;
-import io.trino.s3.proxy.server.security.SecurityFacadeProvider;
-import io.trino.s3.proxy.server.security.SecurityResponse;
+import io.trino.s3.proxy.spi.credentials.Credentials;
+import io.trino.s3.proxy.spi.rest.ParsedS3Request;
+import io.trino.s3.proxy.spi.security.SecurityFacade;
+import io.trino.s3.proxy.spi.security.SecurityFacadeProvider;
+import io.trino.s3.proxy.spi.security.SecurityResponse;
 import jakarta.ws.rs.WebApplicationException;
 
 import java.util.Optional;

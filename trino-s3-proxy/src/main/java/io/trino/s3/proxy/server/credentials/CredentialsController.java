@@ -15,7 +15,10 @@ package io.trino.s3.proxy.server.credentials;
 
 import com.google.inject.Inject;
 import io.trino.s3.proxy.server.remote.RemoteS3Facade;
-import io.trino.s3.proxy.server.remote.RemoteSessionRole;
+import io.trino.s3.proxy.spi.credentials.Credential;
+import io.trino.s3.proxy.spi.credentials.Credentials;
+import io.trino.s3.proxy.spi.credentials.CredentialsProvider;
+import io.trino.s3.proxy.spi.remote.RemoteSessionRole;
 import jakarta.annotation.PreDestroy;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.AwsCredentials;

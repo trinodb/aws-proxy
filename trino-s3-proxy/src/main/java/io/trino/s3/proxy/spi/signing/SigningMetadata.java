@@ -11,18 +11,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.trino.s3.proxy.server.remote;
+package io.trino.s3.proxy.spi.signing;
+
+import io.trino.s3.proxy.spi.credentials.Credentials;
 
 import java.util.Optional;
 
 import static java.util.Objects.requireNonNull;
 
-public record RemoteSessionRole(String region, String roleArn, Optional<String> externalId)
+public record SigningMetadata(SigningServiceType signingServiceType, Credentials credentials, Optional<String> session, String region)
 {
-    public RemoteSessionRole
+    public SigningMetadata
     {
+        requireNonNull(signingServiceType, "signingService is null");
+        requireNonNull(credentials, "credentials is null");
+        requireNonNull(session, "session is null");
         requireNonNull(region, "region is null");
-        requireNonNull(roleArn, "roleArn is null");
-        requireNonNull(externalId, "externalId is null");
     }
 }

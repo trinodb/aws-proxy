@@ -14,6 +14,8 @@
 package io.trino.s3.proxy.server.rest;
 
 import com.google.common.base.Splitter;
+import io.trino.s3.proxy.spi.rest.ParsedS3Request;
+import io.trino.s3.proxy.spi.rest.Request;
 import jakarta.ws.rs.core.MultivaluedMap;
 import jakarta.ws.rs.core.UriBuilder;
 import org.glassfish.jersey.server.ContainerRequest;

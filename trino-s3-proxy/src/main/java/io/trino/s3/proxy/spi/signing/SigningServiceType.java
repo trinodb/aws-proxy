@@ -11,20 +11,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.trino.s3.proxy.server.credentials;
-
-import java.time.Instant;
+package io.trino.s3.proxy.spi.signing;
 
 import static java.util.Objects.requireNonNull;
 
-public record EmulatedAssumedRole(Credential credential, String session, String arn, String roleId, Instant expiration)
+public record SigningServiceType(String serviceName)
 {
-    public EmulatedAssumedRole
+    public static final SigningServiceType S3 = new SigningServiceType("s3");
+    public static final SigningServiceType STS = new SigningServiceType("sts");
+
+    public SigningServiceType
     {
-        requireNonNull(credential, "credential is null");
-        requireNonNull(session, "session is null");
-        requireNonNull(arn, "arn is null");
-        requireNonNull(roleId, "roleId is null");
-        requireNonNull(expiration, "expiration is null");
+        requireNonNull(serviceName, "serviceName is null");
     }
 }

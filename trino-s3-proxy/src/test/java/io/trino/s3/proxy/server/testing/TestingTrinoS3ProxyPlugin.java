@@ -17,11 +17,11 @@ import com.google.inject.AbstractModule;
 import com.google.inject.Module;
 import com.google.inject.Provides;
 import com.google.inject.Singleton;
-import io.trino.s3.proxy.server.TrinoS3ProxyServerPlugin;
-import io.trino.s3.proxy.server.credentials.Credential;
-import io.trino.s3.proxy.server.credentials.Credentials;
-import io.trino.s3.proxy.server.remote.RemoteSessionRole;
 import io.trino.s3.proxy.server.testing.TestingTrinoS3ProxyServerModule.ForTestingRemoteCredentials;
+import io.trino.s3.proxy.spi.TrinoS3ProxyServerPlugin;
+import io.trino.s3.proxy.spi.credentials.Credential;
+import io.trino.s3.proxy.spi.credentials.Credentials;
+import io.trino.s3.proxy.spi.remote.RemoteSessionRole;
 
 import java.util.Optional;
 import java.util.UUID;

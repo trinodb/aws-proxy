@@ -11,33 +11,30 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.trino.s3.proxy.server.rest;
+package io.trino.s3.proxy.spi.rest;
 
 import jakarta.ws.rs.core.MultivaluedMap;
 
 import java.io.InputStream;
+import java.net.URI;
 import java.util.Optional;
 import java.util.function.Supplier;
 
 import static java.util.Objects.requireNonNull;
 
-public record ParsedS3Request(
-        String bucketName,
-        String keyInBucket,
-        MultivaluedMap<String, String> lowercaseHeaders,
-        MultivaluedMap<String, String> queryParameters,
+public record Request(
+        URI requestUri,
+        MultivaluedMap<String, String> requestHeaders,
+        MultivaluedMap<String, String> requestQueryParameters,
         String httpVerb,
-        Optional<String> rawQuery,
         Optional<Supplier<InputStream>> entitySupplier)
 {
-    public ParsedS3Request
+    public Request
     {
-        requireNonNull(bucketName, "bucketName is null");
-        requireNonNull(keyInBucket, "keyInBucket is null");
-        requireNonNull(lowercaseHeaders, "lowercaseHeaders is null");
-        requireNonNull(queryParameters, "queryParameters is null");
+        requireNonNull(requestUri, "requestUri is null");
+        requireNonNull(requestHeaders, "requestHeaders is null");
+        requireNonNull(requestQueryParameters, "requestQueryParameters is null");
         requireNonNull(httpVerb, "httpVerb is null");
-        requireNonNull(rawQuery, "rawQuery is null");
         requireNonNull(entitySupplier, "entitySupplier is null");
     }
 }

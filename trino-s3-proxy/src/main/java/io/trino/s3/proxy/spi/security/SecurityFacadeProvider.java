@@ -11,18 +11,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.trino.s3.proxy.server.security;
+package io.trino.s3.proxy.spi.security;
+
+import io.trino.s3.proxy.spi.credentials.Credentials;
+import io.trino.s3.proxy.spi.rest.ParsedS3Request;
+import jakarta.ws.rs.WebApplicationException;
 
 import java.util.Optional;
 
-import static java.util.Objects.requireNonNull;
-
-public record SecurityResponse(boolean canProceed, Optional<String> error)
+public interface SecurityFacadeProvider
 {
-    public static final SecurityResponse DEFAULT = new SecurityResponse(true, Optional.empty());
-
-    public SecurityResponse
-    {
-        requireNonNull(error, "error is null");
-    }
+    /**
+     * Return a validated/authenticated facade for the given request or
+     * throw {@link jakarta.ws.rs.WebApplicationException}
+     */
+    SecurityFacade securityFacadeForRequest(ParsedS3Request request, Credentials credentials, Optional<String> session)
+            throws WebApplicationException;
 }

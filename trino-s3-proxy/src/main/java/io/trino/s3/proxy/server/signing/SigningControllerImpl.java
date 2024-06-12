@@ -15,10 +15,13 @@ package io.trino.s3.proxy.server.signing;
 
 import com.google.common.base.Splitter;
 import com.google.inject.Inject;
-import io.trino.s3.proxy.server.credentials.Credential;
-import io.trino.s3.proxy.server.credentials.Credentials;
 import io.trino.s3.proxy.server.credentials.CredentialsController;
-import io.trino.s3.proxy.server.rest.Request;
+import io.trino.s3.proxy.spi.credentials.Credential;
+import io.trino.s3.proxy.spi.credentials.Credentials;
+import io.trino.s3.proxy.spi.rest.Request;
+import io.trino.s3.proxy.spi.signing.SigningController;
+import io.trino.s3.proxy.spi.signing.SigningMetadata;
+import io.trino.s3.proxy.spi.signing.SigningServiceType;
 import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.core.MultivaluedMap;
 import jakarta.ws.rs.core.Response;

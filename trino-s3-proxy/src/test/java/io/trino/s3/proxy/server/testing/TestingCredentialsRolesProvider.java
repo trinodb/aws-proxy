@@ -13,11 +13,11 @@
  */
 package io.trino.s3.proxy.server.testing;
 
-import io.trino.s3.proxy.server.credentials.AssumedRoleProvider;
-import io.trino.s3.proxy.server.credentials.Credential;
-import io.trino.s3.proxy.server.credentials.Credentials;
-import io.trino.s3.proxy.server.credentials.CredentialsProvider;
-import io.trino.s3.proxy.server.credentials.EmulatedAssumedRole;
+import io.trino.s3.proxy.spi.credentials.AssumedRoleProvider;
+import io.trino.s3.proxy.spi.credentials.Credential;
+import io.trino.s3.proxy.spi.credentials.Credentials;
+import io.trino.s3.proxy.spi.credentials.CredentialsProvider;
+import io.trino.s3.proxy.spi.credentials.EmulatedAssumedRole;
 
 import java.time.Instant;
 import java.util.Map;
