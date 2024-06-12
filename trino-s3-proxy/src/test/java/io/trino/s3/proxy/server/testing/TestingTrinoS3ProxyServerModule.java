@@ -17,9 +17,9 @@ import com.google.inject.Binder;
 import com.google.inject.BindingAnnotation;
 import com.google.inject.Module;
 import com.google.inject.Scopes;
-import io.trino.s3.proxy.server.TrinoS3ProxyModuleBuilder;
 import io.trino.s3.proxy.server.TrinoS3ProxyServerModule;
 import io.trino.s3.proxy.server.remote.RemoteS3Facade;
+import io.trino.s3.proxy.spi.TrinoS3ProxyModuleBuilder;
 import io.trino.s3.proxy.spi.security.SecurityFacadeProvider;
 
 import java.lang.annotation.Retention;

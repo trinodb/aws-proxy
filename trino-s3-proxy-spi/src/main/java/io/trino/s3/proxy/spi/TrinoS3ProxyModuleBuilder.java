@@ -11,7 +11,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.trino.s3.proxy.server;
+package io.trino.s3.proxy.spi;
 
 import com.google.inject.Module;
 import com.google.inject.binder.LinkedBindingBuilder;
