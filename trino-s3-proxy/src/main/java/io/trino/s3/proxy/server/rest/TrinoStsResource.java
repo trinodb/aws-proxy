@@ -44,7 +44,6 @@ import java.util.Optional;
 import static com.google.common.collect.ImmutableMap.toImmutableMap;
 import static com.google.common.io.ByteStreams.toByteArray;
 import static io.trino.s3.proxy.server.rest.RequestBuilder.fromRequest;
-import static io.trino.s3.proxy.server.signing.SigningController.formatResponseInstant;
 import static java.util.Objects.requireNonNull;
 
 @Path(TrinoS3ProxyRestConstants.STS_PATH)
@@ -108,7 +107,7 @@ public class TrinoStsResource
                     return new WebApplicationException(Response.status(Response.Status.UNAUTHORIZED).build());
                 });
 
-        String expiration = formatResponseInstant(assumedRole.expiration());
+        String expiration = signingController.formatResponseInstant(assumedRole.expiration());
         AssumeRoleResult response = new AssumeRoleResult(
                 new AssumedRoleUser(assumedRole.arn(), assumedRole.roleId()),
                 new AssumeRoleResponse.Credentials(assumedRole.credential().accessKey(), assumedRole.credential().secretKey(), assumedRole.session(), expiration));

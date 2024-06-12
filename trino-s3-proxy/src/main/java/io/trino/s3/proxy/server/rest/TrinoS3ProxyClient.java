@@ -44,7 +44,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 import static com.google.common.util.concurrent.MoreExecutors.shutdownAndAwaitTermination;
-import static io.trino.s3.proxy.server.signing.SigningController.formatRequestInstant;
 import static java.lang.annotation.ElementType.FIELD;
 import static java.lang.annotation.ElementType.METHOD;
 import static java.lang.annotation.ElementType.PARAMETER;
@@ -107,7 +106,7 @@ public class TrinoS3ProxyClient
                 case "x-amz-security-token" -> {}  // we add this below
                 case "authorization" -> {} // we will create our own authorization header
                 case "amz-sdk-invocation-id", "amz-sdk-request", "x-amz-decoded-content-length", "content-length", "content-encoding" -> {}   // don't send these
-                case "x-amz-date" -> remoteRequestHeaders.putSingle("X-Amz-Date", formatRequestInstant(Instant.now())); // use now for the remote request
+                case "x-amz-date" -> remoteRequestHeaders.putSingle("X-Amz-Date", signingController.formatRequestInstant(Instant.now())); // use now for the remote request
                 case "host" -> remoteRequestHeaders.putSingle("Host", buildRemoteHost(remoteUri)); // replace source host with the remote AWS host
                 default -> remoteRequestHeaders.put(key, value);
             }
