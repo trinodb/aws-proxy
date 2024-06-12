@@ -41,7 +41,7 @@ import java.util.function.BiFunction;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static io.trino.s3.proxy.server.collections.MultiMapHelper.lowercase;
-import static io.trino.s3.proxy.server.signing.SigningController.Mode.UNADJUSTED_HEADERS;
+import static io.trino.s3.proxy.server.signing.SigningControllerImpl.Mode.UNADJUSTED_HEADERS;
 
 final class Signer
 {
@@ -85,7 +85,7 @@ final class Signer
     private Signer() {}
 
     static String sign(
-            SigningController.Mode mode,
+            SigningControllerImpl.Mode mode,
             String serviceName,
             URI requestURI,
             MultivaluedMap<String, String> requestHeaders,

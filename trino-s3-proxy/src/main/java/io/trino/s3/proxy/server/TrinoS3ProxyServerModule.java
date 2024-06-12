@@ -30,8 +30,7 @@ import io.trino.s3.proxy.server.rest.TrinoStsResource;
 import io.trino.s3.proxy.server.security.SecurityController;
 import io.trino.s3.proxy.server.security.SecurityFacadeProvider;
 import io.trino.s3.proxy.server.security.SecurityResponse;
-import io.trino.s3.proxy.server.signing.SigningController;
-import io.trino.s3.proxy.server.signing.SigningControllerConfig;
+import io.trino.s3.proxy.server.signing.SigningModule;
 
 import java.util.Optional;
 import java.util.ServiceLoader;
@@ -52,10 +51,10 @@ public class TrinoS3ProxyServerModule
         jaxrsBinder(binder).bind(TrinoS3ProxyResource.class);
         jaxrsBinder(binder).bind(TrinoStsResource.class);
 
-        configBinder(binder).bindConfig(SigningControllerConfig.class);
         configBinder(binder).bindConfig(TrinoS3ProxyConfig.class);
-        binder.bind(SigningController.class).in(Scopes.SINGLETON);
+
         binder.bind(CredentialsController.class).in(Scopes.SINGLETON);
+        binder.bind(SecurityController.class).in(Scopes.SINGLETON);
         binder.bind(SecurityController.class).in(Scopes.SINGLETON);
 
         // TODO config, etc.
@@ -64,6 +63,8 @@ public class TrinoS3ProxyServerModule
 
         newOptionalBinder(binder, CredentialsProvider.class).setDefault().toInstance((_, _) -> Optional.empty());
         newOptionalBinder(binder, AssumedRoleProvider.class).setDefault().toInstance((_, _, _, _, _, _) -> Optional.empty());
+
+        install(new SigningModule());
 
         installPlugins();
 
