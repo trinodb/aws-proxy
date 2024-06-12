@@ -53,12 +53,12 @@ public class SigningController
         maxClockDrift = signingControllerConfig.getMaxClockDrift().toJavaTime();
     }
 
-    public static String formatRequestInstant(Instant instant)
+    public String formatRequestInstant(Instant instant)
     {
         return instant.atZone(ZONE).format(AMZ_DATE_FORMAT);
     }
 
-    public static String formatResponseInstant(Instant instant)
+    public String formatResponseInstant(Instant instant)
     {
         return instant.atZone(ZONE).format(RESPONSE_DATE_FORMAT);
     }
