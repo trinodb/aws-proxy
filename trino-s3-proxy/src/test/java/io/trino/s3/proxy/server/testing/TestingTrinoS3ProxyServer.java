@@ -159,6 +159,18 @@ public final class TestingTrinoS3ProxyServer
             return this;
         }
 
+        public Builder withProperty(String key, String value)
+        {
+            properties.put(key, value);
+            return this;
+        }
+
+        public Builder withProperties(Map<String, String> properties)
+        {
+            this.properties.putAll(properties);
+            return this;
+        }
+
         public TestingTrinoS3ProxyServer buildAndStart()
         {
             return start(modules.build(), properties.buildKeepingLast());
