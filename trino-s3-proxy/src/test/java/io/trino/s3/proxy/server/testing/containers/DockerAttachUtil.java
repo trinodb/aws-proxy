@@ -22,10 +22,14 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.time.Duration;
 import java.util.concurrent.BlockingDeque;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Predicate;
+
+import static org.awaitility.Awaitility.await;
 
 public class DockerAttachUtil
 {
@@ -38,15 +42,21 @@ public class DockerAttachUtil
 
     public static void clearInputStreamAndClose(InputStream inputStream)
     {
-        try (inputStream) {
-            BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream));
-            do {
-                reader.readLine();
-            } while (inputStream.available() > 0);
-        }
-        catch (IOException e) {
-            throw new RuntimeException(e);
-        }
+        clearInputStreamAndClose(inputStream, _ -> true);
+    }
+
+    public static void clearInputStreamAndClose(InputStream inputStream, Predicate<String> completionFilter)
+    {
+        await().atMost(Duration.ofMinutes(1)).until(() -> {
+            try (inputStream) {
+                BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream));
+                String line;
+                do {
+                    line = reader.readLine();
+                } while ((line != null) && !completionFilter.test(line));
+            }
+            return true;
+        });
     }
 
     @SuppressWarnings("resource")

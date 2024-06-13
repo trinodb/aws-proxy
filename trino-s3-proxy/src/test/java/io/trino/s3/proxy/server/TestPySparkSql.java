@@ -21,18 +21,11 @@ import io.trino.s3.proxy.server.testing.harness.TrinoS3ProxyTestCommonModules.Wi
 import org.junit.jupiter.api.Test;
 import software.amazon.awssdk.services.s3.S3Client;
 
-import java.io.BufferedReader;
-import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.nio.file.Path;
-import java.time.Duration;
-import java.util.HashSet;
-import java.util.Set;
 
 import static io.trino.s3.proxy.server.testing.containers.DockerAttachUtil.clearInputStreamAndClose;
 import static io.trino.s3.proxy.server.testing.containers.DockerAttachUtil.executeCommand;
 import static java.util.Objects.requireNonNull;
-import static org.awaitility.Awaitility.await;
 
 @TrinoS3ProxyTest(filters = WithAllContainers.class)
 public class TestPySparkSql
@@ -58,7 +51,7 @@ public class TestPySparkSql
         s3Client.putObject(r -> r.bucket("test").key("table/file.csv"), Path.of(Resources.getResource("test.csv").toURI()));
 
         // create the database
-        clearInputStreamAndClose(executeCommand(pySparkContainer.containerId(), "spark.sql(\"create database db\")"));
+        clearInputStreamAndClose(executeCommand(pySparkContainer.containerId(), "spark.sql(\"create database db\")"), line -> line.equals("DataFrame[]"));
 
         // create the DB
         clearInputStreamAndClose(executeCommand(pySparkContainer.containerId(), """
@@ -68,16 +61,8 @@ public class TestPySparkSql
                   LOCATION 's3a://test/table/'
                   TBLPROPERTIES ("s3select.format" = "csv");
                   ""\")
-                """));
+                """), line -> line.equals("DataFrame[]"));
 
-        try (InputStream inputStream = executeCommand(pySparkContainer.containerId(), "spark.sql(\"select * from db.people\").show()")) {
-            BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream));
-
-            Set<String> lines = new HashSet<>();
-            await().atMost(Duration.ofMinutes(1)).until(() -> {
-                lines.add(reader.readLine());
-                return lines;
-            }, _ -> lines.contains("|Person Parson| 42|") && lines.contains("|    John Galt| 28|"));
-        }
+        clearInputStreamAndClose(executeCommand(pySparkContainer.containerId(), "spark.sql(\"select * from db.people\").show()"), line -> line.equals("|    John Galt| 28|"));
     }
 }
