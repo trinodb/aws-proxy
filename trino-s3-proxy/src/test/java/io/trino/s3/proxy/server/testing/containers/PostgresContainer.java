@@ -17,7 +17,10 @@ import io.airlift.log.Logger;
 import jakarta.annotation.PreDestroy;
 import org.testcontainers.containers.PostgreSQLContainer;
 
+import java.io.Closeable;
+
 public class PostgresContainer
+        implements Closeable
 {
     private static final Logger log = Logger.get(PostgresContainer.class);
 
@@ -51,8 +54,9 @@ public class PostgresContainer
         return container.getFirstMappedPort();
     }
 
+    @Override
     @PreDestroy
-    public void shutdown()
+    public void close()
     {
         container.close();
     }

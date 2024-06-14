@@ -98,10 +98,11 @@ public final class TestingTrinoS3ProxyServer
         private final Closer closer = Closer.create();
         private final ImmutableSet.Builder<Module> modules = ImmutableSet.builder();
         private final ImmutableMap.Builder<String, String> properties = ImmutableMap.builder();
-        private boolean mockS3ContainerAdded;
-        private boolean postgresContainerAdded;
-        private boolean metastoreContainerAdded;
-        private boolean pySparkContainerAdded;
+        private PostgresContainer bespokePostgresContainer;
+        private boolean addS3Container;
+        private boolean addPostgresContainer;
+        private boolean addMetastoreContainer;
+        private boolean addPySparkContainer;
 
         public Builder addModule(Module module)
         {
@@ -117,64 +118,36 @@ public final class TestingTrinoS3ProxyServer
 
         public Builder withS3Container()
         {
-            if (mockS3ContainerAdded) {
-                return this;
-            }
-            mockS3ContainerAdded = true;
+            addS3Container = true;
+            return this;
+        }
 
-            modules.add(binder -> {
-                binder.bind(TestingCredentialsInitializer.class).asEagerSingleton();
-
-                binder.bind(S3Container.class).asEagerSingleton();
-                binder.bind(Credentials.class).annotatedWith(ForTesting.class).toInstance(TESTING_CREDENTIALS);
-                newOptionalBinder(binder, Key.get(new TypeLiteral<List<String>>() {}, S3Container.ForS3Container.class)).setDefault().toInstance(ImmutableList.of());
-
-                newOptionalBinder(binder, Key.get(RemoteS3Facade.class, ForTesting.class))
-                        .setDefault()
-                        .to(ContainerS3Facade.PathStyleContainerS3Facade.class)
-                        .asEagerSingleton();
-            });
+        public Builder withPostgresContainer(PostgresContainer container)
+        {
+            addPostgresContainer = true;
+            bespokePostgresContainer = container;
             return this;
         }
 
         public Builder withPostgresContainer()
         {
-            if (postgresContainerAdded) {
-                return this;
-            }
-            postgresContainerAdded = true;
-
-            modules.add(binder -> binder.bind(PostgresContainer.class).asEagerSingleton());
+            addPostgresContainer = true;
             return this;
         }
 
         public Builder withMetastoreContainer()
         {
             // metastore requires postgres and S3
-            withPostgresContainer();
-            withS3Container();
-
-            if (metastoreContainerAdded) {
-                return this;
-            }
-            metastoreContainerAdded = true;
-
-            modules.add(binder -> binder.bind(MetastoreContainer.class).asEagerSingleton());
+            withPostgresContainer().withS3Container();
+            addMetastoreContainer = true;
             return this;
         }
 
         public Builder withPySparkContainer()
         {
             // pyspark requires metastore and S3
-            withMetastoreContainer();
-            withS3Container();
-
-            if (pySparkContainerAdded) {
-                return this;
-            }
-            pySparkContainerAdded = true;
-
-            modules.add(binder -> binder.bind(PySparkContainer.class).asEagerSingleton());
+            withMetastoreContainer().withS3Container();
+            addPySparkContainer = true;
             return this;
         }
 
@@ -198,7 +171,45 @@ public final class TestingTrinoS3ProxyServer
 
         public TestingTrinoS3ProxyServer buildAndStart()
         {
+            addContainers();
+
             return start(modules.build(), properties.buildKeepingLast(), closer);
+        }
+
+        private void addContainers()
+        {
+            if (addS3Container) {
+                modules.add(binder -> {
+                    binder.bind(TestingCredentialsInitializer.class).asEagerSingleton();
+
+                    binder.bind(S3Container.class).asEagerSingleton();
+                    binder.bind(Credentials.class).annotatedWith(ForTesting.class).toInstance(TESTING_CREDENTIALS);
+                    newOptionalBinder(binder, Key.get(new TypeLiteral<List<String>>() {}, S3Container.ForS3Container.class)).setDefault().toInstance(ImmutableList.of());
+
+                    newOptionalBinder(binder, Key.get(RemoteS3Facade.class, ForTesting.class))
+                            .setDefault()
+                            .to(ContainerS3Facade.PathStyleContainerS3Facade.class)
+                            .asEagerSingleton();
+                });
+            }
+
+            if (addPostgresContainer) {
+                if (bespokePostgresContainer != null) {
+                    modules.add(binder -> binder.bind(PostgresContainer.class).toInstance(bespokePostgresContainer));
+                    registerCloseable(bespokePostgresContainer);
+                }
+                else {
+                    modules.add(binder -> binder.bind(PostgresContainer.class).asEagerSingleton());
+                }
+            }
+
+            if (addMetastoreContainer) {
+                modules.add(binder -> binder.bind(MetastoreContainer.class).asEagerSingleton());
+            }
+
+            if (addPySparkContainer) {
+                modules.add(binder -> binder.bind(PySparkContainer.class).asEagerSingleton());
+            }
         }
     }
 
