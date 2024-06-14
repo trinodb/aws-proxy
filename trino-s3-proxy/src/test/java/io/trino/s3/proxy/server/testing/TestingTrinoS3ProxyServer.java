@@ -16,6 +16,7 @@ package io.trino.s3.proxy.server.testing;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
+import com.google.common.io.Closer;
 import com.google.inject.Inject;
 import com.google.inject.Injector;
 import com.google.inject.Key;
@@ -27,6 +28,7 @@ import io.airlift.event.client.EventModule;
 import io.airlift.http.server.testing.TestingHttpServerModule;
 import io.airlift.jaxrs.JaxrsModule;
 import io.airlift.json.JsonModule;
+import io.airlift.log.Logger;
 import io.airlift.node.testing.TestingNodeModule;
 import io.trino.s3.proxy.server.remote.RemoteS3Facade;
 import io.trino.s3.proxy.server.testing.TestingUtil.ForTesting;
@@ -37,27 +39,43 @@ import io.trino.s3.proxy.server.testing.containers.S3Container;
 import io.trino.s3.proxy.spi.credentials.Credentials;
 
 import java.io.Closeable;
+import java.io.IOException;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 
 import static com.google.inject.multibindings.OptionalBinder.newOptionalBinder;
 import static io.trino.s3.proxy.server.testing.TestingUtil.TESTING_CREDENTIALS;
+import static java.util.Objects.requireNonNull;
 
 public final class TestingTrinoS3ProxyServer
         implements Closeable
 {
-    private final Injector injector;
+    private static final Logger log = Logger.get(TestingTrinoS3ProxyServer.class);
 
-    private TestingTrinoS3ProxyServer(Injector injector)
+    private final Injector injector;
+    private final Closer closer;
+
+    private TestingTrinoS3ProxyServer(Injector injector, Closer closer)
     {
-        this.injector = injector;
+        this.injector = requireNonNull(injector, "injector is null");
+        this.closer = requireNonNull(closer, "closer is null");
     }
 
     @Override
     public void close()
     {
-        injector.getInstance(LifeCycleManager.class).stop();
+        try {
+            injector.getInstance(LifeCycleManager.class).stop();
+        }
+        finally {
+            try {
+                closer.close();
+            }
+            catch (IOException e) {
+                log.error(e, "closer.close()");
+            }
+        }
     }
 
     public Injector getInjector()
@@ -77,6 +95,7 @@ public final class TestingTrinoS3ProxyServer
 
     public static class Builder
     {
+        private final Closer closer = Closer.create();
         private final ImmutableSet.Builder<Module> modules = ImmutableSet.builder();
         private final ImmutableMap.Builder<String, String> properties = ImmutableMap.builder();
         private boolean mockS3ContainerAdded;
@@ -87,6 +106,12 @@ public final class TestingTrinoS3ProxyServer
         public Builder addModule(Module module)
         {
             modules.add(module);
+            return this;
+        }
+
+        public Builder registerCloseable(Closeable closeable)
+        {
+            closer.register(closeable);
             return this;
         }
 
@@ -173,7 +198,7 @@ public final class TestingTrinoS3ProxyServer
 
         public TestingTrinoS3ProxyServer buildAndStart()
         {
-            return start(modules.build(), properties.buildKeepingLast());
+            return start(modules.build(), properties.buildKeepingLast(), closer);
         }
     }
 
@@ -186,7 +211,7 @@ public final class TestingTrinoS3ProxyServer
         }
     }
 
-    private static TestingTrinoS3ProxyServer start(Collection<Module> extraModules, Map<String, String> properties)
+    private static TestingTrinoS3ProxyServer start(Collection<Module> extraModules, Map<String, String> properties, Closer closer)
     {
         ImmutableList.Builder<Module> modules = ImmutableList.<Module>builder()
                 .add(new TestingTrinoS3ProxyServerModule())
@@ -200,6 +225,6 @@ public final class TestingTrinoS3ProxyServer
 
         Bootstrap app = new Bootstrap(modules.build());
         Injector injector = app.setOptionalConfigurationProperties(properties).initialize();
-        return new TestingTrinoS3ProxyServer(injector);
+        return new TestingTrinoS3ProxyServer(injector, closer);
     }
 }
