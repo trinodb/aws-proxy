@@ -15,10 +15,7 @@ package io.trino.s3.proxy.server.rest;
 
 import jakarta.ws.rs.core.MultivaluedMap;
 
-import java.io.InputStream;
 import java.net.URI;
-import java.util.Optional;
-import java.util.function.Supplier;
 
 import static java.util.Objects.requireNonNull;
 
@@ -27,7 +24,7 @@ public record Request(
         MultivaluedMap<String, String> requestHeaders,
         MultivaluedMap<String, String> requestQueryParameters,
         String httpVerb,
-        Optional<Supplier<InputStream>> entitySupplier)
+        RequestContent requestContent)
 {
     public Request
     {
@@ -35,6 +32,6 @@ public record Request(
         requireNonNull(requestHeaders, "requestHeaders is null");
         requireNonNull(requestQueryParameters, "requestQueryParameters is null");
         requireNonNull(httpVerb, "httpVerb is null");
-        requireNonNull(entitySupplier, "entitySupplier is null");
+        requireNonNull(requestContent, "requestContent is null");
     }
 }
