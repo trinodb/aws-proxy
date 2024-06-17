@@ -18,10 +18,7 @@ import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.core.MultivaluedMap;
 import jakarta.ws.rs.core.Response;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
-import software.amazon.awssdk.auth.signer.internal.AbstractAwsS3V4Signer;
-import software.amazon.awssdk.auth.signer.internal.CopiedAbstractAwsS3V4Signer;
 import software.amazon.awssdk.auth.signer.params.AwsS3V4SignerParams;
-import software.amazon.awssdk.core.checksums.SdkChecksum;
 import software.amazon.awssdk.http.SdkHttpFullRequest;
 import software.amazon.awssdk.http.SdkHttpMethod;
 import software.amazon.awssdk.regions.Region;
@@ -36,6 +33,10 @@ import java.time.format.DateTimeFormatter;
 import java.util.Locale;
 import java.util.Optional;
 
+import static io.trino.s3.proxy.server.signing.Signers.OVERRIDE_CONTENT_HASH;
+import static io.trino.s3.proxy.server.signing.Signers.aws4Signer;
+import static io.trino.s3.proxy.server.signing.Signers.legacyAws4Signer;
+
 final class Signer
 {
     private static final Logger log = Logger.get(Signer.class);
@@ -44,38 +45,9 @@ final class Signer
     static final DateTimeFormatter AMZ_DATE_FORMAT = DateTimeFormatter.ofPattern("yyyyMMdd'T'HHmmss'Z'", Locale.US).withZone(ZONE);
     static final DateTimeFormatter RESPONSE_DATE_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH':'mm':'ss'.'SSS'Z'", Locale.US).withZone(ZONE);
 
-    private static final String OVERRIDE_CONTENT_HASH = "__TRINO__OVERRIDE_CONTENT_HASH__";
-
-    private static final AbstractAwsS3V4Signer aws4Signer = new AbstractAwsS3V4Signer()
-    {
-        @Override
-        protected String calculateContentHash(SdkHttpFullRequest.Builder mutableRequest, AwsS3V4SignerParams signerParams, SdkChecksum contentFlexibleChecksum)
-        {
-            return extractOverrideContentHash(mutableRequest).orElseGet(() -> super.calculateContentHash(mutableRequest, signerParams, contentFlexibleChecksum));
-        }
-    };
-
-    private static final CopiedAbstractAwsS3V4Signer legacyAws4Signer = new CopiedAbstractAwsS3V4Signer()
-    {
-        @Override
-        protected String calculateContentHash(SdkHttpFullRequest.Builder mutableRequest, AwsS3V4SignerParams signerParams, SdkChecksum contentFlexibleChecksum)
-        {
-            return extractOverrideContentHash(mutableRequest).orElseGet(() -> super.calculateContentHash(mutableRequest, signerParams, contentFlexibleChecksum));
-        }
-    };
-
-    private static Optional<String> extractOverrideContentHash(SdkHttpFullRequest.Builder mutableRequest)
-    {
-        // look for the stashed OVERRIDE_CONTENT_HASH, remove the hacked header and then return the stashed hash value
-        return mutableRequest.firstMatchingHeader(OVERRIDE_CONTENT_HASH).map(hash -> {
-            mutableRequest.removeHeader(OVERRIDE_CONTENT_HASH);
-            return hash;
-        });
-    }
-
     private Signer() {}
 
-    static String sign(
+    static SigningContext sign(
             String serviceName,
             URI requestURI,
             SigningHeaders signingHeaders,
@@ -154,10 +126,12 @@ final class Signer
                 ? legacyAws4Signer.sign(requestToSign, signingParams)
                 : aws4Signer.sign(requestToSign, signingParams);
 
-        return signedRequest.firstMatchingHeader("Authorization").orElseThrow(() -> {
+        String authorization = signedRequest.firstMatchingHeader("Authorization").orElseThrow(() -> {
             log.debug("Signer did not generate \"Authorization\" header");
             return new WebApplicationException(Response.Status.BAD_REQUEST);
         });
+
+        return () -> authorization;
     }
 
     private static boolean isLegacy(SigningHeaders signingHeaders)
