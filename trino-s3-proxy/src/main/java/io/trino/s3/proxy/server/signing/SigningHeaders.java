@@ -69,6 +69,11 @@ final class SigningHeaders
         return new SigningHeaders(buildLowercaseHeaders(mode, lowercaseHeaders), lowercaseHeadersToSign);
     }
 
+    boolean hasHeaderToSign(String name)
+    {
+        return lowercaseHeadersToSign.contains(name.toLowerCase(Locale.ROOT));
+    }
+
     Stream<Map.Entry<String, List<String>>> lowercaseHeadersToSign()
     {
         return lowercaseHeaders.entrySet().stream()

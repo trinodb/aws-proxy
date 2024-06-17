@@ -19,6 +19,7 @@ import jakarta.ws.rs.core.MultivaluedMap;
 import jakarta.ws.rs.core.Response;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.signer.internal.AbstractAwsS3V4Signer;
+import software.amazon.awssdk.auth.signer.internal.CopiedAbstractAwsS3V4Signer;
 import software.amazon.awssdk.auth.signer.params.AwsS3V4SignerParams;
 import software.amazon.awssdk.core.checksums.SdkChecksum;
 import software.amazon.awssdk.http.SdkHttpFullRequest;
@@ -46,6 +47,15 @@ final class Signer
     private static final String OVERRIDE_CONTENT_HASH = "__TRINO__OVERRIDE_CONTENT_HASH__";
 
     private static final AbstractAwsS3V4Signer aws4Signer = new AbstractAwsS3V4Signer()
+    {
+        @Override
+        protected String calculateContentHash(SdkHttpFullRequest.Builder mutableRequest, AwsS3V4SignerParams signerParams, SdkChecksum contentFlexibleChecksum)
+        {
+            return extractOverrideContentHash(mutableRequest).orElseGet(() -> super.calculateContentHash(mutableRequest, signerParams, contentFlexibleChecksum));
+        }
+    };
+
+    private static final CopiedAbstractAwsS3V4Signer legacyAws4Signer = new CopiedAbstractAwsS3V4Signer()
     {
         @Override
         protected String calculateContentHash(SdkHttpFullRequest.Builder mutableRequest, AwsS3V4SignerParams signerParams, SdkChecksum contentFlexibleChecksum)
@@ -137,9 +147,21 @@ final class Signer
         Clock clock = Clock.fixed(zonedRequestDateTime.toInstant(), zonedRequestDateTime.getZone());
         signerParamsBuilder.signingClockOverride(clock);
 
-        return aws4Signer.sign(requestBuilder.build(), signerParamsBuilder.build()).firstMatchingHeader("Authorization").orElseThrow(() -> {
+        SdkHttpFullRequest requestToSign = requestBuilder.build();
+        AwsS3V4SignerParams signingParams = signerParamsBuilder.build();
+
+        SdkHttpFullRequest signedRequest = isLegacy(signingHeaders)
+                ? legacyAws4Signer.sign(requestToSign, signingParams)
+                : aws4Signer.sign(requestToSign, signingParams);
+
+        return signedRequest.firstMatchingHeader("Authorization").orElseThrow(() -> {
             log.debug("Signer did not generate \"Authorization\" header");
             return new WebApplicationException(Response.Status.BAD_REQUEST);
         });
+    }
+
+    private static boolean isLegacy(SigningHeaders signingHeaders)
+    {
+        return signingHeaders.hasHeaderToSign("user-agent");
     }
 }
