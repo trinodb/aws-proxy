@@ -13,7 +13,6 @@
  */
 package io.trino.s3.proxy.server.signing;
 
-import com.google.common.collect.ImmutableSet;
 import io.airlift.log.Logger;
 import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.core.MultivaluedMap;
@@ -33,15 +32,8 @@ import java.time.Duration;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
-import java.util.Set;
-import java.util.function.BiFunction;
-
-import static com.google.common.collect.ImmutableList.toImmutableList;
-import static io.trino.s3.proxy.server.collections.MultiMapHelper.lowercase;
-import static io.trino.s3.proxy.server.signing.SigningController.Mode.UNADJUSTED_HEADERS;
 
 final class Signer
 {
@@ -52,17 +44,6 @@ final class Signer
     static final DateTimeFormatter RESPONSE_DATE_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH':'mm':'ss'.'SSS'Z'", Locale.US).withZone(ZONE);
 
     private static final String OVERRIDE_CONTENT_HASH = "__TRINO__OVERRIDE_CONTENT_HASH__";
-
-    private static final Set<String> IGNORED_HEADERS = ImmutableSet.of(
-            "x-amz-decoded-content-length",
-            "x-amzn-trace-id",
-            "expect",
-            "accept-encoding",
-            "authorization",
-            "user-agent",
-            "connection");
-
-    private static final Set<String> LOWERCASE_HEADERS = ImmutableSet.of("content-type");
 
     private static final AbstractAwsS3V4Signer aws4Signer = new AbstractAwsS3V4Signer()
     {
@@ -85,10 +66,9 @@ final class Signer
     private Signer() {}
 
     static String sign(
-            SigningController.Mode mode,
             String serviceName,
             URI requestURI,
-            MultivaluedMap<String, String> requestHeaders,
+            SigningHeaders signingHeaders,
             MultivaluedMap<String, String> queryParameters,
             String httpMethod,
             String region,
@@ -97,31 +77,17 @@ final class Signer
             Duration maxClockDrift,
             Optional<byte[]> entity)
     {
-        BiFunction<String, List<String>, List<String>> lowercaseHeaderValues = (key, values) -> {
-            // mode == UNADJUSTED_HEADERS is temp until airlift is fixed
-            if ((mode == UNADJUSTED_HEADERS) || !LOWERCASE_HEADERS.contains(key)) {
-                return values;
-            }
-            return values.stream().map(value -> value.toLowerCase(Locale.ROOT)).collect(toImmutableList());
-        };
-
-        requestHeaders = lowercase(requestHeaders, lowercaseHeaderValues);
-
         SdkHttpFullRequest.Builder requestBuilder = SdkHttpFullRequest.builder()
                 .uri(requestURI)
                 .method(SdkHttpMethod.fromValue(httpMethod));
 
         entity.ifPresent(entityBytes -> requestBuilder.contentStreamProvider(() -> new ByteArrayInputStream(entityBytes)));
 
-        requestHeaders
-                .entrySet()
-                .stream()
-                .filter(entry -> !IGNORED_HEADERS.contains(entry.getKey()))
-                .forEach(entry -> entry.getValue().forEach(value -> requestBuilder.appendHeader(entry.getKey(), value)));
+        signingHeaders.lowercaseHeadersToSign().forEach(entry -> entry.getValue().forEach(value -> requestBuilder.appendHeader(entry.getKey(), value)));
 
         queryParameters.forEach(requestBuilder::putRawQueryParameter);
 
-        Optional<String> maybeAmazonContentHash = Optional.ofNullable(requestHeaders.getFirst("x-amz-content-sha256"));
+        Optional<String> maybeAmazonContentHash = signingHeaders.getFirst("x-amz-content-sha256");
         boolean enablePayloadSigning = maybeAmazonContentHash
                 .map(contentHashHeader -> !contentHashHeader.equals("UNSIGNED-PAYLOAD"))
                 .orElse(true);
@@ -137,12 +103,12 @@ final class Signer
             });
         }
 
-        boolean enableChunkedEncoding = Optional.ofNullable(requestHeaders.getFirst("content-encoding"))
+        boolean enableChunkedEncoding = signingHeaders.getFirst("content-encoding")
                 .map(contentHashHeader -> contentHashHeader.equals("aws-chunked"))
                 .orElse(false);
         if (enableChunkedEncoding) {
             // when chunked, the correct signature needs to reset the content length to the original decoded length
-            Optional.ofNullable(requestHeaders.getFirst("x-amz-decoded-content-length"))
+            signingHeaders.getFirst("x-amz-decoded-content-length")
                     .ifPresent(decodedContentLength -> requestBuilder.putHeader("content-length", decodedContentLength));
         }
 
@@ -154,7 +120,7 @@ final class Signer
                 .enableChunkedEncoding(enableChunkedEncoding)
                 .awsCredentials(AwsBasicCredentials.create(accessKey, secretKey));
 
-        String xAmzDate = Optional.ofNullable(requestHeaders.getFirst("x-amz-date")).orElseThrow(() -> {
+        String xAmzDate = signingHeaders.getFirst("x-amz-date").orElseThrow(() -> {
             log.debug("Missing \"x-amz-date\" header");
             return new WebApplicationException(Response.Status.BAD_REQUEST);
         });
