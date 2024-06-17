@@ -136,10 +136,10 @@ final class Signer
             return new WebApplicationException(Response.Status.BAD_REQUEST);
         });
 
-        return buildSigningContext(authorization, signingKey(credentials, new Aws4SignerRequestParams(signingParams)), requestDate);
+        return buildSigningContext(authorization, signingKey(credentials, new Aws4SignerRequestParams(signingParams)), requestDate, maybeAmazonContentHash);
     }
 
-    private static SigningContext buildSigningContext(String authorization, byte[] signingKey, String requestDate)
+    private static SigningContext buildSigningContext(String authorization, byte[] signingKey, String requestDate, Optional<String> contentHash)
     {
         RequestAuthorization requestAuthorization = RequestAuthorization.parse(authorization);
         if (!requestAuthorization.isValid()) {
@@ -148,7 +148,7 @@ final class Signer
         }
         ChunkSigner chunkSigner = new ChunkSigner(requestDate, requestAuthorization.keyPath(), signingKey);
         ChunkSigningSession chunkSigningSession = new InternalChunkSigningSession(chunkSigner, requestAuthorization.signature());
-        return new SigningContext(requestAuthorization, chunkSigningSession);
+        return new SigningContext(requestAuthorization, chunkSigningSession, contentHash);
     }
 
     private static boolean isLegacy(SigningHeaders signingHeaders)
