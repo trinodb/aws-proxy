@@ -23,6 +23,7 @@ import jakarta.ws.rs.core.UriBuilder;
 import org.apache.commons.httpclient.ChunkedInputStream;
 import org.glassfish.jersey.server.ContainerRequest;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
@@ -106,6 +107,12 @@ class RequestBuilder
         return new RequestContent()
         {
             @Override
+            public Optional<Integer> contentLength()
+            {
+                return bytesSupplier.get().map(bytes -> bytes.length);
+            }
+
+            @Override
             public ContentType contentType()
             {
                 return contentType;
@@ -120,7 +127,9 @@ class RequestBuilder
             @Override
             public Optional<InputStream> inputStream()
             {
-                return Optional.of(inputStreamSupplier.get());
+                return standardBytes()
+                        .map(bytes -> (InputStream) new ByteArrayInputStream(bytes))
+                        .or(() -> Optional.of(inputStreamSupplier.get()));
             }
         };
     }

@@ -39,7 +39,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 import static com.google.common.util.concurrent.MoreExecutors.shutdownAndAwaitTermination;
-import static io.airlift.http.client.StaticBodyGenerator.createStaticBodyGenerator;
 import static io.trino.s3.proxy.server.signing.SigningController.formatRequestInstant;
 import static java.lang.annotation.ElementType.FIELD;
 import static java.lang.annotation.ElementType.METHOD;
@@ -114,14 +113,11 @@ public class TrinoS3ProxyClient
                 .session()
                 .ifPresent(sessionToken -> remoteRequestHeaders.add("x-amz-security-token", sessionToken));
 
-        request.requestContent().standardBytes().ifPresentOrElse(metadataEntity -> {
-            remoteRequestBuilder.setBodyGenerator(createStaticBodyGenerator(metadataEntity));
-            remoteRequestHeaders.putSingle("x-amz-content-sha256", "UNSIGNED-PAYLOAD");
-            remoteRequestHeaders.putSingle("content-length", Integer.toString(metadataEntity.length));
-        }, () -> request.requestContent().inputStream().ifPresent(inputStream -> {
+        request.requestContent().contentLength().ifPresent(length -> remoteRequestHeaders.putSingle("content-length", Integer.toString(length)));
+        request.requestContent().inputStream().ifPresent(inputStream -> {
             remoteRequestBuilder.setBodyGenerator(new StreamingBodyGenerator(inputStream));
             remoteRequestHeaders.putSingle("x-amz-content-sha256", "UNSIGNED-PAYLOAD");
-        }));
+        });
 
         // set the new signed request auth header
         String signature = signingController.signRequest(
