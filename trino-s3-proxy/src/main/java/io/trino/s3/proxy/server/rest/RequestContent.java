@@ -42,5 +42,10 @@ public interface RequestContent
         return Optional.empty();
     }
 
+    default Optional<Integer> contentLength()
+    {
+        return Optional.empty();
+    }
+
     Optional<InputStream> inputStream();
 }
