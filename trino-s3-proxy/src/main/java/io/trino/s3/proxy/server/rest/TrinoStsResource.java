@@ -21,11 +21,11 @@ import com.google.inject.Inject;
 import io.airlift.log.Logger;
 import io.trino.s3.proxy.server.credentials.AssumedRoleProvider;
 import io.trino.s3.proxy.server.credentials.EmulatedAssumedRole;
-import io.trino.s3.proxy.server.credentials.SigningController;
-import io.trino.s3.proxy.server.credentials.SigningMetadata;
-import io.trino.s3.proxy.server.credentials.SigningServiceType;
 import io.trino.s3.proxy.server.rest.AssumeRoleResponse.AssumeRoleResult;
 import io.trino.s3.proxy.server.rest.AssumeRoleResponse.AssumedRoleUser;
+import io.trino.s3.proxy.server.signing.SigningController;
+import io.trino.s3.proxy.server.signing.SigningMetadata;
+import io.trino.s3.proxy.server.signing.SigningServiceType;
 import jakarta.ws.rs.POST;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.WebApplicationException;
@@ -43,8 +43,8 @@ import java.util.Optional;
 
 import static com.google.common.collect.ImmutableMap.toImmutableMap;
 import static com.google.common.io.ByteStreams.toByteArray;
-import static io.trino.s3.proxy.server.credentials.SigningController.formatResponseInstant;
 import static io.trino.s3.proxy.server.rest.RequestBuilder.fromRequest;
+import static io.trino.s3.proxy.server.signing.SigningController.formatResponseInstant;
 import static java.util.Objects.requireNonNull;
 
 @Path(TrinoS3ProxyRestConstants.STS_PATH)

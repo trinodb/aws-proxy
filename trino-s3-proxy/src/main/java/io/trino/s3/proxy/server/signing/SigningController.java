@@ -11,10 +11,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.trino.s3.proxy.server.credentials;
+package io.trino.s3.proxy.server.signing;
 
 import com.google.common.base.Splitter;
 import com.google.inject.Inject;
+import io.trino.s3.proxy.server.credentials.Credential;
+import io.trino.s3.proxy.server.credentials.Credentials;
+import io.trino.s3.proxy.server.credentials.CredentialsController;
 import io.trino.s3.proxy.server.rest.Request;
 import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.core.MultivaluedMap;
@@ -28,10 +31,10 @@ import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
-import static io.trino.s3.proxy.server.credentials.Signer.AMZ_DATE_FORMAT;
-import static io.trino.s3.proxy.server.credentials.Signer.RESPONSE_DATE_FORMAT;
-import static io.trino.s3.proxy.server.credentials.Signer.ZONE;
-import static io.trino.s3.proxy.server.credentials.SigningController.Mode.UNADJUSTED_HEADERS;
+import static io.trino.s3.proxy.server.signing.Signer.AMZ_DATE_FORMAT;
+import static io.trino.s3.proxy.server.signing.Signer.RESPONSE_DATE_FORMAT;
+import static io.trino.s3.proxy.server.signing.Signer.ZONE;
+import static io.trino.s3.proxy.server.signing.SigningController.Mode.UNADJUSTED_HEADERS;
 import static java.util.Objects.requireNonNull;
 
 public class SigningController

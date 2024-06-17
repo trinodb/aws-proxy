@@ -11,7 +11,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.trino.s3.proxy.server.credentials;
+package io.trino.s3.proxy.server.signing;
 
 import com.google.common.collect.ImmutableSet;
 import io.airlift.log.Logger;
@@ -41,7 +41,7 @@ import java.util.function.BiFunction;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static io.trino.s3.proxy.server.collections.MultiMapHelper.lowercase;
-import static io.trino.s3.proxy.server.credentials.SigningController.Mode.UNADJUSTED_HEADERS;
+import static io.trino.s3.proxy.server.signing.SigningController.Mode.UNADJUSTED_HEADERS;
 
 final class Signer
 {

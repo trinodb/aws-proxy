@@ -11,9 +11,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.trino.s3.proxy.server.credentials;
+package io.trino.s3.proxy.server.signing;
 
 import io.airlift.units.Duration;
+import io.trino.s3.proxy.server.credentials.Credential;
+import io.trino.s3.proxy.server.credentials.Credentials;
+import io.trino.s3.proxy.server.credentials.CredentialsController;
+import io.trino.s3.proxy.server.credentials.CredentialsProvider;
 import io.trino.s3.proxy.server.testing.TestingRemoteS3Facade;
 import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.core.MultivaluedHashMap;

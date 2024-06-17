@@ -11,19 +11,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.trino.s3.proxy.server.credentials;
-
-import java.util.Optional;
+package io.trino.s3.proxy.server.signing;
 
 import static java.util.Objects.requireNonNull;
 
-public record SigningMetadata(SigningServiceType signingServiceType, Credentials credentials, Optional<String> session, String region)
+public record SigningServiceType(String serviceName)
 {
-    public SigningMetadata
+    public static final SigningServiceType S3 = new SigningServiceType("s3");
+    public static final SigningServiceType STS = new SigningServiceType("sts");
+
+    public SigningServiceType
     {
-        requireNonNull(signingServiceType, "signingService is null");
-        requireNonNull(credentials, "credentials is null");
-        requireNonNull(session, "session is null");
-        requireNonNull(region, "region is null");
+        requireNonNull(serviceName, "serviceName is null");
     }
 }
