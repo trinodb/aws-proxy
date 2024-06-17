@@ -74,13 +74,14 @@ public class SigningController
     {
         SigningHeaders signingHeaders = SigningHeaders.build(requestHeaders);
 
-        return internalSignRequest(
+        SigningContext signingContext = internalSignRequest(
                 metadata,
                 credentialsSupplier,
                 requestURI,
                 signingHeaders,
                 queryParameters,
                 httpMethod);
+        return signingContext.authorization();
     }
 
     public SigningMetadata validateAndParseAuthorization(Request request, SigningServiceType signingServiceType)
@@ -94,14 +95,11 @@ public class SigningController
 
         return credentialsController.withCredentials(parsedAuthorization.accessKey(), session, credentials -> {
             SigningMetadata metadata = new SigningMetadata(signingServiceType, credentials, session, parsedAuthorization.region(), request.requestContent());
-            if (isValidAuthorization(metadata, Credentials::emulated, parsedAuthorization, request.requestUri(), request.requestHeaders(), request.requestQueryParameters(), request.httpVerb())) {
-                return Optional.of(metadata);
-            }
-            return Optional.empty();
+            return isValidAuthorization(metadata, Credentials::emulated, parsedAuthorization, request.requestUri(), request.requestHeaders(), request.requestQueryParameters(), request.httpVerb());
         }).orElseThrow(() -> new WebApplicationException(Response.Status.UNAUTHORIZED));
     }
 
-    private String internalSignRequest(
+    private SigningContext internalSignRequest(
             SigningMetadata metadata,
             Function<Credentials, Credential> credentialsSupplier,
             URI requestURI,
@@ -126,7 +124,7 @@ public class SigningController
                 entity);
     }
 
-    private boolean isValidAuthorization(
+    private Optional<SigningMetadata> isValidAuthorization(
             SigningMetadata metadata,
             Function<Credentials, Credential> credentialsSupplier,
             ParsedAuthorization parsedAuthorization,
@@ -136,10 +134,10 @@ public class SigningController
             String httpMethod)
     {
         // temp workaround until https://github.com/airlift/airlift/pull/1178 is accepted
-        return Stream.of(Mode.values()).anyMatch(mode -> {
+        return Stream.of(Mode.values()).flatMap(mode -> {
             SigningHeaders signingHeaders = SigningHeaders.build(mode, requestHeaders, parsedAuthorization.signedLowercaseHeaders());
-            String expectedAuthorization = internalSignRequest(metadata, credentialsSupplier, requestURI, signingHeaders, queryParameters, httpMethod);
-            return parsedAuthorization.authorization().equals(expectedAuthorization);
-        });
+            SigningContext signingContext = internalSignRequest(metadata, credentialsSupplier, requestURI, signingHeaders, queryParameters, httpMethod);
+            return parsedAuthorization.authorization().equals(signingContext.authorization()) ? Stream.of(metadata.withSigningContext(signingContext)) : Stream.of();
+        }).findFirst();
     }
 }
