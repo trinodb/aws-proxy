@@ -20,6 +20,7 @@ import io.airlift.http.client.Request;
 import io.trino.s3.proxy.server.credentials.Credentials;
 import io.trino.s3.proxy.server.remote.RemoteS3Facade;
 import io.trino.s3.proxy.server.security.SecurityController;
+import io.trino.s3.proxy.server.signing.SigningContext;
 import io.trino.s3.proxy.server.signing.SigningController;
 import io.trino.s3.proxy.server.signing.SigningMetadata;
 import jakarta.annotation.PreDestroy;
@@ -41,7 +42,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 import static com.google.common.util.concurrent.MoreExecutors.shutdownAndAwaitTermination;
-import static io.trino.s3.proxy.server.rest.RequestContent.ContentType.AWS_CHUNKED;
 import static io.trino.s3.proxy.server.signing.SigningController.formatRequestInstant;
 import static java.lang.annotation.ElementType.FIELD;
 import static java.lang.annotation.ElementType.METHOD;
@@ -119,15 +119,7 @@ public class TrinoS3ProxyClient
 
         request.requestContent().contentLength().ifPresent(length -> remoteRequestHeaders.putSingle("content-length", Integer.toString(length)));
 
-        Optional<InputStream> contentInputStream;
-        if (request.requestContent().contentType() != AWS_CHUNKED) {
-            contentInputStream = request.requestContent().inputStream();
-        }
-        else {
-            contentInputStream = request.requestContent().inputStream().map(inputStream -> new AwsChunkedInputStream(inputStream, Optional.of(signingMetadata.requiredSigningContext().chunkSigningSession())));
-        }
-
-        contentInputStream.ifPresent(inputStream -> {
+        contentInputStream(request.requestContent(), signingMetadata).ifPresent(inputStream -> {
             remoteRequestBuilder.setBodyGenerator(new StreamingBodyGenerator(inputStream));
             remoteRequestHeaders.putSingle("x-amz-content-sha256", "UNSIGNED-PAYLOAD");
         });
@@ -157,6 +149,23 @@ public class TrinoS3ProxyClient
                 asyncResponse.resume(e);
             }
         });
+    }
+
+    private Optional<InputStream> contentInputStream(RequestContent requestContent, SigningMetadata signingMetadata)
+    {
+        return switch (requestContent.contentType()) {
+            case AWS_CHUNKED -> requestContent.inputStream().map(inputStream -> new AwsChunkedInputStream(inputStream, Optional.of(signingMetadata.requiredSigningContext().chunkSigningSession())));
+
+            case STANDARD, W3C_CHUNKED -> requestContent.inputStream().map(inputStream -> {
+                SigningContext signingContext = signingMetadata.requiredSigningContext();
+                return signingContext.contentHash()
+                        .filter(contentHash -> !contentHash.startsWith("STREAMING-") && !contentHash.startsWith("UNSIGNED-"))
+                        .map(contentHash -> (InputStream) new HashCheckInputStream(inputStream, contentHash, requestContent.contentLength()))
+                        .orElse(inputStream);
+            });
+
+            case EMPTY -> Optional.empty();
+        };
     }
 
     private static String buildRemoteHost(URI remoteUri)

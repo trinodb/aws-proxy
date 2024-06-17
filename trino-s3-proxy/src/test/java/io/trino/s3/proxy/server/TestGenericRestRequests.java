@@ -75,6 +75,15 @@ public class TestGenericRestRequests
                 \r
                 """;
 
+    private static final String goodContent = "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Viverra aliquet eget sit amet tellus cras adipiscing. Viverra mauris in aliquam sem fringilla. Facilisis mauris sit amet massa vitae. Mauris vitae ultricies leo integer malesuada. Sed libero enim sed faucibus turpis in eu mi bibendum. Lorem sed risus ultricies tristique nulla aliquet enim. Quis blandit turpis cursus in hac habitasse platea dictumst quisque. Diam maecenas ultricies mi eget mauris pharetra et ultrices neque. Aliquam sem fringilla ut morbi.";
+
+    // first char is different case
+    private static final String badContent = "lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Viverra aliquet eget sit amet tellus cras adipiscing. Viverra mauris in aliquam sem fringilla. Facilisis mauris sit amet massa vitae. Mauris vitae ultricies leo integer malesuada. Sed libero enim sed faucibus turpis in eu mi bibendum. Lorem sed risus ultricies tristique nulla aliquet enim. Quis blandit turpis cursus in hac habitasse platea dictumst quisque. Diam maecenas ultricies mi eget mauris pharetra et ultrices neque. Aliquam sem fringilla ut morbi.";
+
+    private static final String goodSha256 = "cf091f1003948bfb21f6f166c9ff59a3cc393b106ad744ce9fdae49bdd2d26c9";
+
+    private static final String badSha256 = "bf091f1003948bfb21f6f166c9ff59a3cc393b106ad744ce9fdae49bdd2d26c9";
+
     public static class Filter
             extends WithTestingHttpClient
     {
@@ -112,6 +121,47 @@ public class TestGenericRestRequests
         assertThat(doAwsChunkedUpload(goodChunkedContent).getStatusCode()).isEqualTo(200);
         assertThat(doAwsChunkedUpload(badChunkedContent1).getStatusCode()).isEqualTo(401);
         assertThat(doAwsChunkedUpload(badChunkedContent2).getStatusCode()).isEqualTo(401);
+    }
+
+    @Test
+    public void testPutObject()
+    {
+        storageClient.createBucket(r -> r.bucket("foo").build());
+
+        Credential credential = new Credential("df4899b1-9026-4c51-a3f3-38fffa236748", "2a142f69-d384-4739-8733-2977f73e2d2c");
+        Credentials credentials = new Credentials(credential, testingCredentials.remote(), Optional.empty());
+        credentialsRolesProvider.addCredentials(credentials);
+
+        assertThat(doPutObject(goodContent, goodSha256).getStatusCode()).isEqualTo(200);
+        assertThat(doPutObject(badContent, goodSha256).getStatusCode()).isEqualTo(401);
+        assertThat(doPutObject(goodContent, badSha256).getStatusCode()).isEqualTo(401);
+        assertThat(doPutObject(badContent, badSha256).getStatusCode()).isEqualTo(401);
+    }
+
+    private StatusResponse doPutObject(String content, String sha256)
+    {
+        URI uri = UriBuilder.fromUri(baseUri)
+                .replacePath(TrinoS3ProxyRestConstants.S3_PATH)
+                .path("foo")
+                .path("bar")
+                .build();
+
+        // values discovered from an AWS CLI request sent to a dummy local HTTP server
+        Request request = preparePut().setUri(uri)
+                .setHeader("Host", "127.0.0.1:10064")
+                .setHeader("Accept-Encoding", "identity")
+                .setHeader("Content-Type", "text/plain")
+                .setHeader("User-Agent", "aws-cli/2.15.53 md/awscrt#0.19.19 ua/2.0 os/macos#22.6.0 md/arch#x86_64 lang/python#3.11.9 md/pyimpl#CPython cfg/retry-mode#standard md/installer#source md/prompt#off md/command#s3.cp")
+                .setHeader("Content-MD5", "cAm9NzhZWdMdTMJEogaTZQ==")
+                .setHeader("Expect", "100-continue")
+                .setHeader("X-Amz-Date", "20240617T114456Z")
+                .setHeader("X-Amz-Content-SHA256", sha256)
+                .setHeader("Authorization", "AWS4-HMAC-SHA256 Credential=df4899b1-9026-4c51-a3f3-38fffa236748/20240617/us-east-1/s3/aws4_request, SignedHeaders=content-md5;content-type;host;x-amz-content-sha256;x-amz-date, Signature=89fffb33b584a661ec05906a3da4975903e13c46e030b4231c53711c36a9f78e")
+                .setHeader("Content-Length", "582")
+                .setBodyGenerator(createStaticBodyGenerator(content, StandardCharsets.UTF_8))
+                .build();
+
+        return httpClient.execute(request, createStatusResponseHandler());
     }
 
     private StatusResponse doAwsChunkedUpload(String content)
