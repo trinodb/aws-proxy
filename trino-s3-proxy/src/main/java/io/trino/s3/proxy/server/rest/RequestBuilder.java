@@ -45,13 +45,13 @@ class RequestBuilder
         return new Request(request.getRequestUri(), request.getRequestHeaders(), request.getUriInfo().getQueryParameters(), request.getMethod(), requestContent);
     }
 
-    static ParsedS3Request fromRequest(String requestPath, ContainerRequest request, Optional<String> serverHostName)
+    static ParsedS3Request fromRequest(Request request, String requestPath, Optional<String> serverHostName)
     {
-        Optional<Supplier<InputStream>> entitySupplier = request.hasEntity() ? Optional.of(request::getEntityStream) : Optional.empty();
-        String httpVerb = request.getMethod();
-        MultivaluedMap<String, String> queryParameters = request.getUriInfo().getQueryParameters();
-        MultivaluedMap<String, String> headers = lowercase(request.getHeaders());
-        Optional<String> rawQuery = Optional.ofNullable(request.getRequestUri().getRawQuery());
+        String httpVerb = request.httpVerb();
+        MultivaluedMap<String, String> queryParameters = request.requestQueryParameters();
+        MultivaluedMap<String, String> headers = lowercase(request.requestHeaders());
+        Optional<String> rawQuery = Optional.ofNullable(request.requestUri().getRawQuery());
+        RequestContent requestContent = request.requestContent();
 
         return serverHostName
                 .flatMap(serverHostNameValue -> {
@@ -62,13 +62,13 @@ class RequestBuilder
                             .map(value -> value.substring(0, value.length() - lowercaseServerHostName.length()))
                             .map(value -> value.endsWith(".") ? value.substring(0, value.length() - 1) : value);
                 })
-                .map(bucket -> new ParsedS3Request(bucket, requestPath, headers, queryParameters, httpVerb, rawQuery, entitySupplier))
+                .map(bucket -> new ParsedS3Request(bucket, requestPath, headers, queryParameters, httpVerb, rawQuery, requestContent))
                 .orElseGet(() -> {
                     List<String> parts = Splitter.on("/").limit(2).splitToList(requestPath);
                     if (parts.size() <= 1) {
-                        return new ParsedS3Request(requestPath, "", headers, queryParameters, httpVerb, rawQuery, entitySupplier);
+                        return new ParsedS3Request(requestPath, "", headers, queryParameters, httpVerb, rawQuery, requestContent);
                     }
-                    return new ParsedS3Request(parts.get(0), parts.get(1), headers, queryParameters, httpVerb, rawQuery, entitySupplier);
+                    return new ParsedS3Request(parts.get(0), parts.get(1), headers, queryParameters, httpVerb, rawQuery, requestContent);
                 });
     }
 

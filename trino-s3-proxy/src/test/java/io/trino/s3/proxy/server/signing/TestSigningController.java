@@ -18,7 +18,6 @@ import io.trino.s3.proxy.server.credentials.Credential;
 import io.trino.s3.proxy.server.credentials.Credentials;
 import io.trino.s3.proxy.server.credentials.CredentialsController;
 import io.trino.s3.proxy.server.credentials.CredentialsProvider;
-import io.trino.s3.proxy.server.rest.RequestContent;
 import io.trino.s3.proxy.server.testing.TestingRemoteS3Facade;
 import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.core.MultivaluedHashMap;
@@ -53,7 +52,7 @@ public class TestSigningController
         requestHeaders.putSingle("Accept-Encoding", "identity");
 
         String signature = signingController.signRequest(
-                new SigningMetadata(SigningServiceType.S3, CREDENTIALS, Optional.empty(), "us-east-1", RequestContent.EMPTY),
+                new SigningMetadata(SigningServiceType.S3, CREDENTIALS, Optional.empty(), "us-east-1"),
                 Credentials::emulated,
                 URI.create("http://localhost:10064/"),
                 requestHeaders,
@@ -78,7 +77,7 @@ public class TestSigningController
         requestHeaders.putSingle("Accept-Encoding", "identity");
 
         assertThatThrownBy(() -> signingController.signRequest(
-                new SigningMetadata(SigningServiceType.S3, CREDENTIALS, Optional.empty(), "us-east-1", RequestContent.EMPTY),
+                new SigningMetadata(SigningServiceType.S3, CREDENTIALS, Optional.empty(), "us-east-1"),
                 Credentials::emulated,
                 URI.create("http://localhost:10064/"),
                 requestHeaders,
@@ -106,7 +105,7 @@ public class TestSigningController
         queryParameters.putSingle("encoding-type", "url");
 
         String signature = signingController.signRequest(
-                new SigningMetadata(SigningServiceType.S3, CREDENTIALS, Optional.empty(), "us-east-1", RequestContent.EMPTY),
+                new SigningMetadata(SigningServiceType.S3, CREDENTIALS, Optional.empty(), "us-east-1"),
                 Credentials::emulated,
                 URI.create("http://localhost:10064/mybucket"),
                 requestHeaders,
