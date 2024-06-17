@@ -24,7 +24,7 @@ public class TestParsedAuthorization
     @Test
     public void testValues()
     {
-        assertThat(parse("")).isEqualTo(new ParsedAuthorization("", "", "", ImmutableSet.of(), ""));
+        assertThat(parse("")).isEqualTo(new ParsedAuthorization("", "", "", "", ImmutableSet.of(), ""));
         assertThat(parse("").isValid()).isFalse();
 
         ParsedAuthorization parsedAuthorization = parse("AWS4-HMAC-SHA256 Credential=THIS_IS_AN_ACCESS_KEY/20240608/us-east-1/s3/aws4_request, SignedHeaders=amz-sdk-invocation-id;amz-sdk-request;amz-sdk-retry;content-type;host;user-agent;x-amz-content-sha256;x-amz-date, Signature=c23adc773b858c0bf6fa6885a047781606ab5dd114116136bd5a388d45ede8cd");

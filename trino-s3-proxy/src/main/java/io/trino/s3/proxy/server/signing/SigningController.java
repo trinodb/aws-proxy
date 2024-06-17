@@ -23,6 +23,7 @@ import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.core.MultivaluedMap;
 import jakarta.ws.rs.core.Response;
 
+import java.io.InputStream;
 import java.net.URI;
 import java.time.Duration;
 import java.time.Instant;
@@ -31,6 +32,7 @@ import java.util.function.Function;
 import java.util.stream.Stream;
 
 import static com.google.common.base.MoreObjects.firstNonNull;
+import static io.trino.s3.proxy.server.rest.RequestContent.ContentType.AWS_CHUNKED;
 import static io.trino.s3.proxy.server.signing.Signer.AMZ_DATE_FORMAT;
 import static io.trino.s3.proxy.server.signing.Signer.RESPONSE_DATE_FORMAT;
 import static io.trino.s3.proxy.server.signing.Signer.ZONE;
@@ -99,6 +101,29 @@ public class SigningController
             SigningMetadata metadata = new SigningMetadata(signingServiceType, credentials, session, parsedAuthorization.region());
             return isValidAuthorization(metadata, request.requestContent(), Credentials::emulated, parsedAuthorization, request.requestUri(), request.requestHeaders(), request.requestQueryParameters(), request.httpVerb());
         }).orElseThrow(() -> new WebApplicationException(Response.Status.UNAUTHORIZED));
+    }
+
+    public Optional<InputStream> inputStreamForContent(
+            RequestContent requestContent,
+            SigningMetadata metadata,
+            Function<Credentials, Credential> credentialsSupplier)
+    {
+        if (requestContent.contentType() != AWS_CHUNKED) {
+            return requestContent.inputStream();
+        }
+
+        return requestContent.inputStream().map(inputStream -> {
+            Credential credential = credentialsSupplier.apply(metadata.credentials());
+            SigningContext signingContext = metadata.signingContext().orElseThrow(() -> new IllegalArgumentException("Metadata does not contain a signing context"));
+            if (!(signingContext instanceof InternalSigningContext internalSigningContext)) {
+                throw new IllegalArgumentException("Singing context is an unexpected type: " + signingContext.getClass());
+            }
+
+            ChunkSigner chunkSigner = new ChunkSigner(credential, internalSigningContext);
+            ChunkSigningSession chunkSigningSession = new ChunkSigningSession(chunkSigner, internalSigningContext.signature());
+
+            return new AwsChunkedInputStream(inputStream, Optional.of(chunkSigningSession));
+        });
     }
 
     private SigningContext internalSignRequest(
