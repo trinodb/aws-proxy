@@ -15,8 +15,8 @@ package io.trino.s3.proxy.server.security;
 
 import com.google.common.base.Splitter;
 import com.google.inject.Inject;
-import io.trino.s3.proxy.server.credentials.SigningMetadata;
 import io.trino.s3.proxy.server.rest.ParsedS3Request;
+import io.trino.s3.proxy.server.signing.SigningMetadata;
 
 import java.util.Locale;
 import java.util.Optional;

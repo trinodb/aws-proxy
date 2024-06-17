@@ -20,8 +20,6 @@ import io.airlift.log.Logger;
 import io.trino.s3.proxy.server.credentials.AssumedRoleProvider;
 import io.trino.s3.proxy.server.credentials.CredentialsController;
 import io.trino.s3.proxy.server.credentials.CredentialsProvider;
-import io.trino.s3.proxy.server.credentials.SigningController;
-import io.trino.s3.proxy.server.credentials.SigningControllerConfig;
 import io.trino.s3.proxy.server.remote.RemoteS3Facade;
 import io.trino.s3.proxy.server.remote.VirtualHostStyleRemoteS3Facade;
 import io.trino.s3.proxy.server.rest.TrinoS3ProxyClient;
@@ -32,6 +30,8 @@ import io.trino.s3.proxy.server.rest.TrinoStsResource;
 import io.trino.s3.proxy.server.security.SecurityController;
 import io.trino.s3.proxy.server.security.SecurityFacadeProvider;
 import io.trino.s3.proxy.server.security.SecurityResponse;
+import io.trino.s3.proxy.server.signing.SigningController;
+import io.trino.s3.proxy.server.signing.SigningControllerConfig;
 
 import java.util.Optional;
 import java.util.ServiceLoader;
