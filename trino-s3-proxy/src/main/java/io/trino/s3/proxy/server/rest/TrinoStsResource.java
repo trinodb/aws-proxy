@@ -77,7 +77,7 @@ public class TrinoStsResource
             return Response.status(Response.Status.BAD_REQUEST).build();
         }
 
-        SigningMetadata signingMetadata = signingController.validateAndParseAuthorization(fromRequest(request), SigningServiceType.STS, entity);
+        SigningMetadata signingMetadata = signingController.validateAndParseAuthorization(fromRequest(request), SigningServiceType.STS, Optional.empty());
         Map<String, String> arguments = deserializeRequest(request, entity);
 
         String action = Optional.ofNullable(arguments.get("Action")).orElse("");

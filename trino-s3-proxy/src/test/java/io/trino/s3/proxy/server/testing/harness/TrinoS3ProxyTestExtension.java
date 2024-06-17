@@ -39,7 +39,6 @@ import java.util.stream.Stream;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.inject.multibindings.OptionalBinder.newOptionalBinder;
-import static io.trino.s3.proxy.server.testing.TestingUtil.TESTING_CREDENTIALS;
 
 public class TrinoS3ProxyTestExtension
         implements TestInstanceFactory, TestInstancePreDestroyCallback
@@ -72,7 +71,6 @@ public class TrinoS3ProxyTestExtension
                             .asEagerSingleton();
                 })
                 .buildAndStart();
-        trinoS3ProxyServer.getCredentialsController().addCredentials(TESTING_CREDENTIALS);
         testingServersRegistry.put(extensionContext.getUniqueId(), trinoS3ProxyServer);
 
         Injector injector = trinoS3ProxyServer.getInjector()
