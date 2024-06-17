@@ -49,72 +49,77 @@ public class TrinoS3ProxyResource
     }
 
     @GET
-    public void s3Get(@Context ContainerRequest request, @Suspended AsyncResponse asyncResponse)
+    public void s3Get(@Context ContainerRequest containerRequest, @Suspended AsyncResponse asyncResponse)
     {
-        s3Get(request, asyncResponse, "/");
+        s3Get(containerRequest, asyncResponse, "/");
     }
 
     @GET
     @Path("{path:.*}")
-    public void s3Get(@Context ContainerRequest request, @Suspended AsyncResponse asyncResponse, @PathParam("path") String path)
+    public void s3Get(@Context ContainerRequest containerRequest, @Suspended AsyncResponse asyncResponse, @PathParam("path") String path)
     {
-        proxyClient.proxyRequest(signingController.validateAndParseAuthorization(fromRequest(request), SigningServiceType.S3), parseRequest(path, request), asyncResponse);
+        Request request = fromRequest(containerRequest);
+        proxyClient.proxyRequest(signingController.validateAndParseAuthorization(request, SigningServiceType.S3), parseRequest(path, request), asyncResponse);
     }
 
     @HEAD
-    public void s3Head(@Context ContainerRequest request, @Suspended AsyncResponse asyncResponse)
+    public void s3Head(@Context ContainerRequest containerRequest, @Suspended AsyncResponse asyncResponse)
     {
-        s3Head(request, asyncResponse, "/");
+        s3Head(containerRequest, asyncResponse, "/");
     }
 
     @HEAD
     @Path("{path:.*}")
-    public void s3Head(@Context ContainerRequest request, @Suspended AsyncResponse asyncResponse, @PathParam("path") String path)
+    public void s3Head(@Context ContainerRequest containerRequest, @Suspended AsyncResponse asyncResponse, @PathParam("path") String path)
     {
-        proxyClient.proxyRequest(signingController.validateAndParseAuthorization(fromRequest(request), SigningServiceType.S3), parseRequest(path, request), asyncResponse);
+        Request request = fromRequest(containerRequest);
+        proxyClient.proxyRequest(signingController.validateAndParseAuthorization(request, SigningServiceType.S3), parseRequest(path, request), asyncResponse);
     }
 
     @PUT
-    public void s3Put(@Context ContainerRequest request, @Suspended AsyncResponse asyncResponse)
+    public void s3Put(@Context ContainerRequest containerRequest, @Suspended AsyncResponse asyncResponse)
     {
-        s3Put(request, asyncResponse, "/");
+        s3Put(containerRequest, asyncResponse, "/");
     }
 
     @PUT
     @Path("{path:.*}")
-    public void s3Put(@Context ContainerRequest request, @Suspended AsyncResponse asyncResponse, @PathParam("path") String path)
+    public void s3Put(@Context ContainerRequest containerRequest, @Suspended AsyncResponse asyncResponse, @PathParam("path") String path)
     {
-        proxyClient.proxyRequest(signingController.validateAndParseAuthorization(fromRequest(request), SigningServiceType.S3), parseRequest(path, request), asyncResponse);
+        Request request = fromRequest(containerRequest);
+        proxyClient.proxyRequest(signingController.validateAndParseAuthorization(request, SigningServiceType.S3), parseRequest(path, request), asyncResponse);
     }
 
     @POST
-    public void s3Post(@Context ContainerRequest request, @Suspended AsyncResponse asyncResponse)
+    public void s3Post(@Context ContainerRequest containerRequest, @Suspended AsyncResponse asyncResponse)
     {
-        s3Post(request, asyncResponse, "/");
+        s3Post(containerRequest, asyncResponse, "/");
     }
 
     @POST
     @Path("{path:.*}")
-    public void s3Post(@Context ContainerRequest request, @Suspended AsyncResponse asyncResponse, @PathParam("path") String path)
+    public void s3Post(@Context ContainerRequest containerRequest, @Suspended AsyncResponse asyncResponse, @PathParam("path") String path)
     {
-        proxyClient.proxyRequest(signingController.validateAndParseAuthorization(fromRequest(request), SigningServiceType.S3), parseRequest(path, request), asyncResponse);
+        Request request = fromRequest(containerRequest);
+        proxyClient.proxyRequest(signingController.validateAndParseAuthorization(request, SigningServiceType.S3), parseRequest(path, request), asyncResponse);
     }
 
     @DELETE
-    public void s3Delete(@Context ContainerRequest request, @Suspended AsyncResponse asyncResponse)
+    public void s3Delete(@Context ContainerRequest containerRequest, @Suspended AsyncResponse asyncResponse)
     {
-        s3Delete(request, asyncResponse, "/");
+        s3Delete(containerRequest, asyncResponse, "/");
     }
 
     @DELETE
     @Path("{path:.*}")
-    public void s3Delete(@Context ContainerRequest request, @Suspended AsyncResponse asyncResponse, @PathParam("path") String path)
+    public void s3Delete(@Context ContainerRequest containerRequest, @Suspended AsyncResponse asyncResponse, @PathParam("path") String path)
     {
-        proxyClient.proxyRequest(signingController.validateAndParseAuthorization(fromRequest(request), SigningServiceType.S3), parseRequest(path, request), asyncResponse);
+        Request request = fromRequest(containerRequest);
+        proxyClient.proxyRequest(signingController.validateAndParseAuthorization(request, SigningServiceType.S3), parseRequest(path, request), asyncResponse);
     }
 
-    private ParsedS3Request parseRequest(String path, ContainerRequest request)
+    private ParsedS3Request parseRequest(String path, Request request)
     {
-        return fromRequest(path, request, serverHostName);
+        return fromRequest(request, path, serverHostName);
     }
 }

@@ -114,19 +114,18 @@ public class TrinoS3ProxyClient
                 .session()
                 .ifPresent(sessionToken -> remoteRequestHeaders.add("x-amz-security-token", sessionToken));
 
-        signingMetadata.requestContent().standardBytes().ifPresentOrElse(metadataEntity -> {
+        request.requestContent().standardBytes().ifPresentOrElse(metadataEntity -> {
             remoteRequestBuilder.setBodyGenerator(createStaticBodyGenerator(metadataEntity));
             remoteRequestHeaders.putSingle("x-amz-content-sha256", "UNSIGNED-PAYLOAD");
             remoteRequestHeaders.putSingle("content-length", Integer.toString(metadataEntity.length));
-        }, () -> signingMetadata.requestContent().inputStream().ifPresent(inputStream -> {
+        }, () -> request.requestContent().inputStream().ifPresent(inputStream -> {
             remoteRequestBuilder.setBodyGenerator(new StreamingBodyGenerator(inputStream));
             remoteRequestHeaders.putSingle("x-amz-content-sha256", "UNSIGNED-PAYLOAD");
         }));
 
         // set the new signed request auth header
         String signature = signingController.signRequest(
-                // we don't sign request content to the remote server
-                signingMetadata.withoutRequestContent(),
+                signingMetadata,
                 Credentials::requiredRemoteCredential,
                 remoteUri,
                 remoteRequestHeaders,

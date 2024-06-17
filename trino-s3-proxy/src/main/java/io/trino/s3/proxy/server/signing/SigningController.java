@@ -18,6 +18,7 @@ import io.trino.s3.proxy.server.credentials.Credential;
 import io.trino.s3.proxy.server.credentials.Credentials;
 import io.trino.s3.proxy.server.credentials.CredentialsController;
 import io.trino.s3.proxy.server.rest.Request;
+import io.trino.s3.proxy.server.rest.RequestContent;
 import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.core.MultivaluedMap;
 import jakarta.ws.rs.core.Response;
@@ -76,6 +77,7 @@ public class SigningController
 
         SigningContext signingContext = internalSignRequest(
                 metadata,
+                RequestContent.EMPTY,
                 credentialsSupplier,
                 requestURI,
                 signingHeaders,
@@ -94,13 +96,14 @@ public class SigningController
         Optional<String> session = Optional.ofNullable(request.requestHeaders().getFirst("x-amz-security-token"));
 
         return credentialsController.withCredentials(parsedAuthorization.accessKey(), session, credentials -> {
-            SigningMetadata metadata = new SigningMetadata(signingServiceType, credentials, session, parsedAuthorization.region(), request.requestContent());
-            return isValidAuthorization(metadata, Credentials::emulated, parsedAuthorization, request.requestUri(), request.requestHeaders(), request.requestQueryParameters(), request.httpVerb());
+            SigningMetadata metadata = new SigningMetadata(signingServiceType, credentials, session, parsedAuthorization.region());
+            return isValidAuthorization(metadata, request.requestContent(), Credentials::emulated, parsedAuthorization, request.requestUri(), request.requestHeaders(), request.requestQueryParameters(), request.httpVerb());
         }).orElseThrow(() -> new WebApplicationException(Response.Status.UNAUTHORIZED));
     }
 
     private SigningContext internalSignRequest(
             SigningMetadata metadata,
+            RequestContent requestContent,
             Function<Credentials, Credential> credentialsSupplier,
             URI requestURI,
             SigningHeaders signingHeaders,
@@ -109,7 +112,7 @@ public class SigningController
     {
         Credential credential = credentialsSupplier.apply(metadata.credentials());
 
-        Optional<byte[]> entity = metadata.signingServiceType().contentIsSigned() ? metadata.requestContent().standardBytes() : Optional.empty();
+        Optional<byte[]> entity = metadata.signingServiceType().contentIsSigned() ? requestContent.standardBytes() : Optional.empty();
 
         return Signer.sign(
                 metadata.signingServiceType().serviceName(),
@@ -126,6 +129,7 @@ public class SigningController
 
     private Optional<SigningMetadata> isValidAuthorization(
             SigningMetadata metadata,
+            RequestContent requestContent,
             Function<Credentials, Credential> credentialsSupplier,
             ParsedAuthorization parsedAuthorization,
             URI requestURI,
@@ -136,7 +140,7 @@ public class SigningController
         // temp workaround until https://github.com/airlift/airlift/pull/1178 is accepted
         return Stream.of(Mode.values()).flatMap(mode -> {
             SigningHeaders signingHeaders = SigningHeaders.build(mode, requestHeaders, parsedAuthorization.signedLowercaseHeaders());
-            SigningContext signingContext = internalSignRequest(metadata, credentialsSupplier, requestURI, signingHeaders, queryParameters, httpMethod);
+            SigningContext signingContext = internalSignRequest(metadata, requestContent, credentialsSupplier, requestURI, signingHeaders, queryParameters, httpMethod);
             return parsedAuthorization.authorization().equals(signingContext.authorization()) ? Stream.of(metadata.withSigningContext(signingContext)) : Stream.of();
         }).findFirst();
     }

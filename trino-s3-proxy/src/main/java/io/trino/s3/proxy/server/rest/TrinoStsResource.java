@@ -62,10 +62,11 @@ public class TrinoStsResource
 
     @SuppressWarnings("SwitchStatementWithTooFewBranches")
     @POST
-    public Response post(@Context ContainerRequest request)
+    public Response post(@Context ContainerRequest containerRequest)
     {
-        SigningMetadata signingMetadata = signingController.validateAndParseAuthorization(fromRequest(request), SigningServiceType.STS);
-        Map<String, String> arguments = deserializeRequest(request, signingMetadata.requestContent().standardBytes());
+        Request request = fromRequest(containerRequest);
+        SigningMetadata signingMetadata = signingController.validateAndParseAuthorization(request, SigningServiceType.STS);
+        Map<String, String> arguments = deserializeRequest(request.requestQueryParameters(), request.requestContent().standardBytes());
 
         String action = Optional.ofNullable(arguments.get("Action")).orElse("");
 
@@ -123,10 +124,10 @@ public class TrinoStsResource
         }
     }
 
-    private Map<String, String> deserializeRequest(ContainerRequest request, Optional<byte[]> maybeEntity)
+    private Map<String, String> deserializeRequest(MultivaluedMap<String, String> queryParameters, Optional<byte[]> maybeEntity)
     {
         MultivaluedMap<String, String> values = maybeEntity.map(entity -> UriComponent.decodeQuery(new String(entity, StandardCharsets.UTF_8), true))
-                .orElseGet(() -> request.getUriInfo().getQueryParameters());
+                .orElse(queryParameters);
         return values.entrySet()
                 .stream()
                 .collect(toImmutableMap(Map.Entry::getKey, entry -> entry.getValue().getFirst()));

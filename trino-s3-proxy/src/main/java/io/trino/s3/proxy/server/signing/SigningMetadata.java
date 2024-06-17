@@ -14,13 +14,12 @@
 package io.trino.s3.proxy.server.signing;
 
 import io.trino.s3.proxy.server.credentials.Credentials;
-import io.trino.s3.proxy.server.rest.RequestContent;
 
 import java.util.Optional;
 
 import static java.util.Objects.requireNonNull;
 
-public record SigningMetadata(SigningServiceType signingServiceType, Credentials credentials, Optional<String> session, String region, RequestContent requestContent, Optional<SigningContext> signingContext)
+public record SigningMetadata(SigningServiceType signingServiceType, Credentials credentials, Optional<String> session, String region, Optional<SigningContext> signingContext)
 {
     public SigningMetadata
     {
@@ -28,22 +27,16 @@ public record SigningMetadata(SigningServiceType signingServiceType, Credentials
         requireNonNull(credentials, "credentials is null");
         requireNonNull(session, "session is null");
         requireNonNull(region, "region is null");
-        requireNonNull(requestContent, "requestContent is null");
         requireNonNull(signingContext, "signingContext is null");
     }
 
-    public SigningMetadata(SigningServiceType signingServiceType, Credentials credentials, Optional<String> session, String region, RequestContent requestContent)
+    public SigningMetadata(SigningServiceType signingServiceType, Credentials credentials, Optional<String> session, String region)
     {
-        this(signingServiceType, credentials, session, region, requestContent, Optional.empty());
-    }
-
-    public SigningMetadata withoutRequestContent()
-    {
-        return new SigningMetadata(signingServiceType, credentials, session, region, RequestContent.EMPTY, signingContext);
+        this(signingServiceType, credentials, session, region, Optional.empty());
     }
 
     public SigningMetadata withSigningContext(SigningContext signingContext)
     {
-        return new SigningMetadata(signingServiceType, credentials, session, region, requestContent, Optional.of(signingContext));
+        return new SigningMetadata(signingServiceType, credentials, session, region, Optional.of(signingContext));
     }
 }
