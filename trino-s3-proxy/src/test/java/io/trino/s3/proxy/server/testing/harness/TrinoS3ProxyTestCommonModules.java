@@ -26,11 +26,12 @@ import io.trino.s3.proxy.server.testing.TestingUtil.ForTesting;
 
 import java.util.List;
 
+import static io.airlift.http.client.HttpClientBinder.httpClientBinder;
 import static io.trino.s3.proxy.server.testing.TestingUtil.LOCALHOST_DOMAIN;
 
 public final class TrinoS3ProxyTestCommonModules
 {
-    public static final class WithConfiguredBuckets
+    public static class WithConfiguredBuckets
             implements BuilderFilter
     {
         private static final List<String> CONFIGURED_BUCKETS = ImmutableList.of("one", "two", "three");
@@ -45,7 +46,7 @@ public final class TrinoS3ProxyTestCommonModules
         }
     }
 
-    public static final class WithVirtualHostAddressing
+    public static class WithVirtualHostAddressing
             implements BuilderFilter
     {
         @Override
@@ -59,7 +60,7 @@ public final class TrinoS3ProxyTestCommonModules
         }
     }
 
-    public static final class WithVirtualHostEnabledProxy
+    public static class WithVirtualHostEnabledProxy
             implements BuilderFilter
     {
         @Override
@@ -69,6 +70,16 @@ public final class TrinoS3ProxyTestCommonModules
                     .withServerHostName(LOCALHOST_DOMAIN)
                     .addModule(
                             binder -> OptionalBinder.newOptionalBinder(binder, Key.get(String.class, ForS3ClientProvider.class)).setBinding().toInstance(LOCALHOST_DOMAIN));
+        }
+    }
+
+    public static class WithTestingHttpClient
+            implements BuilderFilter
+    {
+        @Override
+        public TestingTrinoS3ProxyServer.Builder filter(TestingTrinoS3ProxyServer.Builder builder)
+        {
+            return builder.addModule(binder -> httpClientBinder(binder).bindHttpClient("testing", ForTesting.class));
         }
     }
 

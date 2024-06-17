@@ -20,13 +20,11 @@ import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.core.MultivaluedMap;
 import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.UriBuilder;
-import org.apache.commons.httpclient.ChunkedInputStream;
 import org.glassfish.jersey.server.ContainerRequest;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.UncheckedIOException;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
@@ -85,14 +83,12 @@ class RequestBuilder
             default -> ContentType.STANDARD;
         };
 
-        Supplier<InputStream> inputStreamSupplier = () -> buildInputStream(request.getEntityStream(), contentType);
-
         Supplier<Optional<byte[]>> bytesSupplier;
         if (contentType == ContentType.STANDARD) {
             // memoize the entity bytes so it can be called multiple times
             bytesSupplier = Suppliers.memoize(() -> {
                 try {
-                    return Optional.of(toByteArray(inputStreamSupplier.get()));
+                    return Optional.of(toByteArray(request.getEntityStream()));
                 }
                 catch (IOException e) {
                     throw new WebApplicationException(Response.Status.BAD_REQUEST);
@@ -129,28 +125,9 @@ class RequestBuilder
             {
                 return standardBytes()
                         .map(bytes -> (InputStream) new ByteArrayInputStream(bytes))
-                        .or(() -> Optional.of(inputStreamSupplier.get()));
+                        .or(() -> Optional.of(request.getEntityStream()));
             }
         };
-    }
-
-    private static InputStream buildInputStream(InputStream entityStream, ContentType contentType)
-    {
-        return (contentType == ContentType.AWS_CHUNKED) ? awsChunkedStream(entityStream) : entityStream;
-    }
-
-    private static InputStream awsChunkedStream(InputStream inputStream)
-    {
-        // TODO do we need to add a Jersey MessageBodyWriter that handles aws-chunked?
-
-        // TODO move this into a Jersey MessageBodyReader
-        try {
-            // AWS's custom chunked encoding doesn't get handled by Jersey. Do it manually.
-            return new ChunkedInputStream(inputStream);
-        }
-        catch (IOException e) {
-            throw new UncheckedIOException(e);
-        }
     }
 
     private static String encoding(MultivaluedMap<String, String> requestHeaders)

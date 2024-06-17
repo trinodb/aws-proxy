@@ -25,13 +25,14 @@ import java.util.Set;
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static java.util.Objects.requireNonNull;
 
-record ParsedAuthorization(String authorization, String accessKey, String region, Set<String> signedLowercaseHeaders, String signature)
+record ParsedAuthorization(String authorization, String accessKey, String region, String keyPath, Set<String> signedLowercaseHeaders, String signature)
 {
     ParsedAuthorization
     {
         requireNonNull(authorization, "authorization is null");
         requireNonNull(accessKey, "accessKey is null");
         requireNonNull(region, "region is null");
+        requireNonNull(keyPath, "keyPath is null");
         signedLowercaseHeaders = ImmutableSet.copyOf(signedLowercaseHeaders);
         requireNonNull(signature, "signature is null");
     }
@@ -44,7 +45,7 @@ record ParsedAuthorization(String authorization, String accessKey, String region
     static ParsedAuthorization parse(String authorization)
     {
         if (authorization.isBlank()) {
-            return new ParsedAuthorization("", "", "", ImmutableSet.of(), "");
+            return new ParsedAuthorization("", "", "", "", ImmutableSet.of(), "");
         }
 
         Map<String, String> parts;
@@ -60,13 +61,16 @@ record ParsedAuthorization(String authorization, String accessKey, String region
 
         String accessKey;
         String region;
+        String keyPath;
         if (credentialList.size() > 2) {
             accessKey = credentialList.getFirst();
             region = credentialList.get(2);
+            keyPath = String.join("/", credentialList.subList(1, credentialList.size()));
         }
         else {
             accessKey = "";
             region = "";
+            keyPath = "";
         }
 
         String signedHeadersSpec = parts.getOrDefault("SignedHeaders", "");
@@ -78,6 +82,6 @@ record ParsedAuthorization(String authorization, String accessKey, String region
 
         String signature = parts.getOrDefault("Signature", "");
 
-        return new ParsedAuthorization(authorization, accessKey, region, signedHeaders, signature);
+        return new ParsedAuthorization(authorization, accessKey, region, keyPath, signedHeaders, signature);
     }
 }

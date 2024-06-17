@@ -18,6 +18,8 @@ import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.core.MultivaluedMap;
 import jakarta.ws.rs.core.Response;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
+import software.amazon.awssdk.auth.credentials.AwsCredentials;
+import software.amazon.awssdk.auth.signer.internal.Aws4SignerRequestParams;
 import software.amazon.awssdk.auth.signer.params.AwsS3V4SignerParams;
 import software.amazon.awssdk.http.SdkHttpFullRequest;
 import software.amazon.awssdk.http.SdkHttpMethod;
@@ -46,6 +48,11 @@ final class Signer
     static final DateTimeFormatter RESPONSE_DATE_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH':'mm':'ss'.'SSS'Z'", Locale.US).withZone(ZONE);
 
     private Signer() {}
+
+    static byte[] signingKey(AwsCredentials credentials, Aws4SignerRequestParams signerRequestParams)
+    {
+        return aws4Signer.signingKey(credentials, signerRequestParams);
+    }
 
     static SigningContext sign(
             String serviceName,
@@ -131,7 +138,18 @@ final class Signer
             return new WebApplicationException(Response.Status.BAD_REQUEST);
         });
 
-        return () -> authorization;
+        return buildInternalSigningContext(authorization, signingParams, xAmzDate);
+    }
+
+    private static InternalSigningContext buildInternalSigningContext(String authorization, AwsS3V4SignerParams signingParams, String xAmzDate)
+    {
+        ParsedAuthorization parsedAuthorization = ParsedAuthorization.parse(authorization);
+        if (!parsedAuthorization.isValid()) {
+            // TODO logging, etc.
+            throw new WebApplicationException(Response.Status.BAD_REQUEST);
+        }
+
+        return new InternalSigningContext(authorization, signingParams, parsedAuthorization.signature(), xAmzDate, parsedAuthorization.keyPath());
     }
 
     private static boolean isLegacy(SigningHeaders signingHeaders)
