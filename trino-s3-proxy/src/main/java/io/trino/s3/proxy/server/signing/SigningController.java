@@ -33,7 +33,6 @@ import static com.google.common.base.MoreObjects.firstNonNull;
 import static io.trino.s3.proxy.server.signing.Signer.AMZ_DATE_FORMAT;
 import static io.trino.s3.proxy.server.signing.Signer.RESPONSE_DATE_FORMAT;
 import static io.trino.s3.proxy.server.signing.Signer.ZONE;
-import static io.trino.s3.proxy.server.signing.SigningController.Mode.UNADJUSTED_HEADERS;
 import static java.util.Objects.requireNonNull;
 
 public class SigningController
@@ -74,12 +73,13 @@ public class SigningController
             String httpMethod,
             Optional<byte[]> entity)
     {
+        SigningHeaders signingHeaders = SigningHeaders.build(requestHeaders);
+
         return internalSignRequest(
-                UNADJUSTED_HEADERS,
                 metadata,
                 credentialsSupplier,
                 requestURI,
-                requestHeaders,
+                signingHeaders,
                 queryParameters,
                 httpMethod,
                 entity);
@@ -87,23 +87,27 @@ public class SigningController
 
     public SigningMetadata validateAndParseAuthorization(Request request, SigningServiceType signingServiceType, Optional<byte[]> entity)
     {
-        return signingMetadataFromRequest(
-                signingServiceType,
-                Credentials::emulated,
-                request.requestUri(),
-                request.requestHeaders(),
-                request.requestQueryParameters(),
-                request.httpVerb(),
-                entity)
-                .orElseThrow(() -> new WebApplicationException(Response.Status.UNAUTHORIZED));
+        ParsedAuthorization parsedAuthorization = ParsedAuthorization.parse(firstNonNull(request.requestHeaders().getFirst("authorization"), ""));
+        if (!parsedAuthorization.isValid()) {
+            throw new WebApplicationException(Response.Status.UNAUTHORIZED);
+        }
+
+        Optional<String> session = Optional.ofNullable(request.requestHeaders().getFirst("x-amz-security-token"));
+
+        return credentialsController.withCredentials(parsedAuthorization.accessKey(), session, credentials -> {
+            SigningMetadata metadata = new SigningMetadata(signingServiceType, credentials, session, parsedAuthorization.region());
+            if (isValidAuthorization(metadata, Credentials::emulated, parsedAuthorization, request.requestUri(), request.requestHeaders(), request.requestQueryParameters(), request.httpVerb(), entity)) {
+                return Optional.of(metadata);
+            }
+            return Optional.empty();
+        }).orElseThrow(() -> new WebApplicationException(Response.Status.UNAUTHORIZED));
     }
 
     private String internalSignRequest(
-            Mode mode,
             SigningMetadata metadata,
             Function<Credentials, Credential> credentialsSupplier,
             URI requestURI,
-            MultivaluedMap<String, String> requestHeaders,
+            SigningHeaders signingHeaders,
             MultivaluedMap<String, String> queryParameters,
             String httpMethod,
             Optional<byte[]> entity)
@@ -111,10 +115,9 @@ public class SigningController
         Credential credential = credentialsSupplier.apply(metadata.credentials());
 
         return Signer.sign(
-                mode,
                 metadata.signingServiceType().serviceName(),
                 requestURI,
-                requestHeaders,
+                signingHeaders,
                 queryParameters,
                 httpMethod,
                 metadata.region(),
@@ -124,35 +127,10 @@ public class SigningController
                 entity);
     }
 
-    private Optional<SigningMetadata> signingMetadataFromRequest(
-            SigningServiceType signingServiceType,
-            Function<Credentials, Credential> credentialsSupplier,
-            URI requestURI,
-            MultivaluedMap<String, String> requestHeaders,
-            MultivaluedMap<String, String> queryParameters,
-            String httpMethod,
-            Optional<byte[]> entity)
-    {
-        ParsedAuthorization parsedAuthorization = ParsedAuthorization.parse(firstNonNull(requestHeaders.getFirst("authorization"), ""));
-        if (!parsedAuthorization.isValid()) {
-            return Optional.empty();
-        }
-
-        Optional<String> session = Optional.ofNullable(requestHeaders.getFirst("x-amz-security-token"));
-
-        return credentialsController.withCredentials(parsedAuthorization.accessKey(), session, credentials -> {
-            SigningMetadata metadata = new SigningMetadata(signingServiceType, credentials, session, parsedAuthorization.region());
-            if (isValidAuthorization(metadata, credentialsSupplier, parsedAuthorization.authorization(), requestURI, requestHeaders, queryParameters, httpMethod, entity)) {
-                return Optional.of(metadata);
-            }
-            return Optional.empty();
-        });
-    }
-
     private boolean isValidAuthorization(
             SigningMetadata metadata,
             Function<Credentials, Credential> credentialsSupplier,
-            String authorizationHeader,
+            ParsedAuthorization parsedAuthorization,
             URI requestURI,
             MultivaluedMap<String, String> requestHeaders,
             MultivaluedMap<String, String> queryParameters,
@@ -161,8 +139,9 @@ public class SigningController
     {
         // temp workaround until https://github.com/airlift/airlift/pull/1178 is accepted
         return Stream.of(Mode.values()).anyMatch(mode -> {
-            String expectedAuthorization = internalSignRequest(mode, metadata, credentialsSupplier, requestURI, requestHeaders, queryParameters, httpMethod, entity);
-            return authorizationHeader.equals(expectedAuthorization);
+            SigningHeaders signingHeaders = SigningHeaders.build(mode, requestHeaders, parsedAuthorization.signedLowercaseHeaders());
+            String expectedAuthorization = internalSignRequest(metadata, credentialsSupplier, requestURI, signingHeaders, queryParameters, httpMethod, entity);
+            return parsedAuthorization.authorization().equals(expectedAuthorization);
         });
     }
 }
