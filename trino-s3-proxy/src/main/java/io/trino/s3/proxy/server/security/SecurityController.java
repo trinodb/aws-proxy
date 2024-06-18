@@ -16,7 +16,6 @@ package io.trino.s3.proxy.server.security;
 import com.google.common.base.Splitter;
 import com.google.inject.Inject;
 import io.trino.s3.proxy.server.rest.ParsedS3Request;
-import io.trino.s3.proxy.server.signing.SigningMetadata;
 
 import java.util.Locale;
 import java.util.Optional;
@@ -33,13 +32,13 @@ public class SecurityController
         this.securityFacadeProvider = requireNonNull(securityFacadeProvider, "securityFacadeProvider is null");
     }
 
-    public SecurityResponse apply(ParsedS3Request request, SigningMetadata signingMetadata)
+    public SecurityResponse apply(ParsedS3Request request)
     {
-        SecurityFacade securityFacade = securityFacadeProvider.securityFacadeForRequest(request, signingMetadata.credentials(), signingMetadata.session());
+        SecurityFacade securityFacade = securityFacadeProvider.securityFacadeForRequest(request);
 
         Optional<String> lowercaseAction = request.rawQuery().flatMap(SecurityController::parseAction);
 
-        return securityFacade.apply(lowercaseAction, signingMetadata.region());
+        return securityFacade.apply(lowercaseAction);
     }
 
     private static Optional<String> parseAction(String rawQuery)

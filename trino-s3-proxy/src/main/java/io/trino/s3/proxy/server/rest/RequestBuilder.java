@@ -15,7 +15,9 @@ package io.trino.s3.proxy.server.rest;
 
 import com.google.common.base.Splitter;
 import com.google.common.base.Suppliers;
+import io.airlift.log.Logger;
 import io.trino.s3.proxy.server.rest.RequestContent.ContentType;
+import io.trino.s3.proxy.server.signing.RequestAuthorization;
 import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.core.MultivaluedMap;
 import jakarta.ws.rs.core.Response;
@@ -36,12 +38,27 @@ import static io.trino.s3.proxy.server.collections.MultiMapHelper.lowercase;
 
 class RequestBuilder
 {
+    private static final Logger log = Logger.get(RequestBuilder.class);
+
     private RequestBuilder() {}
 
     static Request fromRequest(ContainerRequest request)
     {
+        MultivaluedMap<String, String> requestHeaders = request.getHeaders();
+        String xAmzDate = Optional.ofNullable(requestHeaders.getFirst("x-amz-date")).orElseThrow(() -> {
+            log.debug("Missing \"x-amz-date\" header");
+            return new WebApplicationException(Response.Status.BAD_REQUEST);
+        });
+        Optional<String> securityTokenHeader = Optional.ofNullable(requestHeaders.getFirst("x-amz-security-token"));
         RequestContent requestContent = buildRequestContent(request);
-        return new Request(request.getRequestUri(), request.getRequestHeaders(), request.getUriInfo().getQueryParameters(), request.getMethod(), requestContent);
+        return new Request(
+                RequestAuthorization.parse(firstNonNull(requestHeaders.getFirst("authorization"), ""), securityTokenHeader),
+                xAmzDate,
+                request.getRequestUri(),
+                request.getRequestHeaders(),
+                request.getUriInfo().getQueryParameters(),
+                request.getMethod(),
+                requestContent);
     }
 
     static ParsedS3Request fromRequest(Request request, String requestPath, Optional<String> serverHostName)
@@ -61,13 +78,13 @@ class RequestBuilder
                             .map(value -> value.substring(0, value.length() - lowercaseServerHostName.length()))
                             .map(value -> value.endsWith(".") ? value.substring(0, value.length() - 1) : value);
                 })
-                .map(bucket -> new ParsedS3Request(bucket, requestPath, headers, queryParameters, httpVerb, rawQuery, requestContent))
+                .map(bucket -> new ParsedS3Request(request.requestAuthorization(), request.requestDate(), bucket, requestPath, headers, queryParameters, httpVerb, rawQuery, requestContent))
                 .orElseGet(() -> {
                     List<String> parts = Splitter.on("/").limit(2).splitToList(requestPath);
                     if (parts.size() <= 1) {
-                        return new ParsedS3Request(requestPath, "", headers, queryParameters, httpVerb, rawQuery, requestContent);
+                        return new ParsedS3Request(request.requestAuthorization(), request.requestDate(), requestPath, "", headers, queryParameters, httpVerb, rawQuery, requestContent);
                     }
-                    return new ParsedS3Request(parts.get(0), parts.get(1), headers, queryParameters, httpVerb, rawQuery, requestContent);
+                    return new ParsedS3Request(request.requestAuthorization(), request.requestDate(), parts.get(0), parts.get(1), headers, queryParameters, httpVerb, rawQuery, requestContent);
                 });
     }
 

@@ -19,24 +19,22 @@ import java.util.Optional;
 
 import static java.util.Objects.requireNonNull;
 
-public record SigningMetadata(SigningServiceType signingServiceType, Credentials credentials, Optional<String> session, String region, Optional<SigningContext> signingContext)
+public record SigningMetadata(SigningServiceType signingServiceType, Credentials credentials, Optional<SigningContext> signingContext)
 {
     public SigningMetadata
     {
         requireNonNull(signingServiceType, "signingService is null");
         requireNonNull(credentials, "credentials is null");
-        requireNonNull(session, "session is null");
-        requireNonNull(region, "region is null");
         requireNonNull(signingContext, "signingContext is null");
-    }
-
-    public SigningMetadata(SigningServiceType signingServiceType, Credentials credentials, Optional<String> session, String region)
-    {
-        this(signingServiceType, credentials, session, region, Optional.empty());
     }
 
     public SigningMetadata withSigningContext(SigningContext signingContext)
     {
-        return new SigningMetadata(signingServiceType, credentials, session, region, Optional.of(signingContext));
+        return new SigningMetadata(signingServiceType, credentials, Optional.of(signingContext));
+    }
+
+    public SigningContext requiredSigningContext()
+    {
+        return signingContext().orElseThrow(() -> new IllegalArgumentException("Metadata does not contain a signing context"));
     }
 }

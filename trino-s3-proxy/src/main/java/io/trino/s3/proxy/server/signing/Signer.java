@@ -59,8 +59,9 @@ final class Signer
             URI requestURI,
             SigningHeaders signingHeaders,
             MultivaluedMap<String, String> queryParameters,
-            String httpMethod,
             String region,
+            String requestDate,
+            String httpMethod,
             String accessKey,
             String secretKey,
             Duration maxClockDrift,
@@ -101,19 +102,16 @@ final class Signer
                     .ifPresent(decodedContentLength -> requestBuilder.putHeader("content-length", decodedContentLength));
         }
 
+        AwsCredentials credentials = AwsBasicCredentials.create(accessKey, secretKey);
         AwsS3V4SignerParams.Builder signerParamsBuilder = AwsS3V4SignerParams.builder()
                 .signingName(serviceName)
                 .signingRegion(Region.of(region))
                 .doubleUrlEncode(false)
                 .enablePayloadSigning(enablePayloadSigning)
                 .enableChunkedEncoding(enableChunkedEncoding)
-                .awsCredentials(AwsBasicCredentials.create(accessKey, secretKey));
+                .awsCredentials(credentials);
 
-        String xAmzDate = signingHeaders.getFirst("x-amz-date").orElseThrow(() -> {
-            log.debug("Missing \"x-amz-date\" header");
-            return new WebApplicationException(Response.Status.BAD_REQUEST);
-        });
-        ZonedDateTime zonedRequestDateTime = ZonedDateTime.parse(xAmzDate, AMZ_DATE_FORMAT);
+        ZonedDateTime zonedRequestDateTime = ZonedDateTime.parse(requestDate, AMZ_DATE_FORMAT);
 
         ZonedDateTime now = ZonedDateTime.now(zonedRequestDateTime.getZone());
         Duration driftFromNow = Duration.between(now, zonedRequestDateTime).abs();
@@ -138,18 +136,19 @@ final class Signer
             return new WebApplicationException(Response.Status.BAD_REQUEST);
         });
 
-        return buildInternalSigningContext(authorization, signingParams, xAmzDate);
+        return buildSigningContext(authorization, signingKey(credentials, new Aws4SignerRequestParams(signingParams)), requestDate);
     }
 
-    private static InternalSigningContext buildInternalSigningContext(String authorization, AwsS3V4SignerParams signingParams, String xAmzDate)
+    private static SigningContext buildSigningContext(String authorization, byte[] signingKey, String requestDate)
     {
-        ParsedAuthorization parsedAuthorization = ParsedAuthorization.parse(authorization);
-        if (!parsedAuthorization.isValid()) {
+        RequestAuthorization requestAuthorization = RequestAuthorization.parse(authorization);
+        if (!requestAuthorization.isValid()) {
             // TODO logging, etc.
             throw new WebApplicationException(Response.Status.BAD_REQUEST);
         }
-
-        return new InternalSigningContext(authorization, signingParams, parsedAuthorization.signature(), xAmzDate, parsedAuthorization.keyPath());
+        ChunkSigner chunkSigner = new ChunkSigner(requestDate, requestAuthorization.keyPath(), signingKey);
+        ChunkSigningSession chunkSigningSession = new InternalChunkSigningSession(chunkSigner, requestAuthorization.signature());
+        return new SigningContext(requestAuthorization, chunkSigningSession);
     }
 
     private static boolean isLegacy(SigningHeaders signingHeaders)

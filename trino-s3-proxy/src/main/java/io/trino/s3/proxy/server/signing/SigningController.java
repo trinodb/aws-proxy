@@ -23,7 +23,6 @@ import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.core.MultivaluedMap;
 import jakarta.ws.rs.core.Response;
 
-import java.io.InputStream;
 import java.net.URI;
 import java.time.Duration;
 import java.time.Instant;
@@ -31,8 +30,6 @@ import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
-import static com.google.common.base.MoreObjects.firstNonNull;
-import static io.trino.s3.proxy.server.rest.RequestContent.ContentType.AWS_CHUNKED;
 import static io.trino.s3.proxy.server.signing.Signer.AMZ_DATE_FORMAT;
 import static io.trino.s3.proxy.server.signing.Signer.RESPONSE_DATE_FORMAT;
 import static io.trino.s3.proxy.server.signing.Signer.ZONE;
@@ -69,65 +66,42 @@ public class SigningController
 
     public String signRequest(
             SigningMetadata metadata,
+            String region,
+            String requestDate,
             Function<Credentials, Credential> credentialsSupplier,
             URI requestURI,
             MultivaluedMap<String, String> requestHeaders,
             MultivaluedMap<String, String> queryParameters,
             String httpMethod)
     {
-        SigningHeaders signingHeaders = SigningHeaders.build(requestHeaders);
-
-        SigningContext signingContext = internalSignRequest(
+        return internalSignRequest(
                 metadata,
+                region,
+                requestDate,
                 RequestContent.EMPTY,
                 credentialsSupplier,
                 requestURI,
-                signingHeaders,
+                SigningHeaders.build(requestHeaders),
                 queryParameters,
-                httpMethod);
-        return signingContext.authorization();
+                httpMethod).signingAuthorization().authorization();
     }
 
     public SigningMetadata validateAndParseAuthorization(Request request, SigningServiceType signingServiceType)
     {
-        ParsedAuthorization parsedAuthorization = ParsedAuthorization.parse(firstNonNull(request.requestHeaders().getFirst("authorization"), ""));
-        if (!parsedAuthorization.isValid()) {
+        if (!request.requestAuthorization().isValid()) {
             throw new WebApplicationException(Response.Status.UNAUTHORIZED);
         }
 
-        Optional<String> session = Optional.ofNullable(request.requestHeaders().getFirst("x-amz-security-token"));
-
-        return credentialsController.withCredentials(parsedAuthorization.accessKey(), session, credentials -> {
-            SigningMetadata metadata = new SigningMetadata(signingServiceType, credentials, session, parsedAuthorization.region());
-            return isValidAuthorization(metadata, request.requestContent(), Credentials::emulated, parsedAuthorization, request.requestUri(), request.requestHeaders(), request.requestQueryParameters(), request.httpVerb());
+        return credentialsController.withCredentials(request.requestAuthorization().accessKey(), request.requestAuthorization().securityToken(), credentials -> {
+            SigningMetadata metadata = new SigningMetadata(signingServiceType, credentials, Optional.empty());
+            return isValidAuthorization(metadata, request, Credentials::emulated);
         }).orElseThrow(() -> new WebApplicationException(Response.Status.UNAUTHORIZED));
-    }
-
-    public Optional<InputStream> inputStreamForContent(
-            RequestContent requestContent,
-            SigningMetadata metadata,
-            Function<Credentials, Credential> credentialsSupplier)
-    {
-        if (requestContent.contentType() != AWS_CHUNKED) {
-            return requestContent.inputStream();
-        }
-
-        return requestContent.inputStream().map(inputStream -> {
-            Credential credential = credentialsSupplier.apply(metadata.credentials());
-            SigningContext signingContext = metadata.signingContext().orElseThrow(() -> new IllegalArgumentException("Metadata does not contain a signing context"));
-            if (!(signingContext instanceof InternalSigningContext internalSigningContext)) {
-                throw new IllegalArgumentException("Singing context is an unexpected type: " + signingContext.getClass());
-            }
-
-            ChunkSigner chunkSigner = new ChunkSigner(credential, internalSigningContext);
-            ChunkSigningSession chunkSigningSession = new ChunkSigningSession(chunkSigner, internalSigningContext.signature());
-
-            return new AwsChunkedInputStream(inputStream, Optional.of(chunkSigningSession));
-        });
     }
 
     private SigningContext internalSignRequest(
             SigningMetadata metadata,
+            String region,
+            String requestDate,
             RequestContent requestContent,
             Function<Credentials, Credential> credentialsSupplier,
             URI requestURI,
@@ -144,8 +118,9 @@ public class SigningController
                 requestURI,
                 signingHeaders,
                 queryParameters,
+                region,
+                requestDate,
                 httpMethod,
-                metadata.region(),
                 credential.accessKey(),
                 credential.secretKey(),
                 maxClockDrift,
@@ -154,19 +129,23 @@ public class SigningController
 
     private Optional<SigningMetadata> isValidAuthorization(
             SigningMetadata metadata,
-            RequestContent requestContent,
-            Function<Credentials, Credential> credentialsSupplier,
-            ParsedAuthorization parsedAuthorization,
-            URI requestURI,
-            MultivaluedMap<String, String> requestHeaders,
-            MultivaluedMap<String, String> queryParameters,
-            String httpMethod)
+            Request request,
+            Function<Credentials, Credential> credentialsSupplier)
     {
         // temp workaround until https://github.com/airlift/airlift/pull/1178 is accepted
         return Stream.of(Mode.values()).flatMap(mode -> {
-            SigningHeaders signingHeaders = SigningHeaders.build(mode, requestHeaders, parsedAuthorization.signedLowercaseHeaders());
-            SigningContext signingContext = internalSignRequest(metadata, requestContent, credentialsSupplier, requestURI, signingHeaders, queryParameters, httpMethod);
-            return parsedAuthorization.authorization().equals(signingContext.authorization()) ? Stream.of(metadata.withSigningContext(signingContext)) : Stream.of();
+            SigningHeaders signingHeaders = SigningHeaders.build(mode, request.requestHeaders(), request.requestAuthorization().lowercaseSignedHeaders());
+            SigningContext signingContext = internalSignRequest(
+                    metadata,
+                    request.requestAuthorization().region(),
+                    request.requestDate(),
+                    request.requestContent(),
+                    credentialsSupplier,
+                    request.requestUri(),
+                    signingHeaders,
+                    request.requestQueryParameters(),
+                    request.httpVerb());
+            return request.requestAuthorization().authorization().equals(signingContext.signingAuthorization().authorization()) ? Stream.of(metadata.withSigningContext(signingContext)) : Stream.of();
         }).findFirst();
     }
 }

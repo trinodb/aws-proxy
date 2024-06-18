@@ -44,7 +44,8 @@ public class TestSigningController
     {
         // values discovered from an AWS CLI request sent to a dummy local HTTP server
         MultivaluedMap<String, String> requestHeaders = new MultivaluedHashMap<>();
-        requestHeaders.putSingle("X-Amz-Date", "20240516T024511Z");
+        String xAmzDate = "20240516T024511Z";
+        requestHeaders.putSingle("X-Amz-Date", xAmzDate);
         requestHeaders.putSingle("X-Amz-Content-SHA256", "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855");
         requestHeaders.putSingle("X-Amz-Security-Token", "FwoGZXIvYXdzEP3//////////wEaDG79rlcAjsgKPP9N3SKIAu7/Zvngne5Ov6kGrDcIIPUZYkGpwNbj8zNnbWgOhiqmOCM3hrk4NuH17mP5n3nC7urlXZxaTCywKpAHpO3YsvLXcwjlfaYFA0Au4oejwSbU9ybIlzPzrqz7lVesgCfJOV+rj5F5UAh19d7RpRpA6Vy4nxGBTTlCNIVbkW9fp2Esql2/vsdh77rAG+j+BQegtegDCKBfen4gHMdvEOF6hyc4ne43eLXjpvUKxBgpI9MjOHtNHrDbOOBFXDDyknoESgE9Hsm12nDuVQhwrI/hhA4YB/MSIpl4FTgVs2sQP3K+v65tmyvIlpL6O78S6spMM9Tv/F4JLtksTzb90w46uZk9sxKC/RBkRijisM6tBjIrr/0znxnW3i5ggGAX4H/Z3aWlxSdzNs2UGWtqig9Plp3Xa9gG+zCKcXmDAA==");
         requestHeaders.putSingle("Host", "localhost:10064");
@@ -52,7 +53,9 @@ public class TestSigningController
         requestHeaders.putSingle("Accept-Encoding", "identity");
 
         String signature = signingController.signRequest(
-                new SigningMetadata(SigningServiceType.S3, CREDENTIALS, Optional.empty(), "us-east-1"),
+                new SigningMetadata(SigningServiceType.S3, CREDENTIALS, Optional.empty()),
+                "us-east-1",
+                xAmzDate,
                 Credentials::emulated,
                 URI.create("http://localhost:10064/"),
                 requestHeaders,
@@ -69,7 +72,8 @@ public class TestSigningController
 
         // values discovered from an AWS CLI request sent to a dummy local HTTP server
         MultivaluedMap<String, String> requestHeaders = new MultivaluedHashMap<>();
-        requestHeaders.putSingle("X-Amz-Date", "20240516T024511Z");
+        String xAmzDate = "20240516T024511Z";
+        requestHeaders.putSingle("X-Amz-Date", xAmzDate);
         requestHeaders.putSingle("X-Amz-Content-SHA256", "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855");
         requestHeaders.putSingle("X-Amz-Security-Token", "FwoGZXIvYXdzEP3//////////wEaDG79rlcAjsgKPP9N3SKIAu7/Zvngne5Ov6kGrDcIIPUZYkGpwNbj8zNnbWgOhiqmOCM3hrk4NuH17mP5n3nC7urlXZxaTCywKpAHpO3YsvLXcwjlfaYFA0Au4oejwSbU9ybIlzPzrqz7lVesgCfJOV+rj5F5UAh19d7RpRpA6Vy4nxGBTTlCNIVbkW9fp2Esql2/vsdh77rAG+j+BQegtegDCKBfen4gHMdvEOF6hyc4ne43eLXjpvUKxBgpI9MjOHtNHrDbOOBFXDDyknoESgE9Hsm12nDuVQhwrI/hhA4YB/MSIpl4FTgVs2sQP3K+v65tmyvIlpL6O78S6spMM9Tv/F4JLtksTzb90w46uZk9sxKC/RBkRijisM6tBjIrr/0znxnW3i5ggGAX4H/Z3aWlxSdzNs2UGWtqig9Plp3Xa9gG+zCKcXmDAA==");
         requestHeaders.putSingle("Host", "localhost:10064");
@@ -77,7 +81,9 @@ public class TestSigningController
         requestHeaders.putSingle("Accept-Encoding", "identity");
 
         assertThatThrownBy(() -> signingController.signRequest(
-                new SigningMetadata(SigningServiceType.S3, CREDENTIALS, Optional.empty(), "us-east-1"),
+                new SigningMetadata(SigningServiceType.S3, CREDENTIALS, Optional.empty()),
+                "us-east-1",
+                xAmzDate,
                 Credentials::emulated,
                 URI.create("http://localhost:10064/"),
                 requestHeaders,
@@ -91,7 +97,8 @@ public class TestSigningController
     {
         // values discovered from an AWS CLI request sent to a dummy local HTTP server
         MultivaluedMap<String, String> requestHeaders = new MultivaluedHashMap<>();
-        requestHeaders.putSingle("X-Amz-Date", "20240516T034003Z");
+        String xAmzDate = "20240516T034003Z";
+        requestHeaders.putSingle("X-Amz-Date", xAmzDate);
         requestHeaders.putSingle("X-Amz-Content-SHA256", "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855");
         requestHeaders.putSingle("X-Amz-Security-Token", "FwoGZXIvYXdzEP3//////////wEaDG79rlcAjsgKPP9N3SKIAu7/Zvngne5Ov6kGrDcIIPUZYkGpwNbj8zNnbWgOhiqmOCM3hrk4NuH17mP5n3nC7urlXZxaTCywKpAHpO3YsvLXcwjlfaYFA0Au4oejwSbU9ybIlzPzrqz7lVesgCfJOV+rj5F5UAh19d7RpRpA6Vy4nxGBTTlCNIVbkW9fp2Esql2/vsdh77rAG+j+BQegtegDCKBfen4gHMdvEOF6hyc4ne43eLXjpvUKxBgpI9MjOHtNHrDbOOBFXDDyknoESgE9Hsm12nDuVQhwrI/hhA4YB/MSIpl4FTgVs2sQP3K+v65tmyvIlpL6O78S6spMM9Tv/F4JLtksTzb90w46uZk9sxKC/RBkRijisM6tBjIrr/0znxnW3i5ggGAX4H/Z3aWlxSdzNs2UGWtqig9Plp3Xa9gG+zCKcXmDAA==");
         requestHeaders.putSingle("Host", "localhost:10064");
@@ -105,7 +112,9 @@ public class TestSigningController
         queryParameters.putSingle("encoding-type", "url");
 
         String signature = signingController.signRequest(
-                new SigningMetadata(SigningServiceType.S3, CREDENTIALS, Optional.empty(), "us-east-1"),
+                new SigningMetadata(SigningServiceType.S3, CREDENTIALS, Optional.empty()),
+                "us-east-1",
+                xAmzDate,
                 Credentials::emulated,
                 URI.create("http://localhost:10064/mybucket"),
                 requestHeaders,

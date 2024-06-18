@@ -14,10 +14,7 @@
 package io.trino.s3.proxy.server.signing;
 
 import com.google.common.hash.HashCode;
-import io.trino.s3.proxy.server.credentials.Credential;
-import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.signer.internal.AbstractAws4Signer;
-import software.amazon.awssdk.auth.signer.internal.Aws4SignerRequestParams;
 import software.amazon.awssdk.auth.signer.internal.SigningAlgorithm;
 import software.amazon.awssdk.auth.signer.internal.chunkedencoding.AwsS3V4ChunkSigner;
 import software.amazon.awssdk.utils.BinaryUtils;
@@ -28,8 +25,6 @@ import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
-
-import static io.trino.s3.proxy.server.signing.Signer.signingKey;
 
 /**
  * Extracted/copied from {@link AwsS3V4ChunkSigner} and <a href="https://docs.aws.amazon.com/AmazonS3/latest/API/sigv4-streaming.html">sigv4-streaming</a>.
@@ -43,14 +38,10 @@ class ChunkSigner
     private final String keyPath;
     private final Mac hmacSha256;
 
-    ChunkSigner(Credential credential, InternalSigningContext signingContext)
+    ChunkSigner(String requestDate, String keyPath, byte[] signingKey)
     {
-        this.dateTime = signingContext.dateTime();
-        this.keyPath = signingContext.keyPath();
-
-        AwsBasicCredentials awsBasicCredentials = AwsBasicCredentials.create(credential.accessKey(), credential.secretKey());
-        Aws4SignerRequestParams signerRequestParams = new Aws4SignerRequestParams(signingContext.signingParams());
-        byte[] signingKey = signingKey(awsBasicCredentials, signerRequestParams);
+        this.dateTime = requestDate;
+        this.keyPath = keyPath;
 
         try {
             String signingAlgorithm = SigningAlgorithm.HmacSHA256.toString();
