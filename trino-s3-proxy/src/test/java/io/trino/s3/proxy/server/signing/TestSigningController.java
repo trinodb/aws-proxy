@@ -36,7 +36,7 @@ public class TestSigningController
 
     private final CredentialsProvider credentialsProvider = (emulatedAccessKey, session) -> Optional.of(CREDENTIALS);
     private final CredentialsController credentialsController = new CredentialsController(new TestingRemoteS3Facade(), credentialsProvider);
-    private final SigningController signingController = new SigningController(credentialsController, new SigningControllerConfig().setMaxClockDrift(new Duration(99999, TimeUnit.DAYS)));
+    private final SigningController signingController = new InternalSigningController(credentialsController, new SigningControllerConfig().setMaxClockDrift(new Duration(99999, TimeUnit.DAYS)));
 
     @Test
     public void testRootLs()
@@ -67,7 +67,7 @@ public class TestSigningController
     @Test
     public void testRootExpiredClock()
     {
-        SigningController signingController = new SigningController(credentialsController, new SigningControllerConfig().setMaxClockDrift(new Duration(1, TimeUnit.MINUTES)));
+        SigningController signingController = new InternalSigningController(credentialsController, new SigningControllerConfig().setMaxClockDrift(new Duration(1, TimeUnit.MINUTES)));
 
         // values discovered from an AWS CLI request sent to a dummy local HTTP server
         ImmutableMultiMap.Builder requestHeadersBuilder = ImmutableMultiMap.builder(false);
