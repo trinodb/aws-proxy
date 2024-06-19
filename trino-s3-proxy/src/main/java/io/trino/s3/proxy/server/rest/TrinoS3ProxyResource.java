@@ -14,9 +14,11 @@
 package io.trino.s3.proxy.server.rest;
 
 import com.google.inject.Inject;
-import io.trino.s3.proxy.server.signing.SigningController;
-import io.trino.s3.proxy.server.signing.SigningMetadata;
-import io.trino.s3.proxy.server.signing.SigningServiceType;
+import io.trino.s3.proxy.spi.rest.ParsedS3Request;
+import io.trino.s3.proxy.spi.rest.Request;
+import io.trino.s3.proxy.spi.signing.SigningController;
+import io.trino.s3.proxy.spi.signing.SigningMetadata;
+import io.trino.s3.proxy.spi.signing.SigningServiceType;
 import jakarta.ws.rs.DELETE;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.HEAD;

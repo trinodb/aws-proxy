@@ -15,13 +15,17 @@ package io.trino.s3.proxy.server.signing;
 
 import com.google.common.collect.ImmutableSet;
 import com.google.inject.Inject;
-import io.trino.s3.proxy.server.collections.ImmutableMultiMap;
-import io.trino.s3.proxy.server.collections.MultiMap;
-import io.trino.s3.proxy.server.credentials.Credential;
-import io.trino.s3.proxy.server.credentials.Credentials;
 import io.trino.s3.proxy.server.credentials.CredentialsController;
-import io.trino.s3.proxy.server.rest.Request;
-import io.trino.s3.proxy.server.rest.RequestContent;
+import io.trino.s3.proxy.spi.collections.ImmutableMultiMap;
+import io.trino.s3.proxy.spi.collections.MultiMap;
+import io.trino.s3.proxy.spi.credentials.Credential;
+import io.trino.s3.proxy.spi.credentials.Credentials;
+import io.trino.s3.proxy.spi.rest.Request;
+import io.trino.s3.proxy.spi.rest.RequestContent;
+import io.trino.s3.proxy.spi.signing.SigningContext;
+import io.trino.s3.proxy.spi.signing.SigningController;
+import io.trino.s3.proxy.spi.signing.SigningMetadata;
+import io.trino.s3.proxy.spi.signing.SigningServiceType;
 import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.core.Response;
 
@@ -159,13 +163,14 @@ public class InternalSigningController
             return request.requestAuthorization().authorization().equals(signingContext.signingAuthorization().authorization()) ? Stream.of(metadata.withSigningContext(signingContext)) : Stream.of();
         }).findFirst();
     }
+
     private static String lowercaseHeader(String headerName, String headerValue)
     {
         if (!LOWERCASE_HEADERS.contains(headerName)) {
             return headerValue;
         }
         return headerValue.toLowerCase(Locale.ROOT);
-}
+    }
 
     private static MultiMap adjustHeaders(Mode mode, MultiMap headers)
     {

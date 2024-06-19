@@ -15,20 +15,6 @@
 
 package software.amazon.awssdk.auth.signer.internal;
 
-import static software.amazon.awssdk.auth.signer.Aws4UnsignedPayloadSigner.UNSIGNED_PAYLOAD;
-import static software.amazon.awssdk.core.interceptor.SdkExecutionAttribute.RESOLVED_CHECKSUM_SPECS;
-import static software.amazon.awssdk.utils.StringUtils.lowerCase;
-
-import java.io.InputStream;
-import java.nio.charset.StandardCharsets;
-import java.time.Instant;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.List;
-import java.util.SortedMap;
-import java.util.TreeMap;
 import software.amazon.awssdk.annotations.SdkInternalApi;
 import software.amazon.awssdk.auth.credentials.AwsCredentials;
 import software.amazon.awssdk.auth.credentials.AwsSessionCredentials;
@@ -50,6 +36,21 @@ import software.amazon.awssdk.utils.Logger;
 import software.amazon.awssdk.utils.Pair;
 import software.amazon.awssdk.utils.StringUtils;
 import software.amazon.awssdk.utils.http.SdkHttpUtils;
+
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.List;
+import java.util.SortedMap;
+import java.util.TreeMap;
+
+import static software.amazon.awssdk.auth.signer.Aws4UnsignedPayloadSigner.UNSIGNED_PAYLOAD;
+import static software.amazon.awssdk.core.interceptor.SdkExecutionAttribute.RESOLVED_CHECKSUM_SPECS;
+import static software.amazon.awssdk.utils.StringUtils.lowerCase;
 
 /**
  * Abstract base class for the AWS SigV4 signer implementations.

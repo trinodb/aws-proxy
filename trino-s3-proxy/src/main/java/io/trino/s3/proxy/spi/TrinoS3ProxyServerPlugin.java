@@ -11,17 +11,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.trino.s3.proxy.server.signing;
+package io.trino.s3.proxy.spi;
 
-import static java.util.Objects.requireNonNull;
+import com.google.inject.Module;
 
-public record SigningServiceType(String serviceName, boolean contentIsSigned)
+public interface TrinoS3ProxyServerPlugin
 {
-    public static final SigningServiceType S3 = new SigningServiceType("s3", true);
-    public static final SigningServiceType STS = new SigningServiceType("sts", false);
-
-    public SigningServiceType
+    default String name()
     {
-        requireNonNull(serviceName, "serviceName is null");
+        return getClass().getSimpleName();
     }
+
+    Module module();
 }

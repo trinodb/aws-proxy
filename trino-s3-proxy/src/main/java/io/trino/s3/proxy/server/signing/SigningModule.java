@@ -16,6 +16,7 @@ package io.trino.s3.proxy.server.signing;
 import com.google.inject.Binder;
 import com.google.inject.Module;
 import com.google.inject.Scopes;
+import io.trino.s3.proxy.spi.signing.SigningController;
 
 import static io.airlift.configuration.ConfigBinder.configBinder;
 

@@ -14,11 +14,12 @@
 package io.trino.s3.proxy.server.signing;
 
 import com.google.common.collect.ImmutableSet;
+import io.trino.s3.proxy.spi.signing.RequestAuthorization;
 import org.junit.jupiter.api.Test;
 
 import java.util.Optional;
 
-import static io.trino.s3.proxy.server.signing.RequestAuthorization.parse;
+import static io.trino.s3.proxy.spi.signing.RequestAuthorization.parse;
 import static org.assertj.core.api.Assertions.assertThat;
 
 public class TestRequestAuthorization

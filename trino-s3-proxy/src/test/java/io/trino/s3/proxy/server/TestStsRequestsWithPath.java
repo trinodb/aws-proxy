@@ -15,13 +15,13 @@ package io.trino.s3.proxy.server;
 
 import com.google.inject.Inject;
 import io.airlift.http.server.testing.TestingHttpServer;
-import io.trino.s3.proxy.server.credentials.Credentials;
-import io.trino.s3.proxy.server.credentials.CredentialsProvider;
 import io.trino.s3.proxy.server.rest.TrinoS3ProxyConfig;
 import io.trino.s3.proxy.server.testing.TestingTrinoS3ProxyServer;
 import io.trino.s3.proxy.server.testing.TestingUtil.ForTesting;
 import io.trino.s3.proxy.server.testing.harness.BuilderFilter;
 import io.trino.s3.proxy.server.testing.harness.TrinoS3ProxyTest;
+import io.trino.s3.proxy.spi.credentials.Credentials;
+import io.trino.s3.proxy.spi.credentials.CredentialsProvider;
 
 @TrinoS3ProxyTest(filters = TestStsRequestsWithPath.Filter.class)
 public class TestStsRequestsWithPath

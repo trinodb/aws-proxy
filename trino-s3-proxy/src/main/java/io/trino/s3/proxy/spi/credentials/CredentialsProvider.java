@@ -11,20 +11,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.trino.s3.proxy.server.credentials;
+package io.trino.s3.proxy.spi.credentials;
 
-import java.time.Instant;
+import java.util.Optional;
 
-import static java.util.Objects.requireNonNull;
-
-public record EmulatedAssumedRole(Credential credential, String session, String arn, String roleId, Instant expiration)
+public interface CredentialsProvider
 {
-    public EmulatedAssumedRole
-    {
-        requireNonNull(credential, "credential is null");
-        requireNonNull(session, "session is null");
-        requireNonNull(arn, "arn is null");
-        requireNonNull(roleId, "roleId is null");
-        requireNonNull(expiration, "expiration is null");
-    }
+    /**
+     * Return the credentials, if any, for the given access key and session.
+     * Your implementation should have a centralized credentials mechanism, likely
+     * some type of database along with a way of registering credentials, etc.
+     */
+    Optional<Credentials> credentials(String emulatedAccessKey, Optional<String> session);
 }

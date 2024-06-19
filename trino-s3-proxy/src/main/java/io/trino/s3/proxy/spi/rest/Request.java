@@ -11,39 +11,33 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.trino.s3.proxy.server.rest;
+package io.trino.s3.proxy.spi.rest;
 
-import io.trino.s3.proxy.server.collections.ImmutableMultiMap;
-import io.trino.s3.proxy.server.collections.MultiMap;
-import io.trino.s3.proxy.server.signing.RequestAuthorization;
+import io.trino.s3.proxy.spi.collections.ImmutableMultiMap;
+import io.trino.s3.proxy.spi.collections.MultiMap;
+import io.trino.s3.proxy.spi.signing.RequestAuthorization;
 
-import java.util.Optional;
+import java.net.URI;
 
 import static java.util.Objects.requireNonNull;
 
-public record ParsedS3Request(
+public record Request(
         RequestAuthorization requestAuthorization,
         String requestDate,
-        String bucketName,
-        String keyInBucket,
+        URI requestUri,
         MultiMap requestHeaders,
-        MultiMap queryParameters,
+        MultiMap requestQueryParameters,
         String httpVerb,
-        String rawPath,
-        Optional<String> rawQuery,
         RequestContent requestContent)
 {
-    public ParsedS3Request
+    public Request
     {
         requireNonNull(requestAuthorization, "requestAuthorization is null");
         requireNonNull(requestDate, "requestDate is null");
-        requireNonNull(bucketName, "bucketName is null");
-        requireNonNull(keyInBucket, "keyInBucket is null");
+        requireNonNull(requestUri, "requestUri is null");
         requestHeaders = ImmutableMultiMap.copyOfCaseInsensitive(requestHeaders);
-        queryParameters = ImmutableMultiMap.copyOf(queryParameters);
+        requestQueryParameters = ImmutableMultiMap.copyOf(requestQueryParameters);
         requireNonNull(httpVerb, "httpVerb is null");
-        requireNonNull(rawPath, "rawPath is null");
-        requireNonNull(rawQuery, "rawQuery is null");
         requireNonNull(requestContent, "requestContent is null");
     }
 }

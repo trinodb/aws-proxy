@@ -16,6 +16,7 @@ package io.trino.s3.proxy.server.signing;
 import com.google.common.hash.Hasher;
 import com.google.common.hash.Hashing;
 import io.airlift.log.Logger;
+import io.trino.s3.proxy.spi.signing.ChunkSigningSession;
 import jakarta.ws.rs.WebApplicationException;
 
 import static jakarta.ws.rs.core.Response.Status.UNAUTHORIZED;

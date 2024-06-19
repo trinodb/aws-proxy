@@ -14,10 +14,10 @@
 package io.trino.s3.proxy.server;
 
 import io.airlift.http.server.testing.TestingHttpServer;
-import io.trino.s3.proxy.server.credentials.Credential;
-import io.trino.s3.proxy.server.credentials.Credentials;
-import io.trino.s3.proxy.server.credentials.CredentialsProvider;
 import io.trino.s3.proxy.server.rest.TrinoS3ProxyConfig;
+import io.trino.s3.proxy.spi.credentials.Credential;
+import io.trino.s3.proxy.spi.credentials.Credentials;
+import io.trino.s3.proxy.spi.credentials.CredentialsProvider;
 import org.junit.jupiter.api.Test;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.endpoints.Endpoint;

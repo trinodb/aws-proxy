@@ -11,16 +11,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.trino.s3.proxy.server;
+package io.trino.s3.proxy.spi.security;
 
-import com.google.inject.Module;
+import io.trino.s3.proxy.spi.rest.ParsedS3Request;
+import jakarta.ws.rs.WebApplicationException;
 
-public interface TrinoS3ProxyServerPlugin
+public interface SecurityFacadeProvider
 {
-    default String name()
-    {
-        return getClass().getSimpleName();
-    }
-
-    Module module();
+    /**
+     * Return a validated/authenticated facade for the given request or
+     * throw {@link jakarta.ws.rs.WebApplicationException}
+     */
+    SecurityFacade securityFacadeForRequest(ParsedS3Request request)
+            throws WebApplicationException;
 }

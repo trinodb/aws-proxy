@@ -14,12 +14,15 @@
 package io.trino.s3.proxy.server.signing;
 
 import io.airlift.units.Duration;
-import io.trino.s3.proxy.server.collections.ImmutableMultiMap;
-import io.trino.s3.proxy.server.credentials.Credential;
-import io.trino.s3.proxy.server.credentials.Credentials;
 import io.trino.s3.proxy.server.credentials.CredentialsController;
-import io.trino.s3.proxy.server.credentials.CredentialsProvider;
 import io.trino.s3.proxy.server.testing.TestingRemoteS3Facade;
+import io.trino.s3.proxy.spi.collections.ImmutableMultiMap;
+import io.trino.s3.proxy.spi.credentials.Credential;
+import io.trino.s3.proxy.spi.credentials.Credentials;
+import io.trino.s3.proxy.spi.credentials.CredentialsProvider;
+import io.trino.s3.proxy.spi.signing.SigningController;
+import io.trino.s3.proxy.spi.signing.SigningMetadata;
+import io.trino.s3.proxy.spi.signing.SigningServiceType;
 import jakarta.ws.rs.WebApplicationException;
 import org.junit.jupiter.api.Test;
 

@@ -14,11 +14,11 @@
 package io.trino.s3.proxy.server;
 
 import com.google.inject.Inject;
-import io.trino.s3.proxy.server.security.SecurityFacadeProvider;
-import io.trino.s3.proxy.server.security.SecurityResponse;
 import io.trino.s3.proxy.server.testing.TestingSecurityFacade;
 import io.trino.s3.proxy.server.testing.harness.TrinoS3ProxyTest;
 import io.trino.s3.proxy.server.testing.harness.TrinoS3ProxyTestCommonModules.WithConfiguredBuckets;
+import io.trino.s3.proxy.spi.security.SecurityFacadeProvider;
+import io.trino.s3.proxy.spi.security.SecurityResponse;
 import org.assertj.core.api.InstanceOfAssertFactories;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;

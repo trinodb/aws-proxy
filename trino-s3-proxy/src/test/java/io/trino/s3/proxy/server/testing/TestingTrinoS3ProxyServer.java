@@ -28,7 +28,6 @@ import io.airlift.http.server.testing.TestingHttpServerModule;
 import io.airlift.jaxrs.JaxrsModule;
 import io.airlift.json.JsonModule;
 import io.airlift.node.testing.TestingNodeModule;
-import io.trino.s3.proxy.server.credentials.Credentials;
 import io.trino.s3.proxy.server.remote.RemoteS3Facade;
 import io.trino.s3.proxy.server.testing.TestingUtil.ForTesting;
 import io.trino.s3.proxy.server.testing.containers.MetastoreContainer;
@@ -36,6 +35,7 @@ import io.trino.s3.proxy.server.testing.containers.PostgresContainer;
 import io.trino.s3.proxy.server.testing.containers.PySparkContainer;
 import io.trino.s3.proxy.server.testing.containers.S3Container;
 import io.trino.s3.proxy.server.testing.containers.S3Container.ForS3Container;
+import io.trino.s3.proxy.spi.credentials.Credentials;
 
 import java.io.Closeable;
 import java.util.Collection;

@@ -11,18 +11,23 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.trino.s3.proxy.server.security;
+package io.trino.s3.proxy.spi.credentials;
 
 import java.util.Optional;
 
 import static java.util.Objects.requireNonNull;
 
-public record SecurityResponse(boolean canProceed, Optional<String> error)
+public record Credential(String accessKey, String secretKey, Optional<String> session)
 {
-    public static final SecurityResponse DEFAULT = new SecurityResponse(true, Optional.empty());
-
-    public SecurityResponse
+    public Credential
     {
-        requireNonNull(error, "error is null");
+        requireNonNull(accessKey, "accessKey is null");
+        requireNonNull(secretKey, "secretKey is null");
+        requireNonNull(session, "session is null");
+    }
+
+    public Credential(String accessKey, String secretKey)
+    {
+        this(accessKey, secretKey, Optional.empty());
     }
 }
