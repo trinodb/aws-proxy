@@ -35,6 +35,7 @@ import io.trino.s3.proxy.server.security.SecurityFacadeProvider;
 import io.trino.s3.proxy.server.security.SecurityResponse;
 import io.trino.s3.proxy.server.signing.SigningController;
 import io.trino.s3.proxy.server.signing.SigningControllerConfig;
+import io.trino.s3.proxy.server.signing.SigningModule;
 import org.glassfish.jersey.server.model.Resource;
 
 import java.util.Optional;
@@ -75,6 +76,8 @@ public class TrinoS3ProxyServerModule
 
         newOptionalBinder(binder, CredentialsProvider.class).setDefault().toInstance((_, _) -> Optional.empty());
         newOptionalBinder(binder, AssumedRoleProvider.class).setDefault().toInstance((_, _, _, _, _, _) -> Optional.empty());
+
+        install(new SigningModule());
 
         installPlugins();
 
