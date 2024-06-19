@@ -13,14 +13,12 @@
  */
 package io.trino.s3.proxy.server.testing;
 
-import io.trino.s3.proxy.server.credentials.Credentials;
 import io.trino.s3.proxy.server.rest.ParsedS3Request;
 import io.trino.s3.proxy.server.security.SecurityFacade;
 import io.trino.s3.proxy.server.security.SecurityFacadeProvider;
 import io.trino.s3.proxy.server.security.SecurityResponse;
 import jakarta.ws.rs.WebApplicationException;
 
-import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static java.util.Objects.requireNonNull;
@@ -28,13 +26,13 @@ import static java.util.Objects.requireNonNull;
 public class TestingSecurityFacade
         implements SecurityFacadeProvider
 {
-    private final AtomicReference<SecurityFacadeProvider> delegate = new AtomicReference<>((_, _, _) -> (_, _) -> SecurityResponse.DEFAULT);
+    private final AtomicReference<SecurityFacadeProvider> delegate = new AtomicReference<>(_ -> _ -> SecurityResponse.DEFAULT);
 
     @Override
-    public SecurityFacade securityFacadeForRequest(ParsedS3Request request, Credentials credentials, Optional<String> session)
+    public SecurityFacade securityFacadeForRequest(ParsedS3Request request)
             throws WebApplicationException
     {
-        return delegate.get().securityFacadeForRequest(request, credentials, session);
+        return delegate.get().securityFacadeForRequest(request);
     }
 
     public void setDelegate(SecurityFacadeProvider delegate)

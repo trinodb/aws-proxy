@@ -20,32 +20,39 @@ import com.google.common.collect.ImmutableSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static java.util.Objects.requireNonNull;
 
-record ParsedAuthorization(String authorization, String accessKey, String region, String keyPath, Set<String> signedLowercaseHeaders, String signature)
+public record RequestAuthorization(String authorization, String accessKey, String region, String keyPath, Set<String> lowercaseSignedHeaders, String signature, Optional<String> securityToken)
 {
-    ParsedAuthorization
+    public RequestAuthorization
     {
         requireNonNull(authorization, "authorization is null");
         requireNonNull(accessKey, "accessKey is null");
         requireNonNull(region, "region is null");
         requireNonNull(keyPath, "keyPath is null");
-        signedLowercaseHeaders = ImmutableSet.copyOf(signedLowercaseHeaders);
+        lowercaseSignedHeaders = ImmutableSet.copyOf(lowercaseSignedHeaders);
         requireNonNull(signature, "signature is null");
+        requireNonNull(securityToken, "securityToken is null");
     }
 
     boolean isValid()
     {
-        return !signedLowercaseHeaders.isEmpty() && !signature.isEmpty() && !accessKey.isEmpty() && !region.isEmpty();
+        return !lowercaseSignedHeaders.isEmpty() && !signature.isEmpty() && !accessKey.isEmpty() && !region.isEmpty();
     }
 
-    static ParsedAuthorization parse(String authorization)
+    public static RequestAuthorization parse(String authorization)
+    {
+        return parse(authorization, Optional.empty());
+    }
+
+    public static RequestAuthorization parse(String authorization, Optional<String> securityToken)
     {
         if (authorization.isBlank()) {
-            return new ParsedAuthorization("", "", "", "", ImmutableSet.of(), "");
+            return new RequestAuthorization("", "", "", "", ImmutableSet.of(), "", securityToken);
         }
 
         Map<String, String> parts;
@@ -82,6 +89,6 @@ record ParsedAuthorization(String authorization, String accessKey, String region
 
         String signature = parts.getOrDefault("Signature", "");
 
-        return new ParsedAuthorization(authorization, accessKey, region, keyPath, signedHeaders, signature);
+        return new RequestAuthorization(authorization, accessKey, region, keyPath, signedHeaders, signature, securityToken);
     }
 }

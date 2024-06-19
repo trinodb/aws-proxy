@@ -13,6 +13,7 @@
  */
 package io.trino.s3.proxy.server.rest;
 
+import io.trino.s3.proxy.server.signing.RequestAuthorization;
 import jakarta.ws.rs.core.MultivaluedMap;
 
 import java.net.URI;
@@ -20,6 +21,8 @@ import java.net.URI;
 import static java.util.Objects.requireNonNull;
 
 public record Request(
+        RequestAuthorization requestAuthorization,
+        String requestDate,
         URI requestUri,
         MultivaluedMap<String, String> requestHeaders,
         MultivaluedMap<String, String> requestQueryParameters,
@@ -28,6 +31,8 @@ public record Request(
 {
     public Request
     {
+        requireNonNull(requestAuthorization, "requestAuthorization is null");
+        requireNonNull(requestDate, "requestDate is null");
         requireNonNull(requestUri, "requestUri is null");
         requireNonNull(requestHeaders, "requestHeaders is null");
         requireNonNull(requestQueryParameters, "requestQueryParameters is null");

@@ -84,7 +84,7 @@ public class TrinoS3ProxyServerModule
 
     protected void moduleSpecificBinding(Binder binder)
     {
-        newOptionalBinder(binder, SecurityFacadeProvider.class).setDefault().toInstance((_, _, _) -> (_, _) -> SecurityResponse.DEFAULT);
+        newOptionalBinder(binder, SecurityFacadeProvider.class).setDefault().toInstance(_ -> _ -> SecurityResponse.DEFAULT);
         binder.bind(RemoteS3Facade.class).to(VirtualHostStyleRemoteS3Facade.class).in(Scopes.SINGLETON);
     }
 

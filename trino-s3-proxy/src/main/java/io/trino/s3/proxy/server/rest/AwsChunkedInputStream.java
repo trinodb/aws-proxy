@@ -11,9 +11,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.trino.s3.proxy.server.signing;
+package io.trino.s3.proxy.server.rest;
 
 import com.google.common.base.Splitter;
+import io.trino.s3.proxy.server.signing.ChunkSigningSession;
 import org.apache.commons.httpclient.util.EncodingUtil;
 
 import java.io.ByteArrayOutputStream;

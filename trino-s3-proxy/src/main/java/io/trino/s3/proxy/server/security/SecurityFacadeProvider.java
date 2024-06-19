@@ -13,11 +13,8 @@
  */
 package io.trino.s3.proxy.server.security;
 
-import io.trino.s3.proxy.server.credentials.Credentials;
 import io.trino.s3.proxy.server.rest.ParsedS3Request;
 import jakarta.ws.rs.WebApplicationException;
-
-import java.util.Optional;
 
 public interface SecurityFacadeProvider
 {
@@ -25,6 +22,6 @@ public interface SecurityFacadeProvider
      * Return a validated/authenticated facade for the given request or
      * throw {@link jakarta.ws.rs.WebApplicationException}
      */
-    SecurityFacade securityFacadeForRequest(ParsedS3Request request, Credentials credentials, Optional<String> session)
+    SecurityFacade securityFacadeForRequest(ParsedS3Request request)
             throws WebApplicationException;
 }

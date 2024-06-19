@@ -28,5 +28,5 @@ public interface SecurityFacade
      * E.g. <a href="https://docs.aws.amazon.com/AmazonS3/latest/API/API_DeleteBucketIntelligentTieringConfiguration.html">DeleteBucketIntelligentTieringConfiguration</a>
      * {@code /?intelligent-tiering&id=Id} - the action is {@code intelligent-tiering}.
      */
-    SecurityResponse apply(Optional<String> lowercaseAction, String region);
+    SecurityResponse apply(Optional<String> lowercaseAction);
 }

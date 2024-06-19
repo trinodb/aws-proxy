@@ -30,15 +30,18 @@ import jakarta.ws.rs.core.MultivaluedMap;
 import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.UriBuilder;
 
+import java.io.InputStream;
 import java.lang.annotation.Retention;
 import java.lang.annotation.Target;
 import java.net.URI;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 import static com.google.common.util.concurrent.MoreExecutors.shutdownAndAwaitTermination;
+import static io.trino.s3.proxy.server.rest.RequestContent.ContentType.AWS_CHUNKED;
 import static io.trino.s3.proxy.server.signing.SigningController.formatRequestInstant;
 import static java.lang.annotation.ElementType.FIELD;
 import static java.lang.annotation.ElementType.METHOD;
@@ -80,10 +83,10 @@ public class TrinoS3ProxyClient
 
     public void proxyRequest(SigningMetadata signingMetadata, ParsedS3Request request, AsyncResponse asyncResponse)
     {
-        URI remoteUri = remoteS3Facade.buildEndpoint(uriBuilder(request.queryParameters()), request.keyInBucket(), request.bucketName(), signingMetadata.region());
+        URI remoteUri = remoteS3Facade.buildEndpoint(uriBuilder(request.queryParameters()), request.keyInBucket(), request.bucketName(), request.requestAuthorization().region());
 
         // TODO log/expose any securityController error
-        if (!securityController.apply(request, signingMetadata).canProceed()) {
+        if (!securityController.apply(request).canProceed()) {
             throw new WebApplicationException(Response.Status.UNAUTHORIZED);
         }
 
@@ -97,12 +100,13 @@ public class TrinoS3ProxyClient
         }
 
         MultivaluedMap<String, String> remoteRequestHeaders = new MultivaluedHashMap<>();
+        String targetXAmzDate = formatRequestInstant(Instant.now());
         request.lowercaseHeaders().forEach((key, value) -> {
             switch (key) {
                 case "x-amz-security-token" -> {}  // we add this below
                 case "authorization" -> {} // we will create our own authorization header
                 case "amz-sdk-invocation-id", "amz-sdk-request", "x-amz-decoded-content-length", "content-length", "content-encoding" -> {}   // don't send these
-                case "x-amz-date" -> remoteRequestHeaders.putSingle("X-Amz-Date", formatRequestInstant(Instant.now())); // use now for the remote request
+                case "x-amz-date" -> remoteRequestHeaders.putSingle("X-Amz-Date", targetXAmzDate); // use now for the remote request
                 case "host" -> remoteRequestHeaders.putSingle("Host", buildRemoteHost(remoteUri)); // replace source host with the remote AWS host
                 default -> remoteRequestHeaders.put(key, value);
             }
@@ -115,15 +119,24 @@ public class TrinoS3ProxyClient
 
         request.requestContent().contentLength().ifPresent(length -> remoteRequestHeaders.putSingle("content-length", Integer.toString(length)));
 
-        signingController.inputStreamForContent(request.requestContent(), signingMetadata, Credentials::emulated)
-                .ifPresent(inputStream -> {
-                    remoteRequestBuilder.setBodyGenerator(new StreamingBodyGenerator(inputStream));
-                    remoteRequestHeaders.putSingle("x-amz-content-sha256", "UNSIGNED-PAYLOAD");
-                });
+        Optional<InputStream> contentInputStream;
+        if (request.requestContent().contentType() != AWS_CHUNKED) {
+            contentInputStream = request.requestContent().inputStream();
+        }
+        else {
+            contentInputStream = request.requestContent().inputStream().map(inputStream -> new AwsChunkedInputStream(inputStream, Optional.of(signingMetadata.requiredSigningContext().chunkSigningSession())));
+        }
+
+        contentInputStream.ifPresent(inputStream -> {
+            remoteRequestBuilder.setBodyGenerator(new StreamingBodyGenerator(inputStream));
+            remoteRequestHeaders.putSingle("x-amz-content-sha256", "UNSIGNED-PAYLOAD");
+        });
 
         // set the new signed request auth header
         String signature = signingController.signRequest(
                 signingMetadata,
+                request.requestAuthorization().region(),
+                targetXAmzDate,
                 Credentials::requiredRemoteCredential,
                 remoteUri,
                 remoteRequestHeaders,

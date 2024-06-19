@@ -13,7 +13,13 @@
  */
 package io.trino.s3.proxy.server.signing;
 
-public interface SigningContext
+import static java.util.Objects.requireNonNull;
+
+public record SigningContext(RequestAuthorization signingAuthorization, ChunkSigningSession chunkSigningSession)
 {
-    String authorization();
+    public SigningContext
+    {
+        requireNonNull(signingAuthorization, "signingAuthorization is null");
+        requireNonNull(chunkSigningSession, "chunkSigningSession is null");
+    }
 }

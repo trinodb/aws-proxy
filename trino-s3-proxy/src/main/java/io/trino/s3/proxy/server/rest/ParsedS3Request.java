@@ -13,6 +13,7 @@
  */
 package io.trino.s3.proxy.server.rest;
 
+import io.trino.s3.proxy.server.signing.RequestAuthorization;
 import jakarta.ws.rs.core.MultivaluedMap;
 
 import java.util.Optional;
@@ -20,6 +21,8 @@ import java.util.Optional;
 import static java.util.Objects.requireNonNull;
 
 public record ParsedS3Request(
+        RequestAuthorization requestAuthorization,
+        String requestDate,
         String bucketName,
         String keyInBucket,
         MultivaluedMap<String, String> lowercaseHeaders,
@@ -30,6 +33,8 @@ public record ParsedS3Request(
 {
     public ParsedS3Request
     {
+        requireNonNull(requestAuthorization, "requestAuthorization is null");
+        requireNonNull(requestDate, "requestDate is null");
         requireNonNull(bucketName, "bucketName is null");
         requireNonNull(keyInBucket, "keyInBucket is null");
         requireNonNull(lowercaseHeaders, "lowercaseHeaders is null");

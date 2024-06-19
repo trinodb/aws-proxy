@@ -74,7 +74,7 @@ public class TestSecurityFacade
         assertThat(listObjectsResponse.contents()).isEmpty();
 
         // set facade that disallows list objects on bucket "one"
-        securityFacade.setDelegate((request, _, _) -> (_, _) -> {
+        securityFacade.setDelegate(request -> _ -> {
             if ("one".equals(request.bucketName()) && request.httpVerb().equalsIgnoreCase("get")) {
                 return new SecurityResponse(false, Optional.empty());
             }
