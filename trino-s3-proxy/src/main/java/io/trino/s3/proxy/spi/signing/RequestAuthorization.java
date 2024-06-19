@@ -11,7 +11,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.trino.s3.proxy.server.signing;
+package io.trino.s3.proxy.spi.signing;
 
 import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableMap;
@@ -39,7 +39,7 @@ public record RequestAuthorization(String authorization, String accessKey, Strin
         requireNonNull(securityToken, "securityToken is null");
     }
 
-    boolean isValid()
+    public boolean isValid()
     {
         return !lowercaseSignedHeaders.isEmpty() && !signature.isEmpty() && !accessKey.isEmpty() && !region.isEmpty();
     }

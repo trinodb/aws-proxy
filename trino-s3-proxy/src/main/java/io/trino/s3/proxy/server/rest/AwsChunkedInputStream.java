@@ -14,7 +14,7 @@
 package io.trino.s3.proxy.server.rest;
 
 import com.google.common.base.Splitter;
-import io.trino.s3.proxy.server.signing.ChunkSigningSession;
+import io.trino.s3.proxy.spi.signing.ChunkSigningSession;
 import org.apache.commons.httpclient.util.EncodingUtil;
 
 import java.io.ByteArrayOutputStream;

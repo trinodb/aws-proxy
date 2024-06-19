@@ -11,7 +11,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.trino.s3.proxy.server.collections;
+package io.trino.s3.proxy.spi.collections;
 
 import java.util.List;
 import java.util.Map;

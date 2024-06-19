@@ -11,18 +11,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.trino.s3.proxy.server.remote;
+package io.trino.s3.proxy.spi.credentials;
 
-import java.util.Optional;
+import java.time.Instant;
 
 import static java.util.Objects.requireNonNull;
 
-public record RemoteSessionRole(String region, String roleArn, Optional<String> externalId)
+public record EmulatedAssumedRole(Credential credential, String session, String arn, String roleId, Instant expiration)
 {
-    public RemoteSessionRole
+    public EmulatedAssumedRole
     {
-        requireNonNull(region, "region is null");
-        requireNonNull(roleArn, "roleArn is null");
-        requireNonNull(externalId, "externalId is null");
+        requireNonNull(credential, "credential is null");
+        requireNonNull(session, "session is null");
+        requireNonNull(arn, "arn is null");
+        requireNonNull(roleId, "roleId is null");
+        requireNonNull(expiration, "expiration is null");
     }
 }

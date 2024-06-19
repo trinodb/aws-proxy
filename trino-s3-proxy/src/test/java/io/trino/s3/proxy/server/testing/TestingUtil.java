@@ -14,8 +14,8 @@
 package io.trino.s3.proxy.server.testing;
 
 import com.google.inject.BindingAnnotation;
-import io.trino.s3.proxy.server.credentials.Credential;
-import io.trino.s3.proxy.server.credentials.Credentials;
+import io.trino.s3.proxy.spi.credentials.Credential;
+import io.trino.s3.proxy.spi.credentials.Credentials;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.S3ClientBuilder;

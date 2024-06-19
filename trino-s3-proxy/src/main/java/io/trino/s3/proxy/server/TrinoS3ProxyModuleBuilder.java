@@ -15,9 +15,9 @@ package io.trino.s3.proxy.server;
 
 import com.google.inject.Module;
 import com.google.inject.binder.LinkedBindingBuilder;
-import io.trino.s3.proxy.server.credentials.AssumedRoleProvider;
-import io.trino.s3.proxy.server.credentials.CredentialsProvider;
-import io.trino.s3.proxy.server.security.SecurityFacadeProvider;
+import io.trino.s3.proxy.spi.credentials.AssumedRoleProvider;
+import io.trino.s3.proxy.spi.credentials.CredentialsProvider;
+import io.trino.s3.proxy.spi.security.SecurityFacadeProvider;
 
 import java.util.Optional;
 import java.util.function.Consumer;

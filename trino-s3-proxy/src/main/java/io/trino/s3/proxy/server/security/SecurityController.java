@@ -15,7 +15,10 @@ package io.trino.s3.proxy.server.security;
 
 import com.google.common.base.Splitter;
 import com.google.inject.Inject;
-import io.trino.s3.proxy.server.rest.ParsedS3Request;
+import io.trino.s3.proxy.spi.rest.ParsedS3Request;
+import io.trino.s3.proxy.spi.security.SecurityFacade;
+import io.trino.s3.proxy.spi.security.SecurityFacadeProvider;
+import io.trino.s3.proxy.spi.security.SecurityResponse;
 
 import java.util.Locale;
 import java.util.Optional;

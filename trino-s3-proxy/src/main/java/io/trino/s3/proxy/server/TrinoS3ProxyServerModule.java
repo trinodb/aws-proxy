@@ -20,9 +20,7 @@ import com.google.inject.Provides;
 import com.google.inject.Scopes;
 import io.airlift.configuration.AbstractConfigurationAwareModule;
 import io.airlift.log.Logger;
-import io.trino.s3.proxy.server.credentials.AssumedRoleProvider;
 import io.trino.s3.proxy.server.credentials.CredentialsController;
-import io.trino.s3.proxy.server.credentials.CredentialsProvider;
 import io.trino.s3.proxy.server.remote.RemoteS3Facade;
 import io.trino.s3.proxy.server.remote.VirtualHostStyleRemoteS3Facade;
 import io.trino.s3.proxy.server.rest.TrinoS3ProxyClient;
@@ -31,11 +29,15 @@ import io.trino.s3.proxy.server.rest.TrinoS3ProxyConfig;
 import io.trino.s3.proxy.server.rest.TrinoS3ProxyResource;
 import io.trino.s3.proxy.server.rest.TrinoStsResource;
 import io.trino.s3.proxy.server.security.SecurityController;
-import io.trino.s3.proxy.server.security.SecurityFacadeProvider;
-import io.trino.s3.proxy.server.security.SecurityResponse;
-import io.trino.s3.proxy.server.signing.SigningController;
+import io.trino.s3.proxy.server.signing.InternalSigningController;
 import io.trino.s3.proxy.server.signing.SigningControllerConfig;
 import io.trino.s3.proxy.server.signing.SigningModule;
+import io.trino.s3.proxy.spi.TrinoS3ProxyServerPlugin;
+import io.trino.s3.proxy.spi.credentials.AssumedRoleProvider;
+import io.trino.s3.proxy.spi.credentials.CredentialsProvider;
+import io.trino.s3.proxy.spi.security.SecurityFacadeProvider;
+import io.trino.s3.proxy.spi.security.SecurityResponse;
+import io.trino.s3.proxy.spi.signing.SigningController;
 import org.glassfish.jersey.server.model.Resource;
 
 import java.util.Optional;
@@ -63,7 +65,7 @@ public class TrinoS3ProxyServerModule
         jaxrsBinder(binder).bind(TrinoStsResource.class);
         jaxrsBinder(binder).bindInstance(buildResourceAtPath(TrinoStsResource.class, builtConfig.getStsPath()));
 
-        binder.bind(SigningController.class).in(Scopes.SINGLETON);
+        binder.bind(SigningController.class).to(InternalSigningController.class).in(Scopes.SINGLETON);
         binder.bind(CredentialsController.class).in(Scopes.SINGLETON);
         binder.bind(SecurityController.class).in(Scopes.SINGLETON);
 

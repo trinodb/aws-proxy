@@ -11,15 +11,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.trino.s3.proxy.server.signing;
+package io.trino.s3.proxy.spi.security;
 
-public interface ChunkSigningSession
+import java.util.Optional;
+
+import static java.util.Objects.requireNonNull;
+
+public record SecurityResponse(boolean canProceed, Optional<String> error)
 {
-    void startChunk(String expectedSignature);
+    public static final SecurityResponse DEFAULT = new SecurityResponse(true, Optional.empty());
 
-    void complete();
-
-    void write(byte b);
-
-    void write(byte[] b, int off, int len);
+    public SecurityResponse
+    {
+        requireNonNull(error, "error is null");
+    }
 }

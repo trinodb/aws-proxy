@@ -11,12 +11,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.trino.s3.proxy.server.signing;
+package io.trino.s3.proxy.spi.signing;
 
-import io.trino.s3.proxy.server.collections.MultiMap;
-import io.trino.s3.proxy.server.credentials.Credential;
-import io.trino.s3.proxy.server.credentials.Credentials;
-import io.trino.s3.proxy.server.rest.Request;
+import io.trino.s3.proxy.spi.collections.MultiMap;
+import io.trino.s3.proxy.spi.credentials.Credential;
+import io.trino.s3.proxy.spi.credentials.Credentials;
+import io.trino.s3.proxy.spi.rest.Request;
 
 import java.net.URI;
 import java.time.Instant;

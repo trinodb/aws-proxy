@@ -14,7 +14,10 @@
 package io.trino.s3.proxy.server.signing;
 
 import io.airlift.log.Logger;
-import io.trino.s3.proxy.server.collections.MultiMap;
+import io.trino.s3.proxy.spi.collections.MultiMap;
+import io.trino.s3.proxy.spi.signing.ChunkSigningSession;
+import io.trino.s3.proxy.spi.signing.RequestAuthorization;
+import io.trino.s3.proxy.spi.signing.SigningContext;
 import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.core.Response;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;

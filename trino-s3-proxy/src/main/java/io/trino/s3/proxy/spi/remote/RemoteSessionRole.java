@@ -11,17 +11,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.trino.s3.proxy.server.security;
+package io.trino.s3.proxy.spi.remote;
 
-import io.trino.s3.proxy.server.rest.ParsedS3Request;
-import jakarta.ws.rs.WebApplicationException;
+import java.util.Optional;
 
-public interface SecurityFacadeProvider
+import static java.util.Objects.requireNonNull;
+
+public record RemoteSessionRole(String region, String roleArn, Optional<String> externalId)
 {
-    /**
-     * Return a validated/authenticated facade for the given request or
-     * throw {@link jakarta.ws.rs.WebApplicationException}
-     */
-    SecurityFacade securityFacadeForRequest(ParsedS3Request request)
-            throws WebApplicationException;
+    public RemoteSessionRole
+    {
+        requireNonNull(region, "region is null");
+        requireNonNull(roleArn, "roleArn is null");
+        requireNonNull(externalId, "externalId is null");
+    }
 }
