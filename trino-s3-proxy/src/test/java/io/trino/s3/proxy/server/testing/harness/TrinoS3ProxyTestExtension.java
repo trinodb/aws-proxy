@@ -15,14 +15,12 @@ package io.trino.s3.proxy.server.testing.harness;
 
 import com.google.inject.Injector;
 import com.google.inject.Key;
-import com.google.inject.Module;
 import com.google.inject.Scopes;
 import io.trino.s3.proxy.server.remote.RemoteS3Facade;
 import io.trino.s3.proxy.server.testing.ContainerS3Facade;
 import io.trino.s3.proxy.server.testing.ManagedS3MockContainer;
 import io.trino.s3.proxy.server.testing.ManagedS3MockContainer.ForS3MockContainer;
 import io.trino.s3.proxy.server.testing.TestingS3ClientProvider;
-import io.trino.s3.proxy.server.testing.TestingS3ClientProvider.ForS3ClientProvider;
 import io.trino.s3.proxy.server.testing.TestingTrinoS3ProxyServer;
 import io.trino.s3.proxy.server.testing.TestingUtil.ForTesting;
 import org.junit.jupiter.api.extension.ExtensionContext;
@@ -63,7 +61,6 @@ public class TrinoS3ProxyTestExtension
         TestingTrinoS3ProxyServer trinoS3ProxyServer = builder
                 .withMockS3Container()
                 .addModule(binder -> {
-                    newOptionalBinder(binder, Key.get(String.class, ForS3ClientProvider.class));
                     binder.bind(S3Client.class).annotatedWith(ForS3MockContainer.class).toProvider(ManagedS3MockContainer.class);
                     newOptionalBinder(binder, Key.get(RemoteS3Facade.class, ForTesting.class))
                             .setDefault()
@@ -75,6 +72,7 @@ public class TrinoS3ProxyTestExtension
 
         Injector injector = trinoS3ProxyServer.getInjector()
                 .createChildInjector(binder -> {
+                    binder.bind(TestingS3ClientProvider.TestingS3ClientConfig.class).in(Scopes.SINGLETON);
                     binder.bind(TestingS3ClientProvider.class).in(Scopes.SINGLETON);
                     binder.bind(S3Client.class).toProvider(TestingS3ClientProvider.class).in(Scopes.SINGLETON);
                     binder.bind(TestingTrinoS3ProxyServer.class).toInstance(trinoS3ProxyServer);
@@ -90,17 +88,6 @@ public class TrinoS3ProxyTestExtension
         TestingTrinoS3ProxyServer trinoS3ProxyServer = testingServersRegistry.remove(context.getUniqueId());
         if (trinoS3ProxyServer != null) {
             trinoS3ProxyServer.close();
-        }
-    }
-
-    @SuppressWarnings({"unchecked", "rawtypes"})
-    private static Module instantiateModule(Class moduleClass)
-    {
-        try {
-            return (Module) moduleClass.getConstructor().newInstance();
-        }
-        catch (Exception e) {
-            throw new RuntimeException("Could not instantiate module: " + moduleClass.getName(), e);
         }
     }
 

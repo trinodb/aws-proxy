@@ -15,6 +15,7 @@ package io.trino.s3.proxy.server.credentials;
 
 import com.google.inject.Inject;
 import io.airlift.http.server.testing.TestingHttpServer;
+import io.trino.s3.proxy.server.rest.TrinoS3ProxyConfig;
 import io.trino.s3.proxy.server.testing.TestingCredentialsRolesProvider;
 import io.trino.s3.proxy.server.testing.TestingUtil.ForTesting;
 import io.trino.s3.proxy.server.testing.harness.TrinoS3ProxyTest;
@@ -26,6 +27,7 @@ import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.ListBucketsResponse;
 import software.amazon.awssdk.services.s3.model.S3Exception;
 
+import java.net.URI;
 import java.util.Optional;
 
 import static io.trino.s3.proxy.server.testing.TestingUtil.clientBuilder;
@@ -39,15 +41,15 @@ public class TestAssumingRoles
     private static final String ARN = "test-arn";
 
     private final TestingCredentialsRolesProvider credentialsController;
-    private final TestingHttpServer httpServer;
+    private final URI localS3URI;
     private final Credentials testingCredentials;
 
     @Inject
-    public TestAssumingRoles(TestingCredentialsRolesProvider credentialsController, TestingHttpServer httpServer, @ForTesting Credentials testingCredentials)
+    public TestAssumingRoles(TestingCredentialsRolesProvider credentialsController, TestingHttpServer httpServer, @ForTesting Credentials testingCredentials, TrinoS3ProxyConfig trinoS3ProxyConfig)
     {
         this.credentialsController = requireNonNull(credentialsController, "credentialsController is null");
-        this.httpServer = requireNonNull(httpServer, "testingHttpServer is null");
         this.testingCredentials = requireNonNull(testingCredentials, "testingCredentials is null");
+        this.localS3URI = httpServer.getBaseUrl().resolve(trinoS3ProxyConfig.getS3Path());
     }
 
     @AfterEach
@@ -62,7 +64,7 @@ public class TestAssumingRoles
         EmulatedAssumedRole emulatedAssumedRole = credentialsController.assumeEmulatedRole(testingCredentials.emulated(), "us-east-1", ARN, Optional.empty(), Optional.empty(), Optional.empty())
                 .orElseThrow(() -> new RuntimeException("Failed to assume role"));
 
-        try (S3Client client = clientBuilder(httpServer.getBaseUrl())
+        try (S3Client client = clientBuilder(localS3URI)
                 .credentialsProvider(() -> AwsSessionCredentials.create(emulatedAssumedRole.credential().accessKey(), emulatedAssumedRole.credential().secretKey(), emulatedAssumedRole.session()))
                 .build()) {
             // valid assumed role session - should work

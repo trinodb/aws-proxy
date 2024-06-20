@@ -21,7 +21,7 @@ import io.airlift.http.server.testing.TestingHttpServer;
 import io.airlift.units.Duration;
 import io.trino.s3.proxy.server.credentials.Credential;
 import io.trino.s3.proxy.server.credentials.Credentials;
-import io.trino.s3.proxy.server.rest.TrinoS3ProxyRestConstants;
+import io.trino.s3.proxy.server.rest.TrinoS3ProxyConfig;
 import io.trino.s3.proxy.server.testing.ManagedS3MockContainer.ForS3MockContainer;
 import io.trino.s3.proxy.server.testing.TestingCredentialsRolesProvider;
 import io.trino.s3.proxy.server.testing.TestingTrinoS3ProxyServer;
@@ -100,9 +100,10 @@ public class TestGenericRestRequests
             TestingCredentialsRolesProvider credentialsRolesProvider,
             @ForTesting HttpClient httpClient,
             @ForTesting Credentials testingCredentials,
-            @ForS3MockContainer S3Client storageClient)
+            @ForS3MockContainer S3Client storageClient,
+            TrinoS3ProxyConfig trinoS3ProxyConfig)
     {
-        baseUri = httpServer.getBaseUrl();
+        baseUri = httpServer.getBaseUrl().resolve(trinoS3ProxyConfig.getS3Path());
         this.credentialsRolesProvider = requireNonNull(credentialsRolesProvider, "credentialsRolesProvider is null");
         this.httpClient = requireNonNull(httpClient, "httpClient is null");
         this.testingCredentials = requireNonNull(testingCredentials, "testingCredentials is null");
@@ -141,7 +142,6 @@ public class TestGenericRestRequests
     private StatusResponse doPutObject(String content, String sha256)
     {
         URI uri = UriBuilder.fromUri(baseUri)
-                .replacePath(TrinoS3ProxyRestConstants.S3_PATH)
                 .path("foo")
                 .path("bar")
                 .build();
@@ -167,7 +167,6 @@ public class TestGenericRestRequests
     private StatusResponse doAwsChunkedUpload(String content)
     {
         URI uri = UriBuilder.fromUri(baseUri)
-                .replacePath(TrinoS3ProxyRestConstants.S3_PATH)
                 .path("two")
                 .path("test")
                 .build();

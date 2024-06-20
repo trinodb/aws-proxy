@@ -35,6 +35,7 @@ import io.trino.s3.proxy.server.security.SecurityFacadeProvider;
 import io.trino.s3.proxy.server.security.SecurityResponse;
 import io.trino.s3.proxy.server.signing.SigningController;
 import io.trino.s3.proxy.server.signing.SigningControllerConfig;
+import org.glassfish.jersey.server.model.Resource;
 
 import java.util.Optional;
 import java.util.ServiceLoader;
@@ -52,11 +53,14 @@ public class TrinoS3ProxyServerModule
     @Override
     protected void setup(Binder binder)
     {
-        jaxrsBinder(binder).bind(TrinoS3ProxyResource.class);
-        jaxrsBinder(binder).bind(TrinoStsResource.class);
-
         configBinder(binder).bindConfig(SigningControllerConfig.class);
-        configBinder(binder).bindConfig(TrinoS3ProxyConfig.class);
+        TrinoS3ProxyConfig builtConfig = buildConfigObject(TrinoS3ProxyConfig.class);
+
+        jaxrsBinder(binder).bind(TrinoS3ProxyResource.class);
+        jaxrsBinder(binder).bindInstance(buildResourceAtPath(TrinoS3ProxyResource.class, builtConfig.getS3Path()));
+        jaxrsBinder(binder).bind(TrinoStsResource.class);
+        jaxrsBinder(binder).bindInstance(buildResourceAtPath(TrinoStsResource.class, builtConfig.getStsPath()));
+
         binder.bind(SigningController.class).in(Scopes.SINGLETON);
         binder.bind(CredentialsController.class).in(Scopes.SINGLETON);
         binder.bind(SecurityController.class).in(Scopes.SINGLETON);
@@ -95,5 +99,10 @@ public class TrinoS3ProxyServerModule
                     log.info("Loading plugin: %s", plugin.name());
                     install(plugin.module());
                 });
+    }
+
+    private static Resource buildResourceAtPath(Class<?> resourceClass, String resourcePathPrefix)
+    {
+        return Resource.builder(resourceClass).path(resourcePathPrefix).build();
     }
 }
