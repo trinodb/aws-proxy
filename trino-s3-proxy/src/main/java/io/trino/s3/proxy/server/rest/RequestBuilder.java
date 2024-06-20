@@ -27,6 +27,8 @@ import org.glassfish.jersey.server.ContainerRequest;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
@@ -69,7 +71,9 @@ class RequestBuilder
         Optional<String> rawQuery = Optional.ofNullable(request.requestUri().getRawQuery());
         RequestContent requestContent = request.requestContent();
 
-        return serverHostName
+        record BucketAndKey(String bucket, String rawKey) {}
+
+        BucketAndKey bucketAndKey = serverHostName
                 .flatMap(serverHostNameValue -> {
                     String lowercaseServerHostName = serverHostNameValue.toLowerCase(Locale.ROOT);
                     return Optional.ofNullable(headers.getFirst("host"))
@@ -78,14 +82,17 @@ class RequestBuilder
                             .map(value -> value.substring(0, value.length() - lowercaseServerHostName.length()))
                             .map(value -> value.endsWith(".") ? value.substring(0, value.length() - 1) : value);
                 })
-                .map(bucket -> new ParsedS3Request(request.requestAuthorization(), request.requestDate(), bucket, requestPath, headers, queryParameters, httpVerb, rawQuery, requestContent))
+                .map(bucket -> new BucketAndKey(bucket, requestPath))
                 .orElseGet(() -> {
                     List<String> parts = Splitter.on("/").limit(2).splitToList(requestPath);
                     if (parts.size() <= 1) {
-                        return new ParsedS3Request(request.requestAuthorization(), request.requestDate(), requestPath, "", headers, queryParameters, httpVerb, rawQuery, requestContent);
+                        return new BucketAndKey(requestPath, "");
                     }
-                    return new ParsedS3Request(request.requestAuthorization(), request.requestDate(), parts.get(0), parts.get(1), headers, queryParameters, httpVerb, rawQuery, requestContent);
+                    return new BucketAndKey(parts.get(0), parts.get(1));
                 });
+
+        String keyInBucket = URLDecoder.decode(bucketAndKey.rawKey, StandardCharsets.UTF_8);
+        return new ParsedS3Request(request.requestAuthorization(), request.requestDate(), bucketAndKey.bucket, keyInBucket, headers, queryParameters, httpVerb, bucketAndKey.rawKey, rawQuery, requestContent);
     }
 
     private static RequestContent buildRequestContent(ContainerRequest request)

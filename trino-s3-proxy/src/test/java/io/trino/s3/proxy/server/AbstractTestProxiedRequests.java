@@ -216,6 +216,21 @@ public abstract class AbstractTestProxiedRequests
         assertThat(deleteObjectResponse.sdkHttpResponse().statusCode()).isEqualTo(204);
     }
 
+    @Test
+    public void testPathsNeedingEscaping()
+    {
+        internalClient.createBucket(r -> r.bucket("escapes"));
+        internalClient.putObject(r -> r.bucket("escapes").key("a=1/b=2"), RequestBody.fromString("something"));
+        internalClient.putObject(r -> r.bucket("escapes").key("a=1%2Fb=2"), RequestBody.fromString("else"));
+
+        ListObjectsResponse listObjectsResponse = internalClient.listObjects(request -> request.bucket("escapes"));
+        assertThat(listObjectsResponse.contents()).extracting(S3Object::key).containsExactlyInAnyOrder("a=1/b=2", "a=1%2Fb=2");
+
+        internalClient.deleteObject(r -> r.bucket("escapes").key("a=1/b=2"));
+        internalClient.deleteObject(r -> r.bucket("escapes").key("a=1%2Fb=2"));
+        internalClient.deleteBucket(r -> r.bucket("escapes"));
+    }
+
     private static String buildLine(int partNumber)
     {
         // min multi-part is 5MB

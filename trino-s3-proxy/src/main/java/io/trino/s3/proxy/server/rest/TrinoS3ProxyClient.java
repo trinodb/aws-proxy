@@ -83,7 +83,7 @@ public class TrinoS3ProxyClient
 
     public void proxyRequest(SigningMetadata signingMetadata, ParsedS3Request request, AsyncResponse asyncResponse)
     {
-        URI remoteUri = remoteS3Facade.buildEndpoint(uriBuilder(request.queryParameters()), request.keyInBucket(), request.bucketName(), request.requestAuthorization().region());
+        URI remoteUri = remoteS3Facade.buildEndpoint(uriBuilder(request.queryParameters()), request.rawPath(), request.bucketName(), request.requestAuthorization().region());
 
         // TODO log/expose any securityController error
         if (!securityController.apply(request).canProceed()) {
