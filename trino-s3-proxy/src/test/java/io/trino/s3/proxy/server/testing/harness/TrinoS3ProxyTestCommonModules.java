@@ -20,7 +20,6 @@ import com.google.inject.multibindings.OptionalBinder;
 import io.trino.s3.proxy.server.remote.RemoteS3Facade;
 import io.trino.s3.proxy.server.testing.ContainerS3Facade;
 import io.trino.s3.proxy.server.testing.ManagedS3MockContainer.ForS3MockContainer;
-import io.trino.s3.proxy.server.testing.TestingS3ClientProvider.ForS3ClientProvider;
 import io.trino.s3.proxy.server.testing.TestingTrinoS3ProxyServer;
 import io.trino.s3.proxy.server.testing.TestingUtil.ForTesting;
 
@@ -66,10 +65,7 @@ public final class TrinoS3ProxyTestCommonModules
         @Override
         public TestingTrinoS3ProxyServer.Builder filter(TestingTrinoS3ProxyServer.Builder builder)
         {
-            return builder
-                    .withServerHostName(LOCALHOST_DOMAIN)
-                    .addModule(
-                            binder -> OptionalBinder.newOptionalBinder(binder, Key.get(String.class, ForS3ClientProvider.class)).setBinding().toInstance(LOCALHOST_DOMAIN));
+            return builder.withProperty("s3proxy.s3.hostname", LOCALHOST_DOMAIN);
         }
     }
 

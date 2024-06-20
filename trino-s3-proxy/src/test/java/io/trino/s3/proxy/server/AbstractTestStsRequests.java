@@ -13,14 +13,11 @@
  */
 package io.trino.s3.proxy.server;
 
-import com.google.inject.Inject;
 import io.airlift.http.server.testing.TestingHttpServer;
 import io.trino.s3.proxy.server.credentials.Credential;
 import io.trino.s3.proxy.server.credentials.Credentials;
 import io.trino.s3.proxy.server.credentials.CredentialsProvider;
-import io.trino.s3.proxy.server.rest.TrinoS3ProxyRestConstants;
-import io.trino.s3.proxy.server.testing.TestingUtil.ForTesting;
-import io.trino.s3.proxy.server.testing.harness.TrinoS3ProxyTest;
+import io.trino.s3.proxy.server.rest.TrinoS3ProxyConfig;
 import org.junit.jupiter.api.Test;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.endpoints.Endpoint;
@@ -36,18 +33,16 @@ import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.CompletableFuture.completedFuture;
 import static org.assertj.core.api.Assertions.assertThat;
 
-@TrinoS3ProxyTest
-public class TestStsRequests
+public abstract class AbstractTestStsRequests
 {
     private final StsClient stsClient;
     private final CredentialsProvider credentialsProvider;
 
-    @Inject
-    public TestStsRequests(@ForTesting Credentials testingCredentials, TestingHttpServer httpServer, CredentialsProvider credentialsProvider)
+    public AbstractTestStsRequests(Credentials testingCredentials, TestingHttpServer httpServer, CredentialsProvider credentialsProvider, TrinoS3ProxyConfig s3ProxyConfig)
     {
         this.credentialsProvider = requireNonNull(credentialsProvider, "credentialsProvider is null");
 
-        URI localProxyServerUri = httpServer.getBaseUrl().resolve(TrinoS3ProxyRestConstants.STS_PATH);
+        URI localProxyServerUri = httpServer.getBaseUrl().resolve(s3ProxyConfig.getStsPath());
         Endpoint endpoint = Endpoint.builder().url(localProxyServerUri).build();
 
         stsClient = StsClient.builder()

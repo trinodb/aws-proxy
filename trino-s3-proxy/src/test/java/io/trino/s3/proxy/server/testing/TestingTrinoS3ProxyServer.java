@@ -109,12 +109,6 @@ public final class TestingTrinoS3ProxyServer
             return this;
         }
 
-        public Builder withServerHostName(String serverHostName)
-        {
-            properties.put("s3proxy.hostname", serverHostName);
-            return this;
-        }
-
         public TestingTrinoS3ProxyServer buildAndStart()
         {
             return start(modules.build(), properties.buildKeepingLast());

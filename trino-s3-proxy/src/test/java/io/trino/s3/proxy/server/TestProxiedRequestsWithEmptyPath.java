@@ -23,8 +23,8 @@ import software.amazon.awssdk.services.s3.S3Client;
 
 import java.util.List;
 
-@TrinoS3ProxyTest(filters = {WithConfiguredBuckets.class, TestProxiedRequests.Filter.class})
-public class TestProxiedRequests
+@TrinoS3ProxyTest(filters = {WithConfiguredBuckets.class, TestProxiedRequestsWithEmptyPath.Filter.class})
+public class TestProxiedRequestsWithEmptyPath
         extends AbstractTestProxiedRequests
 {
     public static class Filter
@@ -33,12 +33,12 @@ public class TestProxiedRequests
         @Override
         public TestingTrinoS3ProxyServer.Builder filter(TestingTrinoS3ProxyServer.Builder builder)
         {
-            return builder.withProperty("s3proxy.s3.path", "/api/some/s3/path");
+            return builder.withProperty("s3proxy.s3.path", "");
         }
     }
 
     @Inject
-    public TestProxiedRequests(S3Client s3Client, @ForS3MockContainer S3Client storageClient, @ForS3MockContainer List<String> configuredBuckets)
+    public TestProxiedRequestsWithEmptyPath(S3Client s3Client, @ForS3MockContainer S3Client storageClient, @ForS3MockContainer List<String> configuredBuckets)
     {
         super(s3Client, storageClient, configuredBuckets);
     }

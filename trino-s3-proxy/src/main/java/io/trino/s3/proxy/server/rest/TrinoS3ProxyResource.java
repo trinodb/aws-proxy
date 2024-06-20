@@ -33,7 +33,6 @@ import java.util.Optional;
 import static io.trino.s3.proxy.server.rest.RequestBuilder.fromRequest;
 import static java.util.Objects.requireNonNull;
 
-@Path(TrinoS3ProxyRestConstants.S3_PATH)
 public class TrinoS3ProxyResource
 {
     private final SigningController signingController;
@@ -45,7 +44,7 @@ public class TrinoS3ProxyResource
     {
         this.signingController = requireNonNull(signingController, "signingController is null");
         this.proxyClient = requireNonNull(proxyClient, "proxyClient is null");
-        this.serverHostName = requireNonNull(trinoS3ProxyConfig, "restConfig is null").getHostName();
+        this.serverHostName = trinoS3ProxyConfig.getS3HostName();
     }
 
     @GET

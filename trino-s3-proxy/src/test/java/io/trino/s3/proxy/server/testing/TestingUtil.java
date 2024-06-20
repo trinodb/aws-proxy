@@ -16,7 +16,6 @@ package io.trino.s3.proxy.server.testing;
 import com.google.inject.BindingAnnotation;
 import io.trino.s3.proxy.server.credentials.Credential;
 import io.trino.s3.proxy.server.credentials.Credentials;
-import io.trino.s3.proxy.server.rest.TrinoS3ProxyRestConstants;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.S3ClientBuilder;
@@ -24,6 +23,7 @@ import software.amazon.awssdk.services.s3.S3ClientBuilder;
 import java.lang.annotation.Retention;
 import java.lang.annotation.Target;
 import java.net.URI;
+import java.util.Optional;
 import java.util.UUID;
 
 import static java.lang.annotation.ElementType.FIELD;
@@ -47,8 +47,12 @@ public final class TestingUtil
 
     public static S3ClientBuilder clientBuilder(URI baseUrl)
     {
-        URI localProxyServerUri = baseUrl.resolve(TrinoS3ProxyRestConstants.S3_PATH);
+        return clientBuilder(baseUrl, Optional.empty());
+    }
 
+    public static S3ClientBuilder clientBuilder(URI baseUrl, Optional<String> urlPath)
+    {
+        URI localProxyServerUri = urlPath.map(baseUrl::resolve).orElse(baseUrl);
         return S3Client.builder()
                 .region(Region.US_EAST_1)
                 .endpointOverride(localProxyServerUri);

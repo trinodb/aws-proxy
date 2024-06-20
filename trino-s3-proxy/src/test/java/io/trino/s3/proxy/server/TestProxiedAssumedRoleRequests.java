@@ -16,7 +16,7 @@ package io.trino.s3.proxy.server;
 import com.google.inject.Inject;
 import io.airlift.http.server.testing.TestingHttpServer;
 import io.trino.s3.proxy.server.credentials.Credentials;
-import io.trino.s3.proxy.server.rest.TrinoS3ProxyRestConstants;
+import io.trino.s3.proxy.server.rest.TrinoS3ProxyConfig;
 import io.trino.s3.proxy.server.testing.ManagedS3MockContainer.ForS3MockContainer;
 import io.trino.s3.proxy.server.testing.TestingCredentialsRolesProvider;
 import io.trino.s3.proxy.server.testing.TestingUtil.ForTesting;
@@ -51,9 +51,10 @@ public class TestProxiedAssumedRoleRequests
             @ForTesting Credentials testingCredentials,
             TestingCredentialsRolesProvider credentialsController,
             @ForS3MockContainer S3Client storageClient,
-            @ForS3MockContainer List<String> configuredBuckets)
+            @ForS3MockContainer List<String> configuredBuckets,
+            TrinoS3ProxyConfig trinoS3ProxyConfig)
     {
-        this(buildClient(httpServer, testingCredentials), testingCredentials, credentialsController, storageClient, configuredBuckets);
+        this(buildClient(httpServer, testingCredentials, trinoS3ProxyConfig.getS3Path(), trinoS3ProxyConfig.getStsPath()), testingCredentials, credentialsController, storageClient, configuredBuckets);
     }
 
     protected TestProxiedAssumedRoleRequests(
@@ -75,11 +76,11 @@ public class TestProxiedAssumedRoleRequests
         credentialsController.resetAssumedRoles();
     }
 
-    protected static S3Client buildClient(TestingHttpServer httpServer, Credentials credentials)
+    protected static S3Client buildClient(TestingHttpServer httpServer, Credentials credentials, String s3Path, String stsPath)
     {
         URI baseUrl = httpServer.getBaseUrl();
-        URI localProxyServerUri = baseUrl.resolve(TrinoS3ProxyRestConstants.S3_PATH);
-        URI localStsServerUri = baseUrl.resolve(TrinoS3ProxyRestConstants.STS_PATH);
+        URI localProxyServerUri = baseUrl.resolve(s3Path);
+        URI localStsServerUri = baseUrl.resolve(stsPath);
 
         AwsBasicCredentials awsBasicCredentials = AwsBasicCredentials.create(credentials.emulated().accessKey(), credentials.emulated().secretKey());
 

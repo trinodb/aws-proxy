@@ -16,6 +16,7 @@ package io.trino.s3.proxy.server;
 import com.google.inject.Inject;
 import io.airlift.http.server.testing.TestingHttpServer;
 import io.trino.s3.proxy.server.credentials.Credentials;
+import io.trino.s3.proxy.server.rest.TrinoS3ProxyConfig;
 import io.trino.s3.proxy.server.testing.ManagedS3MockContainer.ForS3MockContainer;
 import io.trino.s3.proxy.server.testing.TestingCredentialsRolesProvider;
 import io.trino.s3.proxy.server.testing.TestingTrinoS3ProxyServerModule.ForTestingRemoteCredentials;
@@ -34,8 +35,9 @@ public class TestProxiedEmulatedAndRemoteAssumedRoleRequests
             TestingCredentialsRolesProvider credentialsController,
             @ForS3MockContainer S3Client storageClient,
             @ForS3MockContainer List<String> configuredBuckets,
-            @ForTestingRemoteCredentials Credentials remoteCredentials)
+            @ForTestingRemoteCredentials Credentials remoteCredentials,
+            TrinoS3ProxyConfig trinoS3ProxyConfig)
     {
-        super(buildClient(httpServer, remoteCredentials), testingCredentials, credentialsController, storageClient, configuredBuckets);
+        super(buildClient(httpServer, remoteCredentials, trinoS3ProxyConfig.getS3Path(), trinoS3ProxyConfig.getStsPath()), testingCredentials, credentialsController, storageClient, configuredBuckets);
     }
 }

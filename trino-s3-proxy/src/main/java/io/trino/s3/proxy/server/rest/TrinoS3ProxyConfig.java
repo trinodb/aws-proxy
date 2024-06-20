@@ -21,19 +21,49 @@ import java.util.Optional;
 
 public class TrinoS3ProxyConfig
 {
-    private Optional<String> hostName = Optional.empty();
+    private Optional<String> s3HostName = Optional.empty();
+    private String s3Path = "/api/v1/s3Proxy/s3";
+    private String stsPath = "/api/v1/s3Proxy/sts";
 
-    @Config("s3proxy.hostname")
-    @ConfigDescription("Hostname to use for REST operations, virtual-host style addressing is only supported if this is set")
-    public TrinoS3ProxyConfig setHostName(String hostName)
+    @Config("s3proxy.s3.hostname")
+    @ConfigDescription("Hostname to use for S3 REST operations, virtual-host style addressing is only supported if this is set")
+    public TrinoS3ProxyConfig setS3HostName(String s3HostName)
     {
-        this.hostName = Optional.ofNullable(hostName);
+        this.s3HostName = Optional.ofNullable(s3HostName);
         return this;
     }
 
     @NotNull
-    public Optional<String> getHostName()
+    public Optional<String> getS3HostName()
     {
-        return hostName;
+        return s3HostName;
+    }
+
+    @Config("s3proxy.s3.path")
+    @ConfigDescription("URL Path for S3 operations, optional")
+    public TrinoS3ProxyConfig setS3Path(String s3Path)
+    {
+        this.s3Path = s3Path;
+        return this;
+    }
+
+    @NotNull
+    public String getS3Path()
+    {
+        return s3Path;
+    }
+
+    @Config("s3proxy.sts.path")
+    @ConfigDescription("URL Path for STS operations, optional")
+    public TrinoS3ProxyConfig setStsPath(String stsPath)
+    {
+        this.stsPath = stsPath;
+        return this;
+    }
+
+    @NotNull
+    public String getStsPath()
+    {
+        return stsPath;
     }
 }

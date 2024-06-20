@@ -14,18 +14,18 @@
 package io.trino.s3.proxy.server;
 
 import com.google.inject.Inject;
-import io.trino.s3.proxy.server.testing.ManagedS3MockContainer.ForS3MockContainer;
+import io.airlift.http.server.testing.TestingHttpServer;
+import io.trino.s3.proxy.server.credentials.Credentials;
+import io.trino.s3.proxy.server.credentials.CredentialsProvider;
+import io.trino.s3.proxy.server.rest.TrinoS3ProxyConfig;
 import io.trino.s3.proxy.server.testing.TestingTrinoS3ProxyServer;
+import io.trino.s3.proxy.server.testing.TestingUtil.ForTesting;
 import io.trino.s3.proxy.server.testing.harness.BuilderFilter;
 import io.trino.s3.proxy.server.testing.harness.TrinoS3ProxyTest;
-import io.trino.s3.proxy.server.testing.harness.TrinoS3ProxyTestCommonModules.WithConfiguredBuckets;
-import software.amazon.awssdk.services.s3.S3Client;
 
-import java.util.List;
-
-@TrinoS3ProxyTest(filters = {WithConfiguredBuckets.class, TestProxiedRequests.Filter.class})
-public class TestProxiedRequests
-        extends AbstractTestProxiedRequests
+@TrinoS3ProxyTest(filters = TestStsRequestsWithEmptyPath.Filter.class)
+public class TestStsRequestsWithEmptyPath
+        extends AbstractTestStsRequests
 {
     public static class Filter
             implements BuilderFilter
@@ -33,13 +33,13 @@ public class TestProxiedRequests
         @Override
         public TestingTrinoS3ProxyServer.Builder filter(TestingTrinoS3ProxyServer.Builder builder)
         {
-            return builder.withProperty("s3proxy.s3.path", "/api/some/s3/path");
+            return builder.withProperty("s3proxy.sts.path", "");
         }
     }
 
     @Inject
-    public TestProxiedRequests(S3Client s3Client, @ForS3MockContainer S3Client storageClient, @ForS3MockContainer List<String> configuredBuckets)
+    public TestStsRequestsWithEmptyPath(@ForTesting Credentials testingCredentials, TestingHttpServer httpServer, CredentialsProvider credentialsProvider, TrinoS3ProxyConfig s3ProxyConfig)
     {
-        super(s3Client, storageClient, configuredBuckets);
+        super(testingCredentials, httpServer, credentialsProvider, s3ProxyConfig);
     }
 }
