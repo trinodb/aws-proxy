@@ -135,6 +135,7 @@ public class TrinoS3ProxyResource
             throw new WebApplicationException(Response.Status.NOT_FOUND);
         }
         path = path.substring(s3Path.length());
+
         if (path.isEmpty()) {
             path = "/";
         }
