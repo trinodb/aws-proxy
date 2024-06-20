@@ -43,6 +43,7 @@ import java.util.ServiceLoader;
 import static com.google.inject.multibindings.OptionalBinder.newOptionalBinder;
 import static io.airlift.configuration.ConfigBinder.configBinder;
 import static io.airlift.http.client.HttpClientBinder.httpClientBinder;
+import static io.airlift.http.server.HttpServerBinder.httpServerBinder;
 import static io.airlift.jaxrs.JaxrsBinder.jaxrsBinder;
 
 public class TrinoS3ProxyServerModule
@@ -68,6 +69,9 @@ public class TrinoS3ProxyServerModule
         // TODO config, etc.
         httpClientBinder(binder).bindHttpClient("ProxyClient", ForProxyClient.class);
         binder.bind(TrinoS3ProxyClient.class).in(Scopes.SINGLETON);
+
+        // deprecation is removed in next release of Airlift
+        httpServerBinder(binder).enableLegacyUriCompliance();
 
         newOptionalBinder(binder, CredentialsProvider.class).setDefault().toInstance((_, _) -> Optional.empty());
         newOptionalBinder(binder, AssumedRoleProvider.class).setDefault().toInstance((_, _, _, _, _, _) -> Optional.empty());
