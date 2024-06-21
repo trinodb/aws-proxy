@@ -146,7 +146,7 @@ final class Signer
     {
         RequestAuthorization requestAuthorization = RequestAuthorization.parse(authorization);
         if (!requestAuthorization.isValid()) {
-            // TODO logging, etc.
+            log.debug("Invalid RequestAuthorization. RequestAuthorization: %s", requestAuthorization);
             throw new WebApplicationException(Response.Status.BAD_REQUEST);
         }
         ChunkSigner chunkSigner = new ChunkSigner(requestDate, requestAuthorization.keyPath(), signingKey);

@@ -14,6 +14,7 @@
 package io.trino.s3.proxy.server.credentials;
 
 import com.google.inject.Inject;
+import io.airlift.log.Logger;
 import io.trino.s3.proxy.server.remote.RemoteS3Facade;
 import io.trino.s3.proxy.spi.credentials.Credential;
 import io.trino.s3.proxy.spi.credentials.Credentials;
@@ -43,6 +44,8 @@ import static java.util.concurrent.CompletableFuture.completedFuture;
 
 public class CredentialsController
 {
+    private static final Logger log = Logger.get(CredentialsController.class);
+
     private final RemoteS3Facade remoteS3Facade;
     private final CredentialsProvider credentialsProvider;
     private final Map<String, Session> remoteSessions = new ConcurrentHashMap<>();
@@ -132,10 +135,15 @@ public class CredentialsController
     @SuppressWarnings("resource")
     public <T> Optional<T> withCredentials(String emulatedAccessKey, Optional<String> emulatedSessionToken, Function<Credentials, Optional<T>> credentialsConsumer)
     {
-        return credentialsProvider.credentials(emulatedAccessKey, emulatedSessionToken)
+        Optional<T> result = credentialsProvider.credentials(emulatedAccessKey, emulatedSessionToken)
                 .flatMap(credentials -> credentials.remoteSessionRole()
                         .flatMap(remoteSessionRole -> internalRemoteSession(remoteSessionRole, credentials).withUsage(credentials, credentialsConsumer))
                         .or(() -> credentialsConsumer.apply(credentials)));
+
+        result.ifPresentOrElse(_ -> log.debug("Credentials found. EmulatedAccessKey: %s", emulatedAccessKey),
+                () -> log.debug("Credentials not found. EmulatedAccessKey: %s", emulatedAccessKey));
+
+        return result;
     }
 
     private Session internalRemoteSession(RemoteSessionRole remoteSessionRole, Credentials credentials)
