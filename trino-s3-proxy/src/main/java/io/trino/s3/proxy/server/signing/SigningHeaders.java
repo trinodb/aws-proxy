@@ -14,7 +14,8 @@
 package io.trino.s3.proxy.server.signing;
 
 import com.google.common.collect.ImmutableSet;
-import jakarta.ws.rs.core.MultivaluedMap;
+import io.trino.s3.proxy.server.collections.ImmutableMultiMap;
+import io.trino.s3.proxy.server.collections.MultiMap;
 
 import java.util.HashSet;
 import java.util.List;
@@ -22,14 +23,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.function.BiFunction;
 import java.util.stream.Stream;
-
-import static com.google.common.collect.ImmutableList.toImmutableList;
-import static com.google.common.collect.ImmutableSet.toImmutableSet;
-import static io.trino.s3.proxy.server.collections.MultiMapHelper.lowercase;
-import static io.trino.s3.proxy.server.signing.SigningController.Mode.UNADJUSTED_HEADERS;
-import static java.util.Objects.requireNonNull;
 
 final class SigningHeaders
 {
@@ -42,31 +36,26 @@ final class SigningHeaders
             "user-agent",
             "connection");
 
-    private static final Set<String> LOWERCASE_HEADERS = ImmutableSet.of("content-type");
-
-    private final MultivaluedMap<String, String> lowercaseHeaders;
+    private final MultiMap headers;
     private final Set<String> lowercaseHeadersToSign;
 
-    private SigningHeaders(MultivaluedMap<String, String> lowercaseHeaders, Set<String> lowercaseHeadersToSign)
+    private SigningHeaders(MultiMap headers, Set<String> lowercaseHeadersToSign)
     {
-        this.lowercaseHeaders = requireNonNull(lowercaseHeaders, "lowercaseHeaders is null");
-        this.lowercaseHeadersToSign = requireNonNull(lowercaseHeadersToSign, "lowercaseHeadersToSign is null");
+        this.headers = ImmutableMultiMap.copyOf(headers);
+        this.lowercaseHeadersToSign = ImmutableSet.copyOf(lowercaseHeadersToSign);
     }
 
-    static SigningHeaders build(MultivaluedMap<String, String> requestHeaders)
+    static SigningHeaders build(MultiMap requestHeaders)
     {
-        MultivaluedMap<String, String> lowercaseHeaders = buildLowercaseHeaders(UNADJUSTED_HEADERS, requestHeaders);
-
-        Set<String> lowercaseHeadersToSign = new HashSet<>(lowercaseHeaders.keySet());
+        Set<String> lowercaseHeadersToSign = new HashSet<>(requestHeaders.keySet());
         lowercaseHeadersToSign.removeAll(IGNORED_HEADERS);
 
-        return new SigningHeaders(lowercaseHeaders, ImmutableSet.copyOf(lowercaseHeadersToSign));
+        return new SigningHeaders(requestHeaders, ImmutableSet.copyOf(lowercaseHeadersToSign));
     }
 
-    static SigningHeaders build(SigningController.Mode mode, MultivaluedMap<String, String> lowercaseHeaders, Set<String> headersToSign)
+    static SigningHeaders build(MultiMap requestHeaders, Set<String> lowercaseHeadersToSign)
     {
-        Set<String> lowercaseHeadersToSign = headersToSign.stream().map(header -> header.toLowerCase(Locale.ROOT)).collect(toImmutableSet());
-        return new SigningHeaders(buildLowercaseHeaders(mode, lowercaseHeaders), lowercaseHeadersToSign);
+        return new SigningHeaders(requestHeaders, lowercaseHeadersToSign);
     }
 
     boolean hasHeaderToSign(String name)
@@ -76,25 +65,12 @@ final class SigningHeaders
 
     Stream<Map.Entry<String, List<String>>> lowercaseHeadersToSign()
     {
-        return lowercaseHeaders.entrySet().stream()
+        return headers.entrySet().stream()
                 .filter(entry -> lowercaseHeadersToSign.contains(entry.getKey()));
     }
 
     Optional<String> getFirst(String lowercaseHeader)
     {
-        return Optional.ofNullable(lowercaseHeaders.getFirst(lowercaseHeader));
-    }
-
-    private static MultivaluedMap<String, String> buildLowercaseHeaders(SigningController.Mode mode, MultivaluedMap<String, String> headers)
-    {
-        BiFunction<String, List<String>, List<String>> lowercaseHeaderValues = (key, values) -> {
-            // mode == UNADJUSTED_HEADERS is temp until airlift is fixed
-            if ((mode == UNADJUSTED_HEADERS) || !LOWERCASE_HEADERS.contains(key)) {
-                return values;
-            }
-            return values.stream().map(value -> value.toLowerCase(Locale.ROOT)).collect(toImmutableList());
-        };
-
-        return lowercase(headers, lowercaseHeaderValues);
+        return headers.getFirst(lowercaseHeader);
     }
 }

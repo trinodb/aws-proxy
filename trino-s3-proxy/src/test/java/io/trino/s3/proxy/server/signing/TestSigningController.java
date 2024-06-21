@@ -14,14 +14,13 @@
 package io.trino.s3.proxy.server.signing;
 
 import io.airlift.units.Duration;
+import io.trino.s3.proxy.server.collections.ImmutableMultiMap;
 import io.trino.s3.proxy.server.credentials.Credential;
 import io.trino.s3.proxy.server.credentials.Credentials;
 import io.trino.s3.proxy.server.credentials.CredentialsController;
 import io.trino.s3.proxy.server.credentials.CredentialsProvider;
 import io.trino.s3.proxy.server.testing.TestingRemoteS3Facade;
 import jakarta.ws.rs.WebApplicationException;
-import jakarta.ws.rs.core.MultivaluedHashMap;
-import jakarta.ws.rs.core.MultivaluedMap;
 import org.junit.jupiter.api.Test;
 
 import java.net.URI;
@@ -43,14 +42,14 @@ public class TestSigningController
     public void testRootLs()
     {
         // values discovered from an AWS CLI request sent to a dummy local HTTP server
-        MultivaluedMap<String, String> requestHeaders = new MultivaluedHashMap<>();
+        ImmutableMultiMap.Builder requestHeadersBuilder = ImmutableMultiMap.builder(false);
         String xAmzDate = "20240516T024511Z";
-        requestHeaders.putSingle("X-Amz-Date", xAmzDate);
-        requestHeaders.putSingle("X-Amz-Content-SHA256", "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855");
-        requestHeaders.putSingle("X-Amz-Security-Token", "FwoGZXIvYXdzEP3//////////wEaDG79rlcAjsgKPP9N3SKIAu7/Zvngne5Ov6kGrDcIIPUZYkGpwNbj8zNnbWgOhiqmOCM3hrk4NuH17mP5n3nC7urlXZxaTCywKpAHpO3YsvLXcwjlfaYFA0Au4oejwSbU9ybIlzPzrqz7lVesgCfJOV+rj5F5UAh19d7RpRpA6Vy4nxGBTTlCNIVbkW9fp2Esql2/vsdh77rAG+j+BQegtegDCKBfen4gHMdvEOF6hyc4ne43eLXjpvUKxBgpI9MjOHtNHrDbOOBFXDDyknoESgE9Hsm12nDuVQhwrI/hhA4YB/MSIpl4FTgVs2sQP3K+v65tmyvIlpL6O78S6spMM9Tv/F4JLtksTzb90w46uZk9sxKC/RBkRijisM6tBjIrr/0znxnW3i5ggGAX4H/Z3aWlxSdzNs2UGWtqig9Plp3Xa9gG+zCKcXmDAA==");
-        requestHeaders.putSingle("Host", "localhost:10064");
-        requestHeaders.putSingle("User-Agent", "aws-cli/2.15.16 Python/3.11.7 Darwin/22.6.0 source/x86_64 prompt/off command/s3.ls");
-        requestHeaders.putSingle("Accept-Encoding", "identity");
+        requestHeadersBuilder.putOrReplaceSingle("X-Amz-Date", xAmzDate);
+        requestHeadersBuilder.putOrReplaceSingle("X-Amz-Content-SHA256", "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855");
+        requestHeadersBuilder.putOrReplaceSingle("X-Amz-Security-Token", "FwoGZXIvYXdzEP3//////////wEaDG79rlcAjsgKPP9N3SKIAu7/Zvngne5Ov6kGrDcIIPUZYkGpwNbj8zNnbWgOhiqmOCM3hrk4NuH17mP5n3nC7urlXZxaTCywKpAHpO3YsvLXcwjlfaYFA0Au4oejwSbU9ybIlzPzrqz7lVesgCfJOV+rj5F5UAh19d7RpRpA6Vy4nxGBTTlCNIVbkW9fp2Esql2/vsdh77rAG+j+BQegtegDCKBfen4gHMdvEOF6hyc4ne43eLXjpvUKxBgpI9MjOHtNHrDbOOBFXDDyknoESgE9Hsm12nDuVQhwrI/hhA4YB/MSIpl4FTgVs2sQP3K+v65tmyvIlpL6O78S6spMM9Tv/F4JLtksTzb90w46uZk9sxKC/RBkRijisM6tBjIrr/0znxnW3i5ggGAX4H/Z3aWlxSdzNs2UGWtqig9Plp3Xa9gG+zCKcXmDAA==");
+        requestHeadersBuilder.putOrReplaceSingle("Host", "localhost:10064");
+        requestHeadersBuilder.putOrReplaceSingle("User-Agent", "aws-cli/2.15.16 Python/3.11.7 Darwin/22.6.0 source/x86_64 prompt/off command/s3.ls");
+        requestHeadersBuilder.putOrReplaceSingle("Accept-Encoding", "identity");
 
         String signature = signingController.signRequest(
                 new SigningMetadata(SigningServiceType.S3, CREDENTIALS, Optional.empty()),
@@ -58,8 +57,8 @@ public class TestSigningController
                 xAmzDate,
                 Credentials::emulated,
                 URI.create("http://localhost:10064/"),
-                requestHeaders,
-                new MultivaluedHashMap<>(),
+                requestHeadersBuilder.build(),
+                ImmutableMultiMap.empty(),
                 "GET");
 
         assertThat(signature).isEqualTo("AWS4-HMAC-SHA256 Credential=THIS_IS_AN_ACCESS_KEY/20240516/us-east-1/s3/aws4_request, SignedHeaders=host;x-amz-content-sha256;x-amz-date;x-amz-security-token, Signature=9a19c251bf4e1533174e80da59fa57c65b3149b611ec9a4104f6944767c25704");
@@ -71,14 +70,14 @@ public class TestSigningController
         SigningController signingController = new SigningController(credentialsController, new SigningControllerConfig().setMaxClockDrift(new Duration(1, TimeUnit.MINUTES)));
 
         // values discovered from an AWS CLI request sent to a dummy local HTTP server
-        MultivaluedMap<String, String> requestHeaders = new MultivaluedHashMap<>();
+        ImmutableMultiMap.Builder requestHeadersBuilder = ImmutableMultiMap.builder(false);
         String xAmzDate = "20240516T024511Z";
-        requestHeaders.putSingle("X-Amz-Date", xAmzDate);
-        requestHeaders.putSingle("X-Amz-Content-SHA256", "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855");
-        requestHeaders.putSingle("X-Amz-Security-Token", "FwoGZXIvYXdzEP3//////////wEaDG79rlcAjsgKPP9N3SKIAu7/Zvngne5Ov6kGrDcIIPUZYkGpwNbj8zNnbWgOhiqmOCM3hrk4NuH17mP5n3nC7urlXZxaTCywKpAHpO3YsvLXcwjlfaYFA0Au4oejwSbU9ybIlzPzrqz7lVesgCfJOV+rj5F5UAh19d7RpRpA6Vy4nxGBTTlCNIVbkW9fp2Esql2/vsdh77rAG+j+BQegtegDCKBfen4gHMdvEOF6hyc4ne43eLXjpvUKxBgpI9MjOHtNHrDbOOBFXDDyknoESgE9Hsm12nDuVQhwrI/hhA4YB/MSIpl4FTgVs2sQP3K+v65tmyvIlpL6O78S6spMM9Tv/F4JLtksTzb90w46uZk9sxKC/RBkRijisM6tBjIrr/0znxnW3i5ggGAX4H/Z3aWlxSdzNs2UGWtqig9Plp3Xa9gG+zCKcXmDAA==");
-        requestHeaders.putSingle("Host", "localhost:10064");
-        requestHeaders.putSingle("User-Agent", "aws-cli/2.15.16 Python/3.11.7 Darwin/22.6.0 source/x86_64 prompt/off command/s3.ls");
-        requestHeaders.putSingle("Accept-Encoding", "identity");
+        requestHeadersBuilder.putOrReplaceSingle("X-Amz-Date", xAmzDate);
+        requestHeadersBuilder.putOrReplaceSingle("X-Amz-Content-SHA256", "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855");
+        requestHeadersBuilder.putOrReplaceSingle("X-Amz-Security-Token", "FwoGZXIvYXdzEP3//////////wEaDG79rlcAjsgKPP9N3SKIAu7/Zvngne5Ov6kGrDcIIPUZYkGpwNbj8zNnbWgOhiqmOCM3hrk4NuH17mP5n3nC7urlXZxaTCywKpAHpO3YsvLXcwjlfaYFA0Au4oejwSbU9ybIlzPzrqz7lVesgCfJOV+rj5F5UAh19d7RpRpA6Vy4nxGBTTlCNIVbkW9fp2Esql2/vsdh77rAG+j+BQegtegDCKBfen4gHMdvEOF6hyc4ne43eLXjpvUKxBgpI9MjOHtNHrDbOOBFXDDyknoESgE9Hsm12nDuVQhwrI/hhA4YB/MSIpl4FTgVs2sQP3K+v65tmyvIlpL6O78S6spMM9Tv/F4JLtksTzb90w46uZk9sxKC/RBkRijisM6tBjIrr/0znxnW3i5ggGAX4H/Z3aWlxSdzNs2UGWtqig9Plp3Xa9gG+zCKcXmDAA==");
+        requestHeadersBuilder.putOrReplaceSingle("Host", "localhost:10064");
+        requestHeadersBuilder.putOrReplaceSingle("User-Agent", "aws-cli/2.15.16 Python/3.11.7 Darwin/22.6.0 source/x86_64 prompt/off command/s3.ls");
+        requestHeadersBuilder.putOrReplaceSingle("Accept-Encoding", "identity");
 
         assertThatThrownBy(() -> signingController.signRequest(
                 new SigningMetadata(SigningServiceType.S3, CREDENTIALS, Optional.empty()),
@@ -86,8 +85,8 @@ public class TestSigningController
                 xAmzDate,
                 Credentials::emulated,
                 URI.create("http://localhost:10064/"),
-                requestHeaders,
-                new MultivaluedHashMap<>(),
+                requestHeadersBuilder.build(),
+                ImmutableMultiMap.empty(),
                 "GET"
         )).isInstanceOf(WebApplicationException.class);
     }
@@ -96,20 +95,20 @@ public class TestSigningController
     public void testBucketLs()
     {
         // values discovered from an AWS CLI request sent to a dummy local HTTP server
-        MultivaluedMap<String, String> requestHeaders = new MultivaluedHashMap<>();
+        ImmutableMultiMap.Builder requestHeadersBuilder = ImmutableMultiMap.builder(false);
         String xAmzDate = "20240516T034003Z";
-        requestHeaders.putSingle("X-Amz-Date", xAmzDate);
-        requestHeaders.putSingle("X-Amz-Content-SHA256", "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855");
-        requestHeaders.putSingle("X-Amz-Security-Token", "FwoGZXIvYXdzEP3//////////wEaDG79rlcAjsgKPP9N3SKIAu7/Zvngne5Ov6kGrDcIIPUZYkGpwNbj8zNnbWgOhiqmOCM3hrk4NuH17mP5n3nC7urlXZxaTCywKpAHpO3YsvLXcwjlfaYFA0Au4oejwSbU9ybIlzPzrqz7lVesgCfJOV+rj5F5UAh19d7RpRpA6Vy4nxGBTTlCNIVbkW9fp2Esql2/vsdh77rAG+j+BQegtegDCKBfen4gHMdvEOF6hyc4ne43eLXjpvUKxBgpI9MjOHtNHrDbOOBFXDDyknoESgE9Hsm12nDuVQhwrI/hhA4YB/MSIpl4FTgVs2sQP3K+v65tmyvIlpL6O78S6spMM9Tv/F4JLtksTzb90w46uZk9sxKC/RBkRijisM6tBjIrr/0znxnW3i5ggGAX4H/Z3aWlxSdzNs2UGWtqig9Plp3Xa9gG+zCKcXmDAA==");
-        requestHeaders.putSingle("Host", "localhost:10064");
-        requestHeaders.putSingle("User-Agent", "aws-cli/2.15.16 Python/3.11.7 Darwin/22.6.0 source/x86_64 prompt/off command/s3.ls");
-        requestHeaders.putSingle("Accept-Encoding", "identity");
+        requestHeadersBuilder.putOrReplaceSingle("X-Amz-Date", xAmzDate);
+        requestHeadersBuilder.putOrReplaceSingle("X-Amz-Content-SHA256", "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855");
+        requestHeadersBuilder.putOrReplaceSingle("X-Amz-Security-Token", "FwoGZXIvYXdzEP3//////////wEaDG79rlcAjsgKPP9N3SKIAu7/Zvngne5Ov6kGrDcIIPUZYkGpwNbj8zNnbWgOhiqmOCM3hrk4NuH17mP5n3nC7urlXZxaTCywKpAHpO3YsvLXcwjlfaYFA0Au4oejwSbU9ybIlzPzrqz7lVesgCfJOV+rj5F5UAh19d7RpRpA6Vy4nxGBTTlCNIVbkW9fp2Esql2/vsdh77rAG+j+BQegtegDCKBfen4gHMdvEOF6hyc4ne43eLXjpvUKxBgpI9MjOHtNHrDbOOBFXDDyknoESgE9Hsm12nDuVQhwrI/hhA4YB/MSIpl4FTgVs2sQP3K+v65tmyvIlpL6O78S6spMM9Tv/F4JLtksTzb90w46uZk9sxKC/RBkRijisM6tBjIrr/0znxnW3i5ggGAX4H/Z3aWlxSdzNs2UGWtqig9Plp3Xa9gG+zCKcXmDAA==");
+        requestHeadersBuilder.putOrReplaceSingle("Host", "localhost:10064");
+        requestHeadersBuilder.putOrReplaceSingle("User-Agent", "aws-cli/2.15.16 Python/3.11.7 Darwin/22.6.0 source/x86_64 prompt/off command/s3.ls");
+        requestHeadersBuilder.putOrReplaceSingle("Accept-Encoding", "identity");
 
-        MultivaluedMap<String, String> queryParameters = new MultivaluedHashMap<>();
-        queryParameters.putSingle("list-type", "2");
-        queryParameters.putSingle("prefix", "foo/bar");
-        queryParameters.putSingle("delimiter", "/");
-        queryParameters.putSingle("encoding-type", "url");
+        ImmutableMultiMap.Builder queryParametersBuilder = ImmutableMultiMap.builder(true);
+        queryParametersBuilder.putOrReplaceSingle("list-type", "2");
+        queryParametersBuilder.putOrReplaceSingle("prefix", "foo/bar");
+        queryParametersBuilder.putOrReplaceSingle("delimiter", "/");
+        queryParametersBuilder.putOrReplaceSingle("encoding-type", "url");
 
         String signature = signingController.signRequest(
                 new SigningMetadata(SigningServiceType.S3, CREDENTIALS, Optional.empty()),
@@ -117,8 +116,8 @@ public class TestSigningController
                 xAmzDate,
                 Credentials::emulated,
                 URI.create("http://localhost:10064/mybucket"),
-                requestHeaders,
-                queryParameters,
+                requestHeadersBuilder.build(),
+                queryParametersBuilder.build(),
                 "GET");
 
         assertThat(signature).isEqualTo("AWS4-HMAC-SHA256 Credential=THIS_IS_AN_ACCESS_KEY/20240516/us-east-1/s3/aws4_request, SignedHeaders=host;x-amz-content-sha256;x-amz-date;x-amz-security-token, Signature=222d7b7fcd4d5560c944e8fecd9424ee3915d131c3ad9e000d65db93e87946c4");

@@ -17,6 +17,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.dataformat.xml.XmlMapper;
 import com.google.inject.Inject;
 import io.airlift.log.Logger;
+import io.trino.s3.proxy.server.collections.MultiMap;
 import io.trino.s3.proxy.server.credentials.AssumedRoleProvider;
 import io.trino.s3.proxy.server.credentials.EmulatedAssumedRole;
 import io.trino.s3.proxy.server.rest.AssumeRoleResponse.AssumeRoleResult;
@@ -28,7 +29,6 @@ import jakarta.ws.rs.POST;
 import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.MediaType;
-import jakarta.ws.rs.core.MultivaluedMap;
 import jakarta.ws.rs.core.Response;
 import org.glassfish.jersey.server.ContainerRequest;
 import org.glassfish.jersey.uri.UriComponent;
@@ -122,12 +122,13 @@ public class TrinoStsResource
         }
     }
 
-    private Map<String, String> deserializeRequest(MultivaluedMap<String, String> queryParameters, Optional<byte[]> maybeEntity)
+    private Map<String, String> deserializeRequest(MultiMap queryParameters, Optional<byte[]> maybeEntity)
     {
-        MultivaluedMap<String, String> values = maybeEntity.map(entity -> UriComponent.decodeQuery(new String(entity, StandardCharsets.UTF_8), true))
-                .orElse(queryParameters);
-        return values.entrySet()
-                .stream()
-                .collect(toImmutableMap(Map.Entry::getKey, entry -> entry.getValue().getFirst()));
+        return maybeEntity
+                .map(entity -> UriComponent.decodeQuery(new String(entity, StandardCharsets.UTF_8), true).entrySet().stream())
+                .orElseGet(() -> queryParameters.entrySet().stream())
+                .filter(entry -> !entry.getValue().isEmpty())
+                .map(entry -> Map.entry(entry.getKey(), entry.getValue().getFirst()))
+                .collect(toImmutableMap(Map.Entry::getKey, Map.Entry::getValue));
     }
 }

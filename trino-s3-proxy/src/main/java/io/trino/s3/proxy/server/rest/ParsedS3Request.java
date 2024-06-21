@@ -13,8 +13,9 @@
  */
 package io.trino.s3.proxy.server.rest;
 
+import io.trino.s3.proxy.server.collections.ImmutableMultiMap;
+import io.trino.s3.proxy.server.collections.MultiMap;
 import io.trino.s3.proxy.server.signing.RequestAuthorization;
-import jakarta.ws.rs.core.MultivaluedMap;
 
 import java.util.Optional;
 
@@ -25,8 +26,8 @@ public record ParsedS3Request(
         String requestDate,
         String bucketName,
         String keyInBucket,
-        MultivaluedMap<String, String> lowercaseHeaders,
-        MultivaluedMap<String, String> queryParameters,
+        MultiMap requestHeaders,
+        MultiMap queryParameters,
         String httpVerb,
         String rawPath,
         Optional<String> rawQuery,
@@ -38,8 +39,8 @@ public record ParsedS3Request(
         requireNonNull(requestDate, "requestDate is null");
         requireNonNull(bucketName, "bucketName is null");
         requireNonNull(keyInBucket, "keyInBucket is null");
-        requireNonNull(lowercaseHeaders, "lowercaseHeaders is null");
-        requireNonNull(queryParameters, "queryParameters is null");
+        requestHeaders = ImmutableMultiMap.copyOfCaseInsensitive(requestHeaders);
+        queryParameters = ImmutableMultiMap.copyOf(queryParameters);
         requireNonNull(httpVerb, "httpVerb is null");
         requireNonNull(rawPath, "rawPath is null");
         requireNonNull(rawQuery, "rawQuery is null");
