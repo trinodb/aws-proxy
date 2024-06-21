@@ -15,6 +15,7 @@ package io.trino.s3.proxy.server.signing;
 
 import com.google.common.collect.ImmutableSet;
 import com.google.inject.Inject;
+import io.airlift.log.Logger;
 import io.trino.s3.proxy.server.credentials.CredentialsController;
 import io.trino.s3.proxy.spi.collections.ImmutableMultiMap;
 import io.trino.s3.proxy.spi.collections.MultiMap;
@@ -46,6 +47,8 @@ import static java.util.Objects.requireNonNull;
 public class InternalSigningController
         implements SigningController
 {
+    private static final Logger log = Logger.get(SigningController.class);
+
     private final Duration maxClockDrift;
     private final CredentialsController credentialsController;
 
@@ -104,13 +107,17 @@ public class InternalSigningController
     public SigningMetadata validateAndParseAuthorization(Request request, SigningServiceType signingServiceType)
     {
         if (!request.requestAuthorization().isValid()) {
+            log.debug("Invalid requestAuthorization. Request: %s, SigningServiceType: %s", request, signingServiceType);
             throw new WebApplicationException(Response.Status.UNAUTHORIZED);
         }
 
         return credentialsController.withCredentials(request.requestAuthorization().accessKey(), request.requestAuthorization().securityToken(), credentials -> {
             SigningMetadata metadata = new SigningMetadata(signingServiceType, credentials, Optional.empty());
             return isValidAuthorization(metadata, request, Credentials::emulated);
-        }).orElseThrow(() -> new WebApplicationException(Response.Status.UNAUTHORIZED));
+        }).orElseThrow(() -> {
+            log.debug("ValidateAndParseAuthorization failed. Request: %s, SigningServiceType: %s", request, signingServiceType);
+            return new WebApplicationException(Response.Status.UNAUTHORIZED);
+        });
     }
 
     private SigningContext internalSignRequest(

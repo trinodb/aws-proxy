@@ -17,6 +17,7 @@ import com.google.inject.BindingAnnotation;
 import com.google.inject.Inject;
 import io.airlift.http.client.HttpClient;
 import io.airlift.http.client.Request;
+import io.airlift.log.Logger;
 import io.trino.s3.proxy.server.remote.RemoteS3Facade;
 import io.trino.s3.proxy.server.security.SecurityController;
 import io.trino.s3.proxy.spi.collections.ImmutableMultiMap;
@@ -24,6 +25,7 @@ import io.trino.s3.proxy.spi.collections.MultiMap;
 import io.trino.s3.proxy.spi.credentials.Credentials;
 import io.trino.s3.proxy.spi.rest.ParsedS3Request;
 import io.trino.s3.proxy.spi.rest.RequestContent;
+import io.trino.s3.proxy.spi.security.SecurityResponse;
 import io.trino.s3.proxy.spi.signing.SigningContext;
 import io.trino.s3.proxy.spi.signing.SigningController;
 import io.trino.s3.proxy.spi.signing.SigningMetadata;
@@ -52,6 +54,8 @@ import static java.util.Objects.requireNonNull;
 
 public class TrinoS3ProxyClient
 {
+    private static final Logger log = Logger.get(TrinoS3ProxyClient.class);
+
     private static final int CHUNK_SIZE = 8_192 * 8;
 
     private final HttpClient httpClient;
@@ -78,7 +82,7 @@ public class TrinoS3ProxyClient
     public void shutDown()
     {
         if (!shutdownAndAwaitTermination(executorService, Duration.ofSeconds(30))) {
-            // TODO add logging - check for false result
+            log.warn("Could not shutdown executor service");
         }
     }
 
@@ -86,8 +90,9 @@ public class TrinoS3ProxyClient
     {
         URI remoteUri = remoteS3Facade.buildEndpoint(uriBuilder(request.queryParameters()), request.rawPath(), request.bucketName(), request.requestAuthorization().region());
 
-        // TODO log/expose any securityController error
-        if (!securityController.apply(request).canProceed()) {
+        SecurityResponse securityResponse = securityController.apply(request);
+        if (!securityResponse.canProceed()) {
+            log.debug("SecurityController check failed. AccessKey: %s, Request: %s, SecurityResponse: %s", signingMetadata.credentials().emulated().accessKey(), request, securityResponse);
             throw new WebApplicationException(Response.Status.UNAUTHORIZED);
         }
 
@@ -97,6 +102,7 @@ public class TrinoS3ProxyClient
                 .setFollowRedirects(true);
 
         if (remoteUri.getHost() == null) {
+            log.debug("RemoteURI missing host. AccessKey: %s, Request: %s", signingMetadata.credentials().emulated().accessKey(), request);
             throw new WebApplicationException(Response.Status.BAD_REQUEST);
         }
 
