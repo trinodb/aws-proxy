@@ -23,10 +23,11 @@ import io.airlift.log.Logger;
 import io.trino.s3.proxy.server.credentials.CredentialsController;
 import io.trino.s3.proxy.server.remote.RemoteS3Facade;
 import io.trino.s3.proxy.server.remote.VirtualHostStyleRemoteS3Facade;
-import io.trino.s3.proxy.server.rest.TrinoS3Resource;
+import io.trino.s3.proxy.server.rest.RequestLogger;
 import io.trino.s3.proxy.server.rest.TrinoS3ProxyClient;
 import io.trino.s3.proxy.server.rest.TrinoS3ProxyClient.ForProxyClient;
 import io.trino.s3.proxy.server.rest.TrinoS3ProxyConfig;
+import io.trino.s3.proxy.server.rest.TrinoS3Resource;
 import io.trino.s3.proxy.server.rest.TrinoStsResource;
 import io.trino.s3.proxy.server.security.SecurityController;
 import io.trino.s3.proxy.server.signing.InternalSigningController;
@@ -68,6 +69,7 @@ public class TrinoS3ProxyServerModule
         binder.bind(SigningController.class).to(InternalSigningController.class).in(Scopes.SINGLETON);
         binder.bind(CredentialsController.class).in(Scopes.SINGLETON);
         binder.bind(SecurityController.class).in(Scopes.SINGLETON);
+        binder.bind(RequestLogger.class).in(Scopes.SINGLETON);
 
         // TODO config, etc.
         httpClientBinder(binder).bindHttpClient("ProxyClient", ForProxyClient.class);

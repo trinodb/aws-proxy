@@ -29,16 +29,21 @@ class StreamingResponseHandler
         implements ResponseHandler<Void, RuntimeException>
 {
     private final AsyncResponse asyncResponse;
+    private final RequestLoggingSession requestLoggingSession;
 
-    StreamingResponseHandler(AsyncResponse asyncResponse)
+    StreamingResponseHandler(AsyncResponse asyncResponse, RequestLoggingSession requestLoggingSession)
     {
         this.asyncResponse = requireNonNull(asyncResponse, "asyncResponse is null");
+        this.requestLoggingSession = requireNonNull(requestLoggingSession, "requestLoggingSession is null");
     }
 
     @Override
     public Void handleException(Request request, Exception exception)
             throws RuntimeException
     {
+        requestLoggingSession.logException(exception);
+        requestLoggingSession.close();
+
         throw propagate(request, exception);
     }
 
@@ -56,15 +61,24 @@ class StreamingResponseHandler
             output.flush();
         };
 
-        jakarta.ws.rs.core.Response.ResponseBuilder responseBuilder = jakarta.ws.rs.core.Response.status(response.getStatusCode()).entity(streamingOutput);
-        response.getHeaders()
-                .keySet()
-                .stream()
-                .map(HeaderName::toString)
-                .forEach(name -> response.getHeaders(name).forEach(value -> responseBuilder.header(name, value)));
+        try {
+            jakarta.ws.rs.core.Response.ResponseBuilder responseBuilder = jakarta.ws.rs.core.Response.status(response.getStatusCode()).entity(streamingOutput);
+            response.getHeaders()
+                    .keySet()
+                    .stream()
+                    .map(HeaderName::toString)
+                    .forEach(name -> response.getHeaders(name).forEach(value -> responseBuilder.header(name, value)));
 
-        // this will block until StreamingOutput completes
-        asyncResponse.resume(responseBuilder.build());
+            requestLoggingSession.logProperty("response.status", response.getStatusCode());
+            requestLoggingSession.logProperty("response.headers", response.getHeaders());
+
+            // this will block until StreamingOutput completes
+
+            asyncResponse.resume(responseBuilder.build());
+        }
+        finally {
+            requestLoggingSession.close();
+        }
 
         return null;
     }
