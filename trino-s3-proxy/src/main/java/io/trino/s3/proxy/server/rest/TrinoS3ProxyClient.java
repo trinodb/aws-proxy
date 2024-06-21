@@ -86,13 +86,17 @@ public class TrinoS3ProxyClient
         }
     }
 
-    public void proxyRequest(SigningMetadata signingMetadata, ParsedS3Request request, AsyncResponse asyncResponse)
+    public void proxyRequest(SigningMetadata signingMetadata, ParsedS3Request request, AsyncResponse asyncResponse, RequestLoggingSession requestLoggingSession)
     {
         URI remoteUri = remoteS3Facade.buildEndpoint(uriBuilder(request.queryParameters()), request.rawPath(), request.bucketName(), request.requestAuthorization().region());
 
         SecurityResponse securityResponse = securityController.apply(request);
         if (!securityResponse.canProceed()) {
             log.debug("SecurityController check failed. AccessKey: %s, Request: %s, SecurityResponse: %s", signingMetadata.credentials().emulated().accessKey(), request, securityResponse);
+            requestLoggingSession.logError("request.security.fail.credentials", signingMetadata.credentials().emulated());
+            requestLoggingSession.logError("request.security.fail.request", request);
+            requestLoggingSession.logError("request.security.fail.response", securityResponse);
+
             throw new WebApplicationException(Response.Status.UNAUTHORIZED);
         }
 
@@ -151,9 +155,11 @@ public class TrinoS3ProxyClient
 
         executorService.submit(() -> {
             try {
-                httpClient.execute(remoteRequest, new StreamingResponseHandler(asyncResponse));
+                httpClient.execute(remoteRequest, new StreamingResponseHandler(asyncResponse, requestLoggingSession));
             }
             catch (Throwable e) {
+                requestLoggingSession.logException(e);
+                requestLoggingSession.close();
                 asyncResponse.resume(e);
             }
         });

@@ -13,10 +13,12 @@
  */
 package io.trino.s3.proxy.server.signing;
 
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.inject.Inject;
 import io.airlift.log.Logger;
 import io.trino.s3.proxy.server.credentials.CredentialsController;
+import io.trino.s3.proxy.server.rest.RequestLoggerController;
 import io.trino.s3.proxy.spi.collections.ImmutableMultiMap;
 import io.trino.s3.proxy.spi.collections.MultiMap;
 import io.trino.s3.proxy.spi.credentials.Credential;
@@ -50,14 +52,17 @@ public class InternalSigningController
     private static final Logger log = Logger.get(SigningController.class);
 
     private final Duration maxClockDrift;
+    private final RequestLoggerController requestLoggerController;
     private final CredentialsController credentialsController;
 
     private static final Set<String> LOWERCASE_HEADERS = ImmutableSet.of("content-type");
 
     @Inject
-    public InternalSigningController(CredentialsController credentialsController, SigningControllerConfig signingControllerConfig)
+    public InternalSigningController(CredentialsController credentialsController, SigningControllerConfig signingControllerConfig, RequestLoggerController requestLoggerController)
     {
         this.credentialsController = requireNonNull(credentialsController, "credentialsController is null");
+        this.requestLoggerController = requireNonNull(requestLoggerController, "requestLoggerController is null");
+
         maxClockDrift = signingControllerConfig.getMaxClockDrift().toJavaTime();
     }
 
@@ -167,7 +172,17 @@ public class InternalSigningController
                     signingHeaders,
                     request.requestQueryParameters(),
                     request.httpVerb());
-            return request.requestAuthorization().authorization().equals(signingContext.signingAuthorization().authorization()) ? Stream.of(metadata.withSigningContext(signingContext)) : Stream.of();
+
+            String requestAuthorization = request.requestAuthorization().authorization();
+            String generatedAuthorization = signingContext.signingAuthorization().authorization();
+            boolean generatedMatchesRequest = requestAuthorization.equals(generatedAuthorization);
+            if (generatedMatchesRequest) {
+                return Stream.of(metadata.withSigningContext(signingContext));
+            }
+
+            requestLoggerController.currentRequestSession(request.requestId())
+                    .ifPresent(requestLoggingSession -> requestLoggingSession.logError("request.security.authorization.mismatch", ImmutableMap.of("request", requestAuthorization, "generated", generatedAuthorization)));
+            return Stream.of();
         }).findFirst();
     }
 

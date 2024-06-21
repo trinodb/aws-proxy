@@ -27,6 +27,8 @@ import io.airlift.event.client.EventModule;
 import io.airlift.http.server.testing.TestingHttpServerModule;
 import io.airlift.jaxrs.JaxrsModule;
 import io.airlift.json.JsonModule;
+import io.airlift.log.Level;
+import io.airlift.log.Logging;
 import io.airlift.node.testing.TestingNodeModule;
 import io.trino.s3.proxy.server.remote.RemoteS3Facade;
 import io.trino.s3.proxy.server.testing.TestingUtil.ForTesting;
@@ -189,6 +191,8 @@ public final class TestingTrinoS3ProxyServer
 
         Bootstrap app = new Bootstrap(modules.build());
         Injector injector = app.setOptionalConfigurationProperties(properties).initialize();
+        Logging.initialize().setLevel("io.trino.s3.proxy", Level.DEBUG);
+
         return new TestingTrinoS3ProxyServer(injector);
     }
 }
