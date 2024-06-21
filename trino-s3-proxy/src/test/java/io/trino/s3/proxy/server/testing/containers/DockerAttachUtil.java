@@ -16,6 +16,7 @@ package io.trino.s3.proxy.server.testing.containers;
 import com.github.dockerjava.api.DockerClient;
 import com.github.dockerjava.api.async.ResultCallback;
 import com.github.dockerjava.api.model.Frame;
+import io.airlift.log.Logger;
 import org.testcontainers.DockerClientFactory;
 
 import java.io.BufferedReader;
@@ -34,6 +35,8 @@ import static org.awaitility.Awaitility.await;
 
 public final class DockerAttachUtil
 {
+    private static final Logger log = Logger.get(DockerAttachUtil.class);
+
     private DockerAttachUtil() {}
 
     public static InputStream inputToContainerStdin(String containerId, String command)
@@ -54,6 +57,9 @@ public final class DockerAttachUtil
                 String line;
                 do {
                     line = reader.readLine();
+                    if (line != null) {
+                        log.debug(line);
+                    }
                 } while ((line != null) && !completionFilter.test(line));
             }
             return true;

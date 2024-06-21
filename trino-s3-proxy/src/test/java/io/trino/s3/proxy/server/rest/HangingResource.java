@@ -62,7 +62,7 @@ public class HangingResource
     {
         // simulate calling a remote request and streaming the result while the remote server hangs
         Request request = prepareGet().setUri(uriInfo.getBaseUri().resolve("hang")).build();
-        httpClient.execute(request, new StreamingResponseHandler(asyncResponse));
+        httpClient.execute(request, new StreamingResponseHandler(asyncResponse, () -> {}));
     }
 
     @GET

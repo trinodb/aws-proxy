@@ -43,13 +43,16 @@ public class TrinoS3Resource
     private final TrinoS3ProxyClient proxyClient;
     private final Optional<String> serverHostName;
     private final String s3Path;
+    private final RequestLoggerController requestLoggerController;
 
     @Inject
-    public TrinoS3Resource(SigningController signingController, TrinoS3ProxyClient proxyClient, TrinoS3ProxyConfig trinoS3ProxyConfig)
+    public TrinoS3Resource(SigningController signingController, TrinoS3ProxyClient proxyClient, TrinoS3ProxyConfig trinoS3ProxyConfig, RequestLoggerController requestLoggerController)
     {
         this.signingController = requireNonNull(signingController, "signingController is null");
         this.proxyClient = requireNonNull(proxyClient, "proxyClient is null");
         this.serverHostName = trinoS3ProxyConfig.getS3HostName();
+        this.requestLoggerController = requireNonNull(requestLoggerController, "requestLogger is null");
+
         s3Path = trinoS3ProxyConfig.getS3Path();
     }
 
@@ -121,10 +124,23 @@ public class TrinoS3Resource
     private void handler(ContainerRequest containerRequest, AsyncResponse asyncResponse)
     {
         Request request = fromRequest(containerRequest);
-        ParsedS3Request parsedS3Request = parseRequest(request);
-        SigningMetadata signingMetadata = signingController.validateAndParseAuthorization(request, SigningServiceType.S3);
+        RequestLoggingSession requestLoggingSession = requestLoggerController.newRequestSession(request, SigningServiceType.S3);
+        try {
+            ParsedS3Request parsedS3Request = parseRequest(request);
 
-        proxyClient.proxyRequest(signingMetadata, parsedS3Request, asyncResponse);
+            requestLoggingSession.logProperty("request.parsed.bucket", parsedS3Request.bucketName());
+            requestLoggingSession.logProperty("request.parsed.key", parsedS3Request.keyInBucket());
+
+            SigningMetadata signingMetadata = signingController.validateAndParseAuthorization(request, SigningServiceType.S3);
+            requestLoggingSession.logProperty("request.emulated.key", signingMetadata.credentials().emulated().secretKey());
+
+            proxyClient.proxyRequest(signingMetadata, parsedS3Request, asyncResponse, requestLoggingSession);
+        }
+        catch (Throwable e) {
+            requestLoggingSession.logException(e);
+            requestLoggingSession.close();
+            throw e;
+        }
     }
 
     private ParsedS3Request parseRequest(Request request)
