@@ -19,7 +19,7 @@ import io.airlift.http.client.HttpClient;
 import io.airlift.http.client.Request;
 import io.airlift.log.Logger;
 import io.trino.s3.proxy.server.remote.RemoteS3Facade;
-import io.trino.s3.proxy.server.security.SecurityController;
+import io.trino.s3.proxy.server.security.S3SecurityController;
 import io.trino.s3.proxy.spi.collections.ImmutableMultiMap;
 import io.trino.s3.proxy.spi.collections.MultiMap;
 import io.trino.s3.proxy.spi.credentials.Credentials;
@@ -61,7 +61,7 @@ public class TrinoS3ProxyClient
     private final HttpClient httpClient;
     private final SigningController signingController;
     private final RemoteS3Facade remoteS3Facade;
-    private final SecurityController securityController;
+    private final S3SecurityController s3SecurityController;
     private final ExecutorService executorService = Executors.newVirtualThreadPerTaskExecutor();
 
     @Retention(RUNTIME)
@@ -70,12 +70,12 @@ public class TrinoS3ProxyClient
     public @interface ForProxyClient {}
 
     @Inject
-    public TrinoS3ProxyClient(@ForProxyClient HttpClient httpClient, SigningController signingController, RemoteS3Facade remoteS3Facade, SecurityController securityController)
+    public TrinoS3ProxyClient(@ForProxyClient HttpClient httpClient, SigningController signingController, RemoteS3Facade remoteS3Facade, S3SecurityController s3SecurityController)
     {
         this.httpClient = requireNonNull(httpClient, "httpClient is null");
         this.signingController = requireNonNull(signingController, "signingController is null");
         this.remoteS3Facade = requireNonNull(remoteS3Facade, "objectStore is null");
-        this.securityController = requireNonNull(securityController, "securityController is null");
+        this.s3SecurityController = requireNonNull(s3SecurityController, "securityController is null");
     }
 
     @PreDestroy
@@ -90,7 +90,7 @@ public class TrinoS3ProxyClient
     {
         URI remoteUri = remoteS3Facade.buildEndpoint(uriBuilder(request.queryParameters()), request.rawPath(), request.bucketName(), request.requestAuthorization().region());
 
-        SecurityResponse securityResponse = securityController.apply(request);
+        SecurityResponse securityResponse = s3SecurityController.apply(request);
         if (!securityResponse.canProceed()) {
             log.debug("SecurityController check failed. AccessKey: %s, Request: %s, SecurityResponse: %s", signingMetadata.credentials().emulated().accessKey(), request, securityResponse);
             requestLoggingSession.logError("request.security.fail.credentials", signingMetadata.credentials().emulated());

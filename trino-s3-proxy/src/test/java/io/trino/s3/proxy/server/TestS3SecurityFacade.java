@@ -14,10 +14,10 @@
 package io.trino.s3.proxy.server;
 
 import com.google.inject.Inject;
-import io.trino.s3.proxy.server.testing.TestingSecurityFacade;
+import io.trino.s3.proxy.server.testing.TestingS3SecurityFacade;
 import io.trino.s3.proxy.server.testing.harness.TrinoS3ProxyTest;
 import io.trino.s3.proxy.server.testing.harness.TrinoS3ProxyTestCommonModules.WithConfiguredBuckets;
-import io.trino.s3.proxy.spi.security.SecurityFacadeProvider;
+import io.trino.s3.proxy.spi.security.S3SecurityFacadeProvider;
 import io.trino.s3.proxy.spi.security.SecurityResponse;
 import org.assertj.core.api.InstanceOfAssertFactories;
 import org.junit.jupiter.api.AfterEach;
@@ -36,15 +36,15 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @TrinoS3ProxyTest(filters = WithConfiguredBuckets.class)
-public class TestSecurityFacade
+public class TestS3SecurityFacade
 {
     private final S3Client client;
-    private final TestingSecurityFacade securityFacade;
+    private final TestingS3SecurityFacade securityFacade;
 
-    private SecurityFacadeProvider savedDelegate;
+    private S3SecurityFacadeProvider savedDelegate;
 
     @Inject
-    public TestSecurityFacade(S3Client client, TestingSecurityFacade securityFacade)
+    public TestS3SecurityFacade(S3Client client, TestingS3SecurityFacade securityFacade)
     {
         this.client = requireNonNull(client, "internalClient is null");
         this.securityFacade = securityFacade;

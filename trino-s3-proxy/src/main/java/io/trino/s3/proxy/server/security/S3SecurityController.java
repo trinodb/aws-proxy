@@ -16,8 +16,8 @@ package io.trino.s3.proxy.server.security;
 import com.google.common.base.Splitter;
 import com.google.inject.Inject;
 import io.trino.s3.proxy.spi.rest.ParsedS3Request;
-import io.trino.s3.proxy.spi.security.SecurityFacade;
-import io.trino.s3.proxy.spi.security.SecurityFacadeProvider;
+import io.trino.s3.proxy.spi.security.S3SecurityFacade;
+import io.trino.s3.proxy.spi.security.S3SecurityFacadeProvider;
 import io.trino.s3.proxy.spi.security.SecurityResponse;
 
 import java.util.Locale;
@@ -25,23 +25,23 @@ import java.util.Optional;
 
 import static java.util.Objects.requireNonNull;
 
-public class SecurityController
+public class S3SecurityController
 {
-    private final SecurityFacadeProvider securityFacadeProvider;
+    private final S3SecurityFacadeProvider s3SecurityFacadeProvider;
 
     @Inject
-    public SecurityController(SecurityFacadeProvider securityFacadeProvider)
+    public S3SecurityController(S3SecurityFacadeProvider s3SecurityFacadeProvider)
     {
-        this.securityFacadeProvider = requireNonNull(securityFacadeProvider, "securityFacadeProvider is null");
+        this.s3SecurityFacadeProvider = requireNonNull(s3SecurityFacadeProvider, "securityFacadeProvider is null");
     }
 
     public SecurityResponse apply(ParsedS3Request request)
     {
-        SecurityFacade securityFacade = securityFacadeProvider.securityFacadeForRequest(request);
+        S3SecurityFacade s3SecurityFacade = s3SecurityFacadeProvider.securityFacadeForRequest(request);
 
-        Optional<String> lowercaseAction = request.rawQuery().flatMap(SecurityController::parseAction);
+        Optional<String> lowercaseAction = request.rawQuery().flatMap(S3SecurityController::parseAction);
 
-        return securityFacade.apply(lowercaseAction);
+        return s3SecurityFacade.apply(lowercaseAction);
     }
 
     private static Optional<String> parseAction(String rawQuery)
