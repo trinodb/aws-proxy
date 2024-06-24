@@ -19,7 +19,7 @@ import com.google.inject.Scopes;
 import io.trino.aws.proxy.server.remote.RemoteS3Facade;
 import io.trino.aws.proxy.server.testing.ContainerS3Facade;
 import io.trino.aws.proxy.server.testing.TestingS3ClientProvider;
-import io.trino.aws.proxy.server.testing.TestingTrinoS3ProxyServer;
+import io.trino.aws.proxy.server.testing.TestingTrinoAwsProxyServer;
 import io.trino.aws.proxy.server.testing.TestingUtil.ForTesting;
 import io.trino.aws.proxy.server.testing.containers.S3Container;
 import io.trino.aws.proxy.server.testing.containers.S3Container.ForS3Container;
@@ -38,27 +38,27 @@ import java.util.stream.Stream;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.inject.multibindings.OptionalBinder.newOptionalBinder;
 
-public class TrinoS3ProxyTestExtension
+public class TrinoAwsProxyTestExtension
         implements TestInstanceFactory, TestInstancePreDestroyCallback
 {
-    private final Map<String, TestingTrinoS3ProxyServer> testingServersRegistry = new ConcurrentHashMap<>();
+    private final Map<String, TestingTrinoAwsProxyServer> testingServersRegistry = new ConcurrentHashMap<>();
 
     @Override
     public Object createTestInstance(TestInstanceFactoryContext factoryContext, ExtensionContext extensionContext)
             throws TestInstantiationException
     {
-        TrinoS3ProxyTest trinoS3ProxyTest = factoryContext.getTestClass().getAnnotation(TrinoS3ProxyTest.class);
+        TrinoAwsProxyTest trinoAwsProxyTest = factoryContext.getTestClass().getAnnotation(TrinoAwsProxyTest.class);
 
-        TestingTrinoS3ProxyServer.Builder builder = TestingTrinoS3ProxyServer.builder();
+        TestingTrinoAwsProxyServer.Builder builder = TestingTrinoAwsProxyServer.builder();
 
-        List<BuilderFilter> filters = Stream.of(trinoS3ProxyTest.filters())
-                .map(TrinoS3ProxyTestExtension::instantiateBuilderFilter)
+        List<BuilderFilter> filters = Stream.of(trinoAwsProxyTest.filters())
+                .map(TrinoAwsProxyTestExtension::instantiateBuilderFilter)
                 .collect(toImmutableList());
         for (BuilderFilter filter : filters) {
             builder = filter.filter(builder);
         }
 
-        TestingTrinoS3ProxyServer trinoS3ProxyServer = builder
+        TestingTrinoAwsProxyServer trinoS3ProxyServer = builder
                 .withS3Container()
                 .addModule(binder -> {
                     binder.bind(S3Client.class).annotatedWith(ForS3Container.class).toProvider(S3Container.class);
@@ -75,7 +75,7 @@ public class TrinoS3ProxyTestExtension
                     binder.bind(TestingS3ClientProvider.TestingS3ClientConfig.class).in(Scopes.SINGLETON);
                     binder.bind(TestingS3ClientProvider.class).in(Scopes.SINGLETON);
                     binder.bind(S3Client.class).toProvider(TestingS3ClientProvider.class).in(Scopes.SINGLETON);
-                    binder.bind(TestingTrinoS3ProxyServer.class).toInstance(trinoS3ProxyServer);
+                    binder.bind(TestingTrinoAwsProxyServer.class).toInstance(trinoS3ProxyServer);
                     binder.bind(factoryContext.getTestClass()).in(Scopes.SINGLETON);
                 });
 
@@ -85,7 +85,7 @@ public class TrinoS3ProxyTestExtension
     @Override
     public void preDestroyTestInstance(ExtensionContext context)
     {
-        TestingTrinoS3ProxyServer trinoS3ProxyServer = testingServersRegistry.remove(context.getUniqueId());
+        TestingTrinoAwsProxyServer trinoS3ProxyServer = testingServersRegistry.remove(context.getUniqueId());
         if (trinoS3ProxyServer != null) {
             trinoS3ProxyServer.close();
         }

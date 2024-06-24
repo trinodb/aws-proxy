@@ -21,11 +21,11 @@ import io.airlift.http.server.testing.TestingHttpServer;
 import io.airlift.units.Duration;
 import io.trino.aws.proxy.server.rest.TrinoS3ProxyConfig;
 import io.trino.aws.proxy.server.testing.TestingCredentialsRolesProvider;
-import io.trino.aws.proxy.server.testing.TestingTrinoS3ProxyServer;
+import io.trino.aws.proxy.server.testing.TestingTrinoAwsProxyServer;
 import io.trino.aws.proxy.server.testing.TestingUtil.ForTesting;
 import io.trino.aws.proxy.server.testing.containers.S3Container.ForS3Container;
-import io.trino.aws.proxy.server.testing.harness.TrinoS3ProxyTest;
-import io.trino.aws.proxy.server.testing.harness.TrinoS3ProxyTestCommonModules.WithTestingHttpClient;
+import io.trino.aws.proxy.server.testing.harness.TrinoAwsProxyTest;
+import io.trino.aws.proxy.server.testing.harness.TrinoAwsProxyTestCommonModules.WithTestingHttpClient;
 import io.trino.aws.proxy.spi.credentials.Credential;
 import io.trino.aws.proxy.spi.credentials.Credentials;
 import jakarta.ws.rs.core.UriBuilder;
@@ -43,7 +43,7 @@ import static io.airlift.http.client.StatusResponseHandler.createStatusResponseH
 import static java.util.Objects.requireNonNull;
 import static org.assertj.core.api.Assertions.assertThat;
 
-@TrinoS3ProxyTest(filters = TestGenericRestRequests.Filter.class)
+@TrinoAwsProxyTest(filters = TestGenericRestRequests.Filter.class)
 public class TestGenericRestRequests
 {
     private final URI baseUri;
@@ -88,7 +88,7 @@ public class TestGenericRestRequests
             extends WithTestingHttpClient
     {
         @Override
-        public TestingTrinoS3ProxyServer.Builder filter(TestingTrinoS3ProxyServer.Builder builder)
+        public TestingTrinoAwsProxyServer.Builder filter(TestingTrinoAwsProxyServer.Builder builder)
         {
             return super.filter(builder).withProperty("signing-controller.clock.max-drift", new Duration(9999999, TimeUnit.DAYS).toString());
         }

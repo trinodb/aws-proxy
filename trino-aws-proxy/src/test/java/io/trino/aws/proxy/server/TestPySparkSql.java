@@ -16,8 +16,8 @@ package io.trino.aws.proxy.server;
 import com.google.common.io.Resources;
 import com.google.inject.Inject;
 import io.trino.aws.proxy.server.testing.containers.PySparkContainer;
-import io.trino.aws.proxy.server.testing.harness.TrinoS3ProxyTest;
-import io.trino.aws.proxy.server.testing.harness.TrinoS3ProxyTestCommonModules.WithAllContainers;
+import io.trino.aws.proxy.server.testing.harness.TrinoAwsProxyTest;
+import io.trino.aws.proxy.server.testing.harness.TrinoAwsProxyTestCommonModules.WithAllContainers;
 import org.junit.jupiter.api.Test;
 import software.amazon.awssdk.services.s3.S3Client;
 
@@ -27,7 +27,7 @@ import static io.trino.aws.proxy.server.testing.containers.DockerAttachUtil.clea
 import static io.trino.aws.proxy.server.testing.containers.DockerAttachUtil.inputToContainerStdin;
 import static java.util.Objects.requireNonNull;
 
-@TrinoS3ProxyTest(filters = WithAllContainers.class)
+@TrinoAwsProxyTest(filters = WithAllContainers.class)
 public class TestPySparkSql
 {
     private final S3Client s3Client;

@@ -16,14 +16,14 @@ package io.trino.aws.proxy.server;
 import com.google.inject.Inject;
 import io.airlift.http.server.testing.TestingHttpServer;
 import io.trino.aws.proxy.server.rest.TrinoS3ProxyConfig;
-import io.trino.aws.proxy.server.testing.TestingTrinoS3ProxyServer;
+import io.trino.aws.proxy.server.testing.TestingTrinoAwsProxyServer;
 import io.trino.aws.proxy.server.testing.TestingUtil.ForTesting;
 import io.trino.aws.proxy.server.testing.harness.BuilderFilter;
-import io.trino.aws.proxy.server.testing.harness.TrinoS3ProxyTest;
+import io.trino.aws.proxy.server.testing.harness.TrinoAwsProxyTest;
 import io.trino.aws.proxy.spi.credentials.Credentials;
 import io.trino.aws.proxy.spi.credentials.CredentialsProvider;
 
-@TrinoS3ProxyTest(filters = TestStsRequestsWithEmptyPath.Filter.class)
+@TrinoAwsProxyTest(filters = TestStsRequestsWithEmptyPath.Filter.class)
 public class TestStsRequestsWithEmptyPath
         extends AbstractTestStsRequests
 {
@@ -31,7 +31,7 @@ public class TestStsRequestsWithEmptyPath
             implements BuilderFilter
     {
         @Override
-        public TestingTrinoS3ProxyServer.Builder filter(TestingTrinoS3ProxyServer.Builder builder)
+        public TestingTrinoAwsProxyServer.Builder filter(TestingTrinoAwsProxyServer.Builder builder)
         {
             return builder.withProperty("s3proxy.sts.path", "");
         }

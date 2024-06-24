@@ -33,7 +33,7 @@ import io.trino.aws.proxy.server.security.S3SecurityController;
 import io.trino.aws.proxy.server.signing.InternalSigningController;
 import io.trino.aws.proxy.server.signing.SigningControllerConfig;
 import io.trino.aws.proxy.server.signing.SigningModule;
-import io.trino.aws.proxy.spi.TrinoS3ProxyServerPlugin;
+import io.trino.aws.proxy.spi.TrinoAwsProxyServerPlugin;
 import io.trino.aws.proxy.spi.credentials.AssumedRoleProvider;
 import io.trino.aws.proxy.spi.credentials.CredentialsProvider;
 import io.trino.aws.proxy.spi.security.S3SecurityFacadeProvider;
@@ -50,10 +50,10 @@ import static io.airlift.http.client.HttpClientBinder.httpClientBinder;
 import static io.airlift.http.server.HttpServerBinder.httpServerBinder;
 import static io.airlift.jaxrs.JaxrsBinder.jaxrsBinder;
 
-public class TrinoS3ProxyServerModule
+public class TrinoAwsProxyServerModule
         extends AbstractConfigurationAwareModule
 {
-    private static final Logger log = Logger.get(TrinoS3ProxyServerModule.class);
+    private static final Logger log = Logger.get(TrinoAwsProxyServerModule.class);
 
     @Override
     protected void setup(Binder binder)
@@ -105,7 +105,7 @@ public class TrinoS3ProxyServerModule
 
     private void installPlugins()
     {
-        ServiceLoader.load(TrinoS3ProxyServerPlugin.class)
+        ServiceLoader.load(TrinoAwsProxyServerPlugin.class)
                 .forEach(plugin -> {
                     log.info("Loading plugin: %s", plugin.name());
                     install(plugin.module());

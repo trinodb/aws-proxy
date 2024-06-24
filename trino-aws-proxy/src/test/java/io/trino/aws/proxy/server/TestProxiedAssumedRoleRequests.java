@@ -19,8 +19,8 @@ import io.trino.aws.proxy.server.rest.TrinoS3ProxyConfig;
 import io.trino.aws.proxy.server.testing.TestingCredentialsRolesProvider;
 import io.trino.aws.proxy.server.testing.TestingUtil.ForTesting;
 import io.trino.aws.proxy.server.testing.containers.S3Container.ForS3Container;
-import io.trino.aws.proxy.server.testing.harness.TrinoS3ProxyTest;
-import io.trino.aws.proxy.server.testing.harness.TrinoS3ProxyTestCommonModules.WithConfiguredBuckets;
+import io.trino.aws.proxy.server.testing.harness.TrinoAwsProxyTest;
+import io.trino.aws.proxy.server.testing.harness.TrinoAwsProxyTestCommonModules.WithConfiguredBuckets;
 import io.trino.aws.proxy.spi.credentials.Credentials;
 import org.junit.jupiter.api.AfterAll;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
@@ -38,7 +38,7 @@ import java.util.concurrent.CompletableFuture;
 import static java.util.Objects.requireNonNull;
 import static org.assertj.core.api.Assertions.assertThat;
 
-@TrinoS3ProxyTest(filters = WithConfiguredBuckets.class)
+@TrinoAwsProxyTest(filters = WithConfiguredBuckets.class)
 public class TestProxiedAssumedRoleRequests
         extends AbstractTestProxiedRequests
 {

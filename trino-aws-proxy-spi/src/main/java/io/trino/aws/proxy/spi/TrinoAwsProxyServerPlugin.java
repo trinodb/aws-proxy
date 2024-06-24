@@ -15,7 +15,7 @@ package io.trino.aws.proxy.spi;
 
 import com.google.inject.Module;
 
-public interface TrinoS3ProxyServerPlugin
+public interface TrinoAwsProxyServerPlugin
 {
     default String name()
     {

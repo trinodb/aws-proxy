@@ -24,16 +24,16 @@ import io.airlift.json.JsonModule;
 import io.airlift.log.Logger;
 import io.airlift.node.NodeModule;
 
-public final class TrinoS3ProxyServer
+public final class TrinoAwsProxyServer
 {
-    private static final Logger log = Logger.get(TrinoS3ProxyServer.class);
+    private static final Logger log = Logger.get(TrinoAwsProxyServer.class);
 
-    private TrinoS3ProxyServer() {}
+    private TrinoAwsProxyServer() {}
 
     public static void main(String[] args)
     {
         ImmutableList.Builder<Module> modules = ImmutableList.<Module>builder()
-                .add(new TrinoS3ProxyServerModule())
+                .add(new TrinoAwsProxyServerModule())
                 .add(new NodeModule())
                 .add(new EventModule())
                 .add(new HttpServerModule())

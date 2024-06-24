@@ -15,8 +15,8 @@ package io.trino.aws.proxy.server;
 
 import com.google.inject.Inject;
 import io.trino.aws.proxy.server.testing.TestingS3SecurityFacade;
-import io.trino.aws.proxy.server.testing.harness.TrinoS3ProxyTest;
-import io.trino.aws.proxy.server.testing.harness.TrinoS3ProxyTestCommonModules.WithConfiguredBuckets;
+import io.trino.aws.proxy.server.testing.harness.TrinoAwsProxyTest;
+import io.trino.aws.proxy.server.testing.harness.TrinoAwsProxyTestCommonModules.WithConfiguredBuckets;
 import io.trino.aws.proxy.spi.security.S3SecurityFacadeProvider;
 import io.trino.aws.proxy.spi.security.SecurityResponse;
 import org.assertj.core.api.InstanceOfAssertFactories;
@@ -35,7 +35,7 @@ import static java.util.Objects.requireNonNull;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-@TrinoS3ProxyTest(filters = WithConfiguredBuckets.class)
+@TrinoAwsProxyTest(filters = WithConfiguredBuckets.class)
 public class TestS3SecurityFacade
 {
     private final S3Client client;

@@ -14,16 +14,16 @@
 package io.trino.aws.proxy.server;
 
 import com.google.inject.Inject;
-import io.trino.aws.proxy.server.testing.TestingTrinoS3ProxyServer;
+import io.trino.aws.proxy.server.testing.TestingTrinoAwsProxyServer;
 import io.trino.aws.proxy.server.testing.containers.S3Container.ForS3Container;
 import io.trino.aws.proxy.server.testing.harness.BuilderFilter;
-import io.trino.aws.proxy.server.testing.harness.TrinoS3ProxyTest;
-import io.trino.aws.proxy.server.testing.harness.TrinoS3ProxyTestCommonModules.WithConfiguredBuckets;
+import io.trino.aws.proxy.server.testing.harness.TrinoAwsProxyTest;
+import io.trino.aws.proxy.server.testing.harness.TrinoAwsProxyTestCommonModules.WithConfiguredBuckets;
 import software.amazon.awssdk.services.s3.S3Client;
 
 import java.util.List;
 
-@TrinoS3ProxyTest(filters = {WithConfiguredBuckets.class, TestProxiedRequests.Filter.class})
+@TrinoAwsProxyTest(filters = {WithConfiguredBuckets.class, TestProxiedRequests.Filter.class})
 public class TestProxiedRequests
         extends AbstractTestProxiedRequests
 {
@@ -31,7 +31,7 @@ public class TestProxiedRequests
             implements BuilderFilter
     {
         @Override
-        public TestingTrinoS3ProxyServer.Builder filter(TestingTrinoS3ProxyServer.Builder builder)
+        public TestingTrinoAwsProxyServer.Builder filter(TestingTrinoAwsProxyServer.Builder builder)
         {
             return builder.withProperty("s3proxy.s3.path", "/api/some/s3/path");
         }

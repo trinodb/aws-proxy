@@ -1,5 +1,5 @@
-# trino-s3-proxy
-Proxy for S3
+# trino-aws-proxy
+Proxy for AWS
 
 ```shell
 ./mvnw clean package

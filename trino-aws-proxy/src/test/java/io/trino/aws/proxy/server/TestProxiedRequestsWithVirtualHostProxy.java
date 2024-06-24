@@ -15,14 +15,14 @@ package io.trino.aws.proxy.server;
 
 import com.google.inject.Inject;
 import io.trino.aws.proxy.server.testing.containers.S3Container.ForS3Container;
-import io.trino.aws.proxy.server.testing.harness.TrinoS3ProxyTest;
-import io.trino.aws.proxy.server.testing.harness.TrinoS3ProxyTestCommonModules.WithConfiguredBuckets;
-import io.trino.aws.proxy.server.testing.harness.TrinoS3ProxyTestCommonModules.WithVirtualHostEnabledProxy;
+import io.trino.aws.proxy.server.testing.harness.TrinoAwsProxyTest;
+import io.trino.aws.proxy.server.testing.harness.TrinoAwsProxyTestCommonModules.WithConfiguredBuckets;
+import io.trino.aws.proxy.server.testing.harness.TrinoAwsProxyTestCommonModules.WithVirtualHostEnabledProxy;
 import software.amazon.awssdk.services.s3.S3Client;
 
 import java.util.List;
 
-@TrinoS3ProxyTest(filters = {WithConfiguredBuckets.class, WithVirtualHostEnabledProxy.class, WithVirtualHostEnabledProxy.class})
+@TrinoAwsProxyTest(filters = {WithConfiguredBuckets.class, WithVirtualHostEnabledProxy.class, WithVirtualHostEnabledProxy.class})
 public class TestProxiedRequestsWithVirtualHostProxy
         extends AbstractTestProxiedRequests
 {

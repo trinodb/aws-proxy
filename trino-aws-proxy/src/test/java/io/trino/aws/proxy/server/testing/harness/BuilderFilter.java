@@ -13,10 +13,10 @@
  */
 package io.trino.aws.proxy.server.testing.harness;
 
-import io.trino.aws.proxy.server.testing.TestingTrinoS3ProxyServer;
+import io.trino.aws.proxy.server.testing.TestingTrinoAwsProxyServer;
 
 @FunctionalInterface
 public interface BuilderFilter
 {
-    TestingTrinoS3ProxyServer.Builder filter(TestingTrinoS3ProxyServer.Builder builder);
+    TestingTrinoAwsProxyServer.Builder filter(TestingTrinoAwsProxyServer.Builder builder);
 }

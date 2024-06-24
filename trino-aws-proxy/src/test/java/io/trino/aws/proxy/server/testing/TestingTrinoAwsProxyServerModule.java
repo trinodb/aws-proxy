@@ -17,8 +17,8 @@ import com.google.inject.Binder;
 import com.google.inject.BindingAnnotation;
 import com.google.inject.Module;
 import com.google.inject.Scopes;
-import io.trino.aws.proxy.server.TrinoS3ProxyModuleBuilder;
-import io.trino.aws.proxy.server.TrinoS3ProxyServerModule;
+import io.trino.aws.proxy.server.TrinoAwsProxyModuleBuilder;
+import io.trino.aws.proxy.server.TrinoAwsProxyServerModule;
 import io.trino.aws.proxy.server.remote.RemoteS3Facade;
 import io.trino.aws.proxy.spi.security.S3SecurityFacadeProvider;
 
@@ -31,8 +31,8 @@ import static java.lang.annotation.ElementType.METHOD;
 import static java.lang.annotation.ElementType.PARAMETER;
 import static java.lang.annotation.RetentionPolicy.RUNTIME;
 
-public class TestingTrinoS3ProxyServerModule
-        extends TrinoS3ProxyServerModule
+public class TestingTrinoAwsProxyServerModule
+        extends TrinoAwsProxyServerModule
 {
     @Retention(RUNTIME)
     @Target({FIELD, PARAMETER, METHOD})
@@ -42,7 +42,7 @@ public class TestingTrinoS3ProxyServerModule
     @Override
     protected void moduleSpecificBinding(Binder binder)
     {
-        Module module = TrinoS3ProxyModuleBuilder.builder()
+        Module module = TrinoAwsProxyModuleBuilder.builder()
                 .withAssumedRoleProvider(binding -> binding.to(TestingCredentialsRolesProvider.class).in(Scopes.SINGLETON))
                 .withCredentialsProvider(binding -> binding.to(TestingCredentialsRolesProvider.class).in(Scopes.SINGLETON))
                 .build();

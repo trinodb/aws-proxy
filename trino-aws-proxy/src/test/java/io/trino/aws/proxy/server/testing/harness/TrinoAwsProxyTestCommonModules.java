@@ -19,7 +19,7 @@ import com.google.inject.TypeLiteral;
 import com.google.inject.multibindings.OptionalBinder;
 import io.trino.aws.proxy.server.remote.RemoteS3Facade;
 import io.trino.aws.proxy.server.testing.ContainerS3Facade;
-import io.trino.aws.proxy.server.testing.TestingTrinoS3ProxyServer;
+import io.trino.aws.proxy.server.testing.TestingTrinoAwsProxyServer;
 import io.trino.aws.proxy.server.testing.TestingUtil.ForTesting;
 import io.trino.aws.proxy.server.testing.containers.S3Container.ForS3Container;
 
@@ -28,7 +28,7 @@ import java.util.List;
 import static io.airlift.http.client.HttpClientBinder.httpClientBinder;
 import static io.trino.aws.proxy.server.testing.TestingUtil.LOCALHOST_DOMAIN;
 
-public final class TrinoS3ProxyTestCommonModules
+public final class TrinoAwsProxyTestCommonModules
 {
     public static class WithConfiguredBuckets
             implements BuilderFilter
@@ -36,7 +36,7 @@ public final class TrinoS3ProxyTestCommonModules
         private static final List<String> CONFIGURED_BUCKETS = ImmutableList.of("one", "two", "three");
 
         @Override
-        public TestingTrinoS3ProxyServer.Builder filter(TestingTrinoS3ProxyServer.Builder builder)
+        public TestingTrinoAwsProxyServer.Builder filter(TestingTrinoAwsProxyServer.Builder builder)
         {
             return builder.addModule(binder ->
                     OptionalBinder.newOptionalBinder(binder, Key.get(new TypeLiteral<List<String>>() {}, ForS3Container.class))
@@ -49,7 +49,7 @@ public final class TrinoS3ProxyTestCommonModules
             implements BuilderFilter
     {
         @Override
-        public TestingTrinoS3ProxyServer.Builder filter(TestingTrinoS3ProxyServer.Builder builder)
+        public TestingTrinoAwsProxyServer.Builder filter(TestingTrinoAwsProxyServer.Builder builder)
         {
             return builder.addModule(binder ->
                     OptionalBinder.newOptionalBinder(binder, Key.get(RemoteS3Facade.class, ForTesting.class))
@@ -63,7 +63,7 @@ public final class TrinoS3ProxyTestCommonModules
             implements BuilderFilter
     {
         @Override
-        public TestingTrinoS3ProxyServer.Builder filter(TestingTrinoS3ProxyServer.Builder builder)
+        public TestingTrinoAwsProxyServer.Builder filter(TestingTrinoAwsProxyServer.Builder builder)
         {
             return builder.withProperty("s3proxy.s3.hostname", LOCALHOST_DOMAIN);
         }
@@ -73,7 +73,7 @@ public final class TrinoS3ProxyTestCommonModules
             implements BuilderFilter
     {
         @Override
-        public TestingTrinoS3ProxyServer.Builder filter(TestingTrinoS3ProxyServer.Builder builder)
+        public TestingTrinoAwsProxyServer.Builder filter(TestingTrinoAwsProxyServer.Builder builder)
         {
             return builder.addModule(binder -> httpClientBinder(binder).bindHttpClient("testing", ForTesting.class));
         }
@@ -83,7 +83,7 @@ public final class TrinoS3ProxyTestCommonModules
             implements BuilderFilter
     {
         @Override
-        public TestingTrinoS3ProxyServer.Builder filter(TestingTrinoS3ProxyServer.Builder builder)
+        public TestingTrinoAwsProxyServer.Builder filter(TestingTrinoAwsProxyServer.Builder builder)
         {
             return builder.withPySparkContainer()
                     .withS3Container()
@@ -92,5 +92,5 @@ public final class TrinoS3ProxyTestCommonModules
         }
     }
 
-    private TrinoS3ProxyTestCommonModules() {}
+    private TrinoAwsProxyTestCommonModules() {}
 }
