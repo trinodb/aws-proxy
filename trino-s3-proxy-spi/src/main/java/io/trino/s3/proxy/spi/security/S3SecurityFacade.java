@@ -15,7 +15,7 @@ package io.trino.s3.proxy.spi.security;
 
 import java.util.Optional;
 
-public interface SecurityFacade
+public interface S3SecurityFacade
 {
     String UPLOADS_ACTION = "uploads";
     String DELETE_ACTION = "delete";

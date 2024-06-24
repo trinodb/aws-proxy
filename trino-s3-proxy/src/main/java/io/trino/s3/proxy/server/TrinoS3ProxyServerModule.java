@@ -29,14 +29,14 @@ import io.trino.s3.proxy.server.rest.TrinoS3ProxyClient.ForProxyClient;
 import io.trino.s3.proxy.server.rest.TrinoS3ProxyConfig;
 import io.trino.s3.proxy.server.rest.TrinoS3Resource;
 import io.trino.s3.proxy.server.rest.TrinoStsResource;
-import io.trino.s3.proxy.server.security.SecurityController;
+import io.trino.s3.proxy.server.security.S3SecurityController;
 import io.trino.s3.proxy.server.signing.InternalSigningController;
 import io.trino.s3.proxy.server.signing.SigningControllerConfig;
 import io.trino.s3.proxy.server.signing.SigningModule;
 import io.trino.s3.proxy.spi.TrinoS3ProxyServerPlugin;
 import io.trino.s3.proxy.spi.credentials.AssumedRoleProvider;
 import io.trino.s3.proxy.spi.credentials.CredentialsProvider;
-import io.trino.s3.proxy.spi.security.SecurityFacadeProvider;
+import io.trino.s3.proxy.spi.security.S3SecurityFacadeProvider;
 import io.trino.s3.proxy.spi.security.SecurityResponse;
 import io.trino.s3.proxy.spi.signing.SigningController;
 import org.glassfish.jersey.server.model.Resource;
@@ -68,7 +68,7 @@ public class TrinoS3ProxyServerModule
 
         binder.bind(SigningController.class).to(InternalSigningController.class).in(Scopes.SINGLETON);
         binder.bind(CredentialsController.class).in(Scopes.SINGLETON);
-        binder.bind(SecurityController.class).in(Scopes.SINGLETON);
+        binder.bind(S3SecurityController.class).in(Scopes.SINGLETON);
         binder.bind(RequestLoggerController.class).in(Scopes.SINGLETON);
 
         // TODO config, etc.
@@ -99,7 +99,7 @@ public class TrinoS3ProxyServerModule
 
     protected void moduleSpecificBinding(Binder binder)
     {
-        newOptionalBinder(binder, SecurityFacadeProvider.class).setDefault().toInstance(_ -> _ -> SecurityResponse.DEFAULT);
+        newOptionalBinder(binder, S3SecurityFacadeProvider.class).setDefault().toInstance(_ -> _ -> SecurityResponse.DEFAULT);
         binder.bind(RemoteS3Facade.class).to(VirtualHostStyleRemoteS3Facade.class).in(Scopes.SINGLETON);
     }
 

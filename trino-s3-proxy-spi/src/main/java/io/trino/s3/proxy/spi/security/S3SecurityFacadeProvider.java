@@ -16,12 +16,12 @@ package io.trino.s3.proxy.spi.security;
 import io.trino.s3.proxy.spi.rest.ParsedS3Request;
 import jakarta.ws.rs.WebApplicationException;
 
-public interface SecurityFacadeProvider
+public interface S3SecurityFacadeProvider
 {
     /**
      * Return a validated/authenticated facade for the given request or
      * throw {@link jakarta.ws.rs.WebApplicationException}
      */
-    SecurityFacade securityFacadeForRequest(ParsedS3Request request)
+    S3SecurityFacade securityFacadeForRequest(ParsedS3Request request)
             throws WebApplicationException;
 }

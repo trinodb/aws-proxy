@@ -14,8 +14,8 @@
 package io.trino.s3.proxy.server.testing;
 
 import io.trino.s3.proxy.spi.rest.ParsedS3Request;
-import io.trino.s3.proxy.spi.security.SecurityFacade;
-import io.trino.s3.proxy.spi.security.SecurityFacadeProvider;
+import io.trino.s3.proxy.spi.security.S3SecurityFacade;
+import io.trino.s3.proxy.spi.security.S3SecurityFacadeProvider;
 import io.trino.s3.proxy.spi.security.SecurityResponse;
 import jakarta.ws.rs.WebApplicationException;
 
@@ -23,24 +23,24 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import static java.util.Objects.requireNonNull;
 
-public class TestingSecurityFacade
-        implements SecurityFacadeProvider
+public class TestingS3SecurityFacade
+        implements S3SecurityFacadeProvider
 {
-    private final AtomicReference<SecurityFacadeProvider> delegate = new AtomicReference<>(_ -> _ -> SecurityResponse.DEFAULT);
+    private final AtomicReference<S3SecurityFacadeProvider> delegate = new AtomicReference<>(_ -> _ -> SecurityResponse.DEFAULT);
 
     @Override
-    public SecurityFacade securityFacadeForRequest(ParsedS3Request request)
+    public S3SecurityFacade securityFacadeForRequest(ParsedS3Request request)
             throws WebApplicationException
     {
         return delegate.get().securityFacadeForRequest(request);
     }
 
-    public void setDelegate(SecurityFacadeProvider delegate)
+    public void setDelegate(S3SecurityFacadeProvider delegate)
     {
         this.delegate.set(requireNonNull(delegate, "delegate is null"));
     }
 
-    public SecurityFacadeProvider delegate()
+    public S3SecurityFacadeProvider delegate()
     {
         return this.delegate.get();
     }
