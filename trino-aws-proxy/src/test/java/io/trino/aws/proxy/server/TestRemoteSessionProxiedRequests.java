@@ -16,10 +16,10 @@ package io.trino.aws.proxy.server;
 import com.google.inject.Inject;
 import io.airlift.http.server.testing.TestingHttpServer;
 import io.trino.aws.proxy.server.rest.TrinoS3ProxyConfig;
-import io.trino.aws.proxy.server.testing.TestingTrinoS3ProxyServerModule.ForTestingRemoteCredentials;
+import io.trino.aws.proxy.server.testing.TestingTrinoAwsProxyServerModule.ForTestingRemoteCredentials;
 import io.trino.aws.proxy.server.testing.containers.S3Container.ForS3Container;
-import io.trino.aws.proxy.server.testing.harness.TrinoS3ProxyTest;
-import io.trino.aws.proxy.server.testing.harness.TrinoS3ProxyTestCommonModules.WithConfiguredBuckets;
+import io.trino.aws.proxy.server.testing.harness.TrinoAwsProxyTest;
+import io.trino.aws.proxy.server.testing.harness.TrinoAwsProxyTestCommonModules.WithConfiguredBuckets;
 import io.trino.aws.proxy.spi.credentials.Credentials;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.services.s3.S3Client;
@@ -29,7 +29,7 @@ import java.util.Optional;
 
 import static io.trino.aws.proxy.server.testing.TestingUtil.clientBuilder;
 
-@TrinoS3ProxyTest(filters = WithConfiguredBuckets.class)
+@TrinoAwsProxyTest(filters = WithConfiguredBuckets.class)
 public class TestRemoteSessionProxiedRequests
         extends AbstractTestProxiedRequests
 {

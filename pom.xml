@@ -14,7 +14,7 @@
     <packaging>pom</packaging>
 
     <name>${project.artifactId}</name>
-    <description>Trino S3 Proxy</description>
+    <description>Trino AWS Proxy</description>
     <inceptionYear>2024</inceptionYear>
 
     <licenses>
@@ -31,9 +31,10 @@
     </modules>
 
     <scm>
-        <connection>scm:git:git@github.com/starburstdata/api-builder.git</connection>
+        <connection>scm:git:https://github.com/trinodb/aws-proxy.git</connection>
+        <developerConnection>scm:git:git@github.com/trinodb/aws-proxy.git</developerConnection>
         <tag>HEAD</tag>
-        <url>https://github.com/starburstdata/api-builder</url>
+        <url>https://github.com/trinodb/aws-proxy.git</url>
     </scm>
 
     <properties>

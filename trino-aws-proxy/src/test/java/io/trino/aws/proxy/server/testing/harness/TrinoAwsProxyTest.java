@@ -27,9 +27,9 @@ import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 @Retention(RUNTIME)
 @Target(TYPE)
 @Inherited
-@ExtendWith(TrinoS3ProxyTestExtension.class)
+@ExtendWith(TrinoAwsProxyTestExtension.class)
 @TestInstance(PER_CLASS)
-public @interface TrinoS3ProxyTest
+public @interface TrinoAwsProxyTest
 {
     Class<? extends BuilderFilter>[] filters() default {};
 }

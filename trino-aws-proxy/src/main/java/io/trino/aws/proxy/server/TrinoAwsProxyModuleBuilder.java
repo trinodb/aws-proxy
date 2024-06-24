@@ -24,7 +24,7 @@ import java.util.function.Consumer;
 
 import static com.google.inject.multibindings.OptionalBinder.newOptionalBinder;
 
-public interface TrinoS3ProxyModuleBuilder
+public interface TrinoAwsProxyModuleBuilder
 {
     static Builder builder()
     {
@@ -35,7 +35,7 @@ public interface TrinoS3ProxyModuleBuilder
     {
         private Optional<Consumer<LinkedBindingBuilder<CredentialsProvider>>> credentialsProviderBinder = Optional.empty();
         private Optional<Consumer<LinkedBindingBuilder<AssumedRoleProvider>>> assumedRoleProviderBinder = Optional.empty();
-        private Optional<Consumer<LinkedBindingBuilder<S3SecurityFacadeProvider>>> securityFacadeProviderBinder = Optional.empty();
+        private Optional<Consumer<LinkedBindingBuilder<S3SecurityFacadeProvider>>> s3SecurityFacadeProviderBinder = Optional.empty();
 
         private Builder() {}
 
@@ -51,9 +51,9 @@ public interface TrinoS3ProxyModuleBuilder
             return this;
         }
 
-        public Builder withSecurityFacadeProvider(Consumer<LinkedBindingBuilder<S3SecurityFacadeProvider>> securityFacadeProviderBinder)
+        public Builder withS3SecurityFacadeProvider(Consumer<LinkedBindingBuilder<S3SecurityFacadeProvider>> securityFacadeProviderBinder)
         {
-            this.securityFacadeProviderBinder = Optional.of(securityFacadeProviderBinder);
+            this.s3SecurityFacadeProviderBinder = Optional.of(securityFacadeProviderBinder);
             return this;
         }
 
@@ -62,7 +62,7 @@ public interface TrinoS3ProxyModuleBuilder
             return binder -> {
                 credentialsProviderBinder.ifPresent(binding -> binding.accept(newOptionalBinder(binder, CredentialsProvider.class).setBinding()));
                 assumedRoleProviderBinder.ifPresent(binding -> binding.accept(newOptionalBinder(binder, AssumedRoleProvider.class).setBinding()));
-                securityFacadeProviderBinder.ifPresent(binding -> binding.accept(newOptionalBinder(binder, S3SecurityFacadeProvider.class).setBinding()));
+                s3SecurityFacadeProviderBinder.ifPresent(binding -> binding.accept(newOptionalBinder(binder, S3SecurityFacadeProvider.class).setBinding()));
             };
         }
     }

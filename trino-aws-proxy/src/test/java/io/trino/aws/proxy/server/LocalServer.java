@@ -17,7 +17,7 @@ import com.google.inject.Key;
 import io.airlift.http.server.testing.TestingHttpServer;
 import io.airlift.log.Logger;
 import io.trino.aws.proxy.server.rest.TrinoS3ProxyConfig;
-import io.trino.aws.proxy.server.testing.TestingTrinoS3ProxyServer;
+import io.trino.aws.proxy.server.testing.TestingTrinoAwsProxyServer;
 import io.trino.aws.proxy.server.testing.TestingUtil.ForTesting;
 import io.trino.aws.proxy.spi.credentials.Credentials;
 
@@ -30,7 +30,7 @@ public final class LocalServer
     @SuppressWarnings("resource")
     public static void main(String[] args)
     {
-        TestingTrinoS3ProxyServer trinoS3ProxyServer = TestingTrinoS3ProxyServer.builder()
+        TestingTrinoAwsProxyServer trinoS3ProxyServer = TestingTrinoAwsProxyServer.builder()
                 .withS3Container()
                 .withPostgresContainer()
                 .withMetastoreContainer()

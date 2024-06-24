@@ -17,7 +17,7 @@ import com.google.inject.Inject;
 import io.airlift.http.server.testing.TestingHttpServer;
 import io.trino.aws.proxy.server.rest.TrinoS3ProxyConfig;
 import io.trino.aws.proxy.server.testing.TestingCredentialsRolesProvider;
-import io.trino.aws.proxy.server.testing.TestingTrinoS3ProxyServerModule.ForTestingRemoteCredentials;
+import io.trino.aws.proxy.server.testing.TestingTrinoAwsProxyServerModule.ForTestingRemoteCredentials;
 import io.trino.aws.proxy.server.testing.TestingUtil.ForTesting;
 import io.trino.aws.proxy.server.testing.containers.S3Container.ForS3Container;
 import io.trino.aws.proxy.spi.credentials.Credentials;

@@ -47,12 +47,12 @@ import java.util.Map;
 import static com.google.inject.multibindings.OptionalBinder.newOptionalBinder;
 import static io.trino.aws.proxy.server.testing.TestingUtil.TESTING_CREDENTIALS;
 
-public final class TestingTrinoS3ProxyServer
+public final class TestingTrinoAwsProxyServer
         implements Closeable
 {
     private final Injector injector;
 
-    private TestingTrinoS3ProxyServer(Injector injector)
+    private TestingTrinoAwsProxyServer(Injector injector)
     {
         this.injector = injector;
     }
@@ -162,7 +162,13 @@ public final class TestingTrinoS3ProxyServer
             return this;
         }
 
-        public TestingTrinoS3ProxyServer buildAndStart()
+        public Builder withServerHostName(String serverHostName)
+        {
+            properties.put("s3proxy.hostname", serverHostName);
+            return this;
+        }
+
+        public TestingTrinoAwsProxyServer buildAndStart()
         {
             return start(modules.build(), properties.buildKeepingLast());
         }
@@ -177,10 +183,10 @@ public final class TestingTrinoS3ProxyServer
         }
     }
 
-    private static TestingTrinoS3ProxyServer start(Collection<Module> extraModules, Map<String, String> properties)
+    private static TestingTrinoAwsProxyServer start(Collection<Module> extraModules, Map<String, String> properties)
     {
         ImmutableList.Builder<Module> modules = ImmutableList.<Module>builder()
-                .add(new TestingTrinoS3ProxyServerModule())
+                .add(new TestingTrinoAwsProxyServerModule())
                 .add(new TestingNodeModule())
                 .add(new EventModule())
                 .add(new TestingHttpServerModule())
@@ -193,6 +199,6 @@ public final class TestingTrinoS3ProxyServer
         Injector injector = app.setOptionalConfigurationProperties(properties).initialize();
         Logging.initialize().setLevel("io.trino.aws.proxy", Level.DEBUG);
 
-        return new TestingTrinoS3ProxyServer(injector);
+        return new TestingTrinoAwsProxyServer(injector);
     }
 }

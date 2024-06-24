@@ -18,7 +18,7 @@ import io.airlift.http.server.testing.TestingHttpServer;
 import io.trino.aws.proxy.server.rest.TrinoS3ProxyConfig;
 import io.trino.aws.proxy.server.testing.TestingCredentialsRolesProvider;
 import io.trino.aws.proxy.server.testing.TestingUtil.ForTesting;
-import io.trino.aws.proxy.server.testing.harness.TrinoS3ProxyTest;
+import io.trino.aws.proxy.server.testing.harness.TrinoAwsProxyTest;
 import io.trino.aws.proxy.spi.credentials.Credentials;
 import io.trino.aws.proxy.spi.credentials.EmulatedAssumedRole;
 import org.assertj.core.api.InstanceOfAssertFactories;
@@ -37,7 +37,7 @@ import static java.util.Objects.requireNonNull;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-@TrinoS3ProxyTest
+@TrinoAwsProxyTest
 public class TestAssumingRoles
 {
     private static final String ARN = "test-arn";

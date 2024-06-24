@@ -17,9 +17,9 @@ import com.google.inject.AbstractModule;
 import com.google.inject.Module;
 import com.google.inject.Provides;
 import com.google.inject.Singleton;
-import io.trino.aws.proxy.server.testing.TestingTrinoS3ProxyServerModule.ForTestingRemoteCredentials;
+import io.trino.aws.proxy.server.testing.TestingTrinoAwsProxyServerModule.ForTestingRemoteCredentials;
 import io.trino.aws.proxy.server.testing.containers.S3Container;
-import io.trino.aws.proxy.spi.TrinoS3ProxyServerPlugin;
+import io.trino.aws.proxy.spi.TrinoAwsProxyServerPlugin;
 import io.trino.aws.proxy.spi.credentials.Credential;
 import io.trino.aws.proxy.spi.credentials.Credentials;
 import io.trino.aws.proxy.spi.remote.RemoteSessionRole;
@@ -27,9 +27,9 @@ import io.trino.aws.proxy.spi.remote.RemoteSessionRole;
 import java.util.Optional;
 import java.util.UUID;
 
-public class TestingTrinoS3ProxyPlugin
+public class TestingTrinoAwsProxyPlugin
         extends AbstractModule
-        implements TrinoS3ProxyServerPlugin
+        implements TrinoAwsProxyServerPlugin
 {
     @Override
     public Module module()
