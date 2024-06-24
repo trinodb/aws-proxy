@@ -9,7 +9,7 @@
     </parent>
 
     <groupId>io.trino</groupId>
-    <artifactId>trino-s3-proxy-root</artifactId>
+    <artifactId>trino-aws-proxy-root</artifactId>
     <version>1-SNAPSHOT</version>
     <packaging>pom</packaging>
 
@@ -26,8 +26,8 @@
     </licenses>
 
     <modules>
-        <module>trino-s3-proxy</module>
-        <module>trino-s3-proxy-spi</module>
+        <module>trino-aws-proxy</module>
+        <module>trino-aws-proxy-spi</module>
     </modules>
 
     <scm>
@@ -77,13 +77,13 @@
 
             <dependency>
                 <groupId>${project.groupId}</groupId>
-                <artifactId>trino-s3-proxy</artifactId>
+                <artifactId>trino-aws-proxy</artifactId>
                 <version>${project.version}</version>
             </dependency>
 
             <dependency>
                 <groupId>${project.groupId}</groupId>
-                <artifactId>trino-s3-proxy-spi</artifactId>
+                <artifactId>trino-aws-proxy-spi</artifactId>
                 <version>${project.version}</version>
             </dependency>
 
