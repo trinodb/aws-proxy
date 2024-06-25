@@ -154,6 +154,7 @@ public class InternalSigningController
                 entity);
     }
 
+    @SuppressWarnings("resource")
     private Optional<SigningMetadata> isValidAuthorization(
             SigningMetadata metadata,
             Request request,
@@ -181,7 +182,7 @@ public class InternalSigningController
             }
 
             requestLoggerController.currentRequestSession(request.requestId())
-                    .ifPresent(requestLoggingSession -> requestLoggingSession.logError("request.security.authorization.mismatch", ImmutableMap.of("request", requestAuthorization, "generated", generatedAuthorization)));
+                    .logError("request.security.authorization.mismatch", ImmutableMap.of("request", requestAuthorization, "generated", generatedAuthorization));
             return Stream.of();
         }).findFirst();
     }

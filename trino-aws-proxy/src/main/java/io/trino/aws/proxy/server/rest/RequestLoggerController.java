@@ -23,12 +23,12 @@ import jakarta.annotation.PreDestroy;
 import jakarta.ws.rs.WebApplicationException;
 
 import java.util.Map;
-import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 import static com.google.common.base.Preconditions.checkState;
 import static io.trino.aws.proxy.spi.rest.RequestContent.ContentType.EMPTY;
+import static java.util.Objects.requireNonNull;
 
 public class RequestLoggerController
 {
@@ -102,9 +102,9 @@ public class RequestLoggerController
         });
     }
 
-    public Optional<RequestLoggingSession> currentRequestSession(UUID requestId)
+    public RequestLoggingSession currentRequestSession(UUID requestId)
     {
-        return Optional.ofNullable(sessions.get(requestId));
+        return requireNonNull(sessions.get(requestId), "No RequestLoggingSession for requestId: " + requestId);
     }
 
     private RequestLoggingSession internalNewRequestSession(Request request, SigningServiceType serviceType)

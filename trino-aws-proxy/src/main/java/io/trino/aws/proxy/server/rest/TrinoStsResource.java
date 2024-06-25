@@ -25,13 +25,11 @@ import io.trino.aws.proxy.spi.credentials.EmulatedAssumedRole;
 import io.trino.aws.proxy.spi.rest.Request;
 import io.trino.aws.proxy.spi.signing.SigningController;
 import io.trino.aws.proxy.spi.signing.SigningMetadata;
-import io.trino.aws.proxy.spi.signing.SigningServiceType;
 import jakarta.ws.rs.POST;
 import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
-import org.glassfish.jersey.server.ContainerRequest;
 import org.glassfish.jersey.uri.UriComponent;
 
 import java.nio.charset.StandardCharsets;
@@ -39,7 +37,6 @@ import java.util.Map;
 import java.util.Optional;
 
 import static com.google.common.collect.ImmutableMap.toImmutableMap;
-import static io.trino.aws.proxy.server.rest.RequestBuilder.fromRequest;
 import static java.util.Objects.requireNonNull;
 
 public class TrinoStsResource
@@ -60,10 +57,8 @@ public class TrinoStsResource
 
     @SuppressWarnings("SwitchStatementWithTooFewBranches")
     @POST
-    public Response post(@Context ContainerRequest containerRequest)
+    public Response post(@Context Request request, @Context SigningMetadata signingMetadata)
     {
-        Request request = fromRequest(containerRequest);
-        SigningMetadata signingMetadata = signingController.validateAndParseAuthorization(request, SigningServiceType.STS);
         Map<String, String> arguments = deserializeRequest(request.requestQueryParameters(), request.requestContent().standardBytes());
 
         String action = Optional.ofNullable(arguments.get("Action")).orElse("");

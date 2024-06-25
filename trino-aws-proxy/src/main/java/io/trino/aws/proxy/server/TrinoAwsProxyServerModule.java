@@ -18,11 +18,15 @@ import com.fasterxml.jackson.dataformat.xml.XmlMapper;
 import com.google.inject.Binder;
 import com.google.inject.Provides;
 import com.google.inject.Scopes;
+import com.google.inject.TypeLiteral;
+import com.google.inject.multibindings.MapBinder;
 import io.airlift.configuration.AbstractConfigurationAwareModule;
+import io.airlift.jaxrs.JaxrsBinder;
 import io.airlift.log.Logger;
 import io.trino.aws.proxy.server.credentials.CredentialsController;
 import io.trino.aws.proxy.server.remote.RemoteS3Facade;
 import io.trino.aws.proxy.server.remote.VirtualHostStyleRemoteS3Facade;
+import io.trino.aws.proxy.server.rest.RequestFilter;
 import io.trino.aws.proxy.server.rest.RequestLoggerController;
 import io.trino.aws.proxy.server.rest.TrinoS3ProxyClient;
 import io.trino.aws.proxy.server.rest.TrinoS3ProxyClient.ForProxyClient;
@@ -39,11 +43,13 @@ import io.trino.aws.proxy.spi.credentials.CredentialsProvider;
 import io.trino.aws.proxy.spi.security.S3SecurityFacadeProvider;
 import io.trino.aws.proxy.spi.security.SecurityResponse;
 import io.trino.aws.proxy.spi.signing.SigningController;
+import io.trino.aws.proxy.spi.signing.SigningServiceType;
 import org.glassfish.jersey.server.model.Resource;
 
 import java.util.Optional;
 import java.util.ServiceLoader;
 
+import static com.google.inject.multibindings.MapBinder.newMapBinder;
 import static com.google.inject.multibindings.OptionalBinder.newOptionalBinder;
 import static io.airlift.configuration.ConfigBinder.configBinder;
 import static io.airlift.http.client.HttpClientBinder.httpClientBinder;
@@ -61,10 +67,13 @@ public class TrinoAwsProxyServerModule
         configBinder(binder).bindConfig(SigningControllerConfig.class);
         TrinoS3ProxyConfig builtConfig = buildConfigObject(TrinoS3ProxyConfig.class);
 
-        jaxrsBinder(binder).bind(TrinoS3Resource.class);
-        jaxrsBinder(binder).bindInstance(buildResourceAtPath(TrinoS3Resource.class, builtConfig.getS3Path()));
-        jaxrsBinder(binder).bind(TrinoStsResource.class);
-        jaxrsBinder(binder).bindInstance(buildResourceAtPath(TrinoStsResource.class, builtConfig.getStsPath()));
+        JaxrsBinder jaxrsBinder = jaxrsBinder(binder);
+
+        MapBinder<Class<?>, SigningServiceType> signingServiceTypesMapBinder = newMapBinder(binder, new TypeLiteral<>() {}, new TypeLiteral<>() {});
+
+        jaxrsBinder.bind(RequestFilter.class);
+        bindResourceAtPath(jaxrsBinder, signingServiceTypesMapBinder, SigningServiceType.S3, TrinoS3Resource.class, builtConfig.getS3Path());
+        bindResourceAtPath(jaxrsBinder, signingServiceTypesMapBinder, SigningServiceType.STS, TrinoStsResource.class, builtConfig.getStsPath());
 
         binder.bind(SigningController.class).to(InternalSigningController.class).in(Scopes.SINGLETON);
         binder.bind(CredentialsController.class).in(Scopes.SINGLETON);
@@ -112,8 +121,11 @@ public class TrinoAwsProxyServerModule
                 });
     }
 
-    private static Resource buildResourceAtPath(Class<?> resourceClass, String resourcePathPrefix)
+    private static void bindResourceAtPath(JaxrsBinder jaxrsBinder, MapBinder<Class<?>, SigningServiceType> signingServiceTypesMapBinder, SigningServiceType signingServiceType, Class<?> resourceClass, String resourcePathPrefix)
     {
-        return Resource.builder(resourceClass).path(resourcePathPrefix).build();
+        Resource resource = Resource.builder(resourceClass).path(resourcePathPrefix).build();
+        jaxrsBinder.bind(resourceClass);
+        jaxrsBinder.bindInstance(resource);
+        signingServiceTypesMapBinder.addBinding(resourceClass).toInstance(signingServiceType);
     }
 }
