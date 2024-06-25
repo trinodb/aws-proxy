@@ -16,9 +16,7 @@ package io.trino.aws.proxy.server.rest;
 import com.google.inject.Inject;
 import io.trino.aws.proxy.spi.rest.ParsedS3Request;
 import io.trino.aws.proxy.spi.rest.Request;
-import io.trino.aws.proxy.spi.signing.SigningController;
 import io.trino.aws.proxy.spi.signing.SigningMetadata;
-import io.trino.aws.proxy.spi.signing.SigningServiceType;
 import jakarta.ws.rs.DELETE;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.HEAD;
@@ -30,7 +28,6 @@ import jakarta.ws.rs.container.AsyncResponse;
 import jakarta.ws.rs.container.Suspended;
 import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.Response;
-import org.glassfish.jersey.server.ContainerRequest;
 
 import java.util.Optional;
 
@@ -39,106 +36,97 @@ import static java.util.Objects.requireNonNull;
 
 public class TrinoS3Resource
 {
-    private final SigningController signingController;
     private final TrinoS3ProxyClient proxyClient;
     private final Optional<String> serverHostName;
     private final String s3Path;
-    private final RequestLoggerController requestLoggerController;
 
     @Inject
-    public TrinoS3Resource(SigningController signingController, TrinoS3ProxyClient proxyClient, TrinoS3ProxyConfig trinoS3ProxyConfig, RequestLoggerController requestLoggerController)
+    public TrinoS3Resource(TrinoS3ProxyClient proxyClient, TrinoS3ProxyConfig trinoS3ProxyConfig)
     {
-        this.signingController = requireNonNull(signingController, "signingController is null");
         this.proxyClient = requireNonNull(proxyClient, "proxyClient is null");
         this.serverHostName = trinoS3ProxyConfig.getS3HostName();
-        this.requestLoggerController = requireNonNull(requestLoggerController, "requestLogger is null");
 
         s3Path = trinoS3ProxyConfig.getS3Path();
     }
 
     @GET
-    public void s3Get(@Context ContainerRequest containerRequest, @Suspended AsyncResponse asyncResponse)
+    public void s3Get(@Context Request request, @Context SigningMetadata signingMetadata, @Context RequestLoggingSession requestLoggingSession, @Suspended AsyncResponse asyncResponse)
     {
-        handler(containerRequest, asyncResponse);
+        handler(request, signingMetadata, requestLoggingSession, asyncResponse);
     }
 
     @GET
     @Path("{path:.*}")
-    public void s3GetWithPath(@Context ContainerRequest containerRequest, @Suspended AsyncResponse asyncResponse)
+    public void s3GetWithPath(@Context Request request, @Context SigningMetadata signingMetadata, @Context RequestLoggingSession requestLoggingSession, @Suspended AsyncResponse asyncResponse)
     {
-        handler(containerRequest, asyncResponse);
+        handler(request, signingMetadata, requestLoggingSession, asyncResponse);
     }
 
     @HEAD
-    public void s3Head(@Context ContainerRequest containerRequest, @Suspended AsyncResponse asyncResponse)
+    public void s3Head(@Context Request request, @Context SigningMetadata signingMetadata, @Context RequestLoggingSession requestLoggingSession, @Suspended AsyncResponse asyncResponse)
     {
-        handler(containerRequest, asyncResponse);
+        handler(request, signingMetadata, requestLoggingSession, asyncResponse);
     }
 
     @HEAD
     @Path("{path:.*}")
-    public void s3HeadWithPath(@Context ContainerRequest containerRequest, @Suspended AsyncResponse asyncResponse)
+    public void s3HeadWithPath(@Context Request request, @Context SigningMetadata signingMetadata, @Context RequestLoggingSession requestLoggingSession, @Suspended AsyncResponse asyncResponse)
     {
-        handler(containerRequest, asyncResponse);
+        handler(request, signingMetadata, requestLoggingSession, asyncResponse);
     }
 
     @PUT
-    public void s3Put(@Context ContainerRequest containerRequest, @Suspended AsyncResponse asyncResponse)
+    public void s3Put(@Context Request request, @Context SigningMetadata signingMetadata, @Context RequestLoggingSession requestLoggingSession, @Suspended AsyncResponse asyncResponse)
     {
-        handler(containerRequest, asyncResponse);
+        handler(request, signingMetadata, requestLoggingSession, asyncResponse);
     }
 
     @PUT
     @Path("{path:.*}")
-    public void s3PutWithPath(@Context ContainerRequest containerRequest, @Suspended AsyncResponse asyncResponse)
+    public void s3PutWithPath(@Context Request request, @Context SigningMetadata signingMetadata, @Context RequestLoggingSession requestLoggingSession, @Suspended AsyncResponse asyncResponse)
     {
-        handler(containerRequest, asyncResponse);
+        handler(request, signingMetadata, requestLoggingSession, asyncResponse);
     }
 
     @POST
-    public void s3Post(@Context ContainerRequest containerRequest, @Suspended AsyncResponse asyncResponse)
+    public void s3Post(@Context Request request, @Context SigningMetadata signingMetadata, @Context RequestLoggingSession requestLoggingSession, @Suspended AsyncResponse asyncResponse)
     {
-        handler(containerRequest, asyncResponse);
+        handler(request, signingMetadata, requestLoggingSession, asyncResponse);
     }
 
     @POST
     @Path("{path:.*}")
-    public void s3PostWithPath(@Context ContainerRequest containerRequest, @Suspended AsyncResponse asyncResponse)
+    public void s3PostWithPath(@Context Request request, @Context SigningMetadata signingMetadata, @Context RequestLoggingSession requestLoggingSession, @Suspended AsyncResponse asyncResponse)
     {
-        handler(containerRequest, asyncResponse);
+        handler(request, signingMetadata, requestLoggingSession, asyncResponse);
     }
 
     @DELETE
-    public void s3Delete(@Context ContainerRequest containerRequest, @Suspended AsyncResponse asyncResponse)
+    public void s3Delete(@Context Request request, @Context SigningMetadata signingMetadata, @Context RequestLoggingSession requestLoggingSession, @Suspended AsyncResponse asyncResponse)
     {
-        handler(containerRequest, asyncResponse);
+        handler(request, signingMetadata, requestLoggingSession, asyncResponse);
     }
 
     @DELETE
     @Path("{path:.*}")
-    public void s3DeleteWithPath(@Context ContainerRequest containerRequest, @Suspended AsyncResponse asyncResponse)
+    public void s3DeleteWithPath(@Context Request request, @Context SigningMetadata signingMetadata, @Context RequestLoggingSession requestLoggingSession, @Suspended AsyncResponse asyncResponse)
     {
-        handler(containerRequest, asyncResponse);
+        handler(request, signingMetadata, requestLoggingSession, asyncResponse);
     }
 
-    private void handler(ContainerRequest containerRequest, AsyncResponse asyncResponse)
+    private void handler(Request request, SigningMetadata signingMetadata, RequestLoggingSession requestLoggingSession, AsyncResponse asyncResponse)
     {
-        Request request = fromRequest(containerRequest);
-        RequestLoggingSession requestLoggingSession = requestLoggerController.newRequestSession(request, SigningServiceType.S3);
         try {
             ParsedS3Request parsedS3Request = parseRequest(request);
 
             requestLoggingSession.logProperty("request.parsed.bucket", parsedS3Request.bucketName());
             requestLoggingSession.logProperty("request.parsed.key", parsedS3Request.keyInBucket());
-
-            SigningMetadata signingMetadata = signingController.validateAndParseAuthorization(request, SigningServiceType.S3);
             requestLoggingSession.logProperty("request.emulated.key", signingMetadata.credentials().emulated().secretKey());
 
             proxyClient.proxyRequest(signingMetadata, parsedS3Request, asyncResponse, requestLoggingSession);
         }
         catch (Throwable e) {
             requestLoggingSession.logException(e);
-            requestLoggingSession.close();
             throw e;
         }
     }

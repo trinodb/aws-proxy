@@ -68,24 +68,22 @@ class StreamingResponseHandler
             output.flush();
         };
 
-        try (requestLoggingSession) {
-            jakarta.ws.rs.core.Response.ResponseBuilder responseBuilder = jakarta.ws.rs.core.Response.status(response.getStatusCode());
-            if (HttpStatus.familyForStatusCode(response.getStatusCode()) == HttpStatus.Family.SUCCESSFUL) {
-                responseBuilder.entity(streamingOutput);
-            }
-            response.getHeaders()
-                    .keySet()
-                    .stream()
-                    .map(HeaderName::toString)
-                    .forEach(name -> response.getHeaders(name).forEach(value -> responseBuilder.header(name, value)));
-
-            requestLoggingSession.logProperty("response.status", response.getStatusCode());
-            requestLoggingSession.logProperty("response.headers", response.getHeaders());
-
-            // this will block until StreamingOutput completes
-
-            resume(responseBuilder.build());
+        jakarta.ws.rs.core.Response.ResponseBuilder responseBuilder = jakarta.ws.rs.core.Response.status(response.getStatusCode());
+        if (HttpStatus.familyForStatusCode(response.getStatusCode()) == HttpStatus.Family.SUCCESSFUL) {
+            responseBuilder.entity(streamingOutput);
         }
+        response.getHeaders()
+                .keySet()
+                .stream()
+                .map(HeaderName::toString)
+                .forEach(name -> response.getHeaders(name).forEach(value -> responseBuilder.header(name, value)));
+
+        requestLoggingSession.logProperty("response.status", response.getStatusCode());
+        requestLoggingSession.logProperty("response.headers", response.getHeaders());
+
+        // this will block until StreamingOutput completes
+
+        resume(responseBuilder.build());
 
         return null;
     }
