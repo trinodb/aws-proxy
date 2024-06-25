@@ -14,8 +14,8 @@
 package io.trino.s3.proxy.server.signing;
 
 import io.airlift.log.Logger;
+import io.trino.s3.proxy.server.collections.MultiMap;
 import jakarta.ws.rs.WebApplicationException;
-import jakarta.ws.rs.core.MultivaluedMap;
 import jakarta.ws.rs.core.Response;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.AwsCredentials;
@@ -58,7 +58,7 @@ final class Signer
             String serviceName,
             URI requestURI,
             SigningHeaders signingHeaders,
-            MultivaluedMap<String, String> queryParameters,
+            MultiMap queryParameters,
             String region,
             String requestDate,
             String httpMethod,

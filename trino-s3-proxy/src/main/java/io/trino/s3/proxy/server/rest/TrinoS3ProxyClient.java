@@ -17,6 +17,8 @@ import com.google.inject.BindingAnnotation;
 import com.google.inject.Inject;
 import io.airlift.http.client.HttpClient;
 import io.airlift.http.client.Request;
+import io.trino.s3.proxy.server.collections.ImmutableMultiMap;
+import io.trino.s3.proxy.server.collections.MultiMap;
 import io.trino.s3.proxy.server.credentials.Credentials;
 import io.trino.s3.proxy.server.remote.RemoteS3Facade;
 import io.trino.s3.proxy.server.security.SecurityController;
@@ -26,8 +28,6 @@ import io.trino.s3.proxy.server.signing.SigningMetadata;
 import jakarta.annotation.PreDestroy;
 import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.container.AsyncResponse;
-import jakarta.ws.rs.core.MultivaluedHashMap;
-import jakarta.ws.rs.core.MultivaluedMap;
 import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.UriBuilder;
 
@@ -99,32 +99,33 @@ public class TrinoS3ProxyClient
             throw new WebApplicationException(Response.Status.BAD_REQUEST);
         }
 
-        MultivaluedMap<String, String> remoteRequestHeaders = new MultivaluedHashMap<>();
+        ImmutableMultiMap.Builder remoteRequestHeadersBuilder = ImmutableMultiMap.builder(false);
         String targetXAmzDate = formatRequestInstant(Instant.now());
-        request.lowercaseHeaders().forEach((key, value) -> {
-            switch (key) {
+        request.requestHeaders().forEach((headerName, headerValues) -> {
+            switch (headerName) {
                 case "x-amz-security-token" -> {}  // we add this below
                 case "authorization" -> {} // we will create our own authorization header
                 case "amz-sdk-invocation-id", "amz-sdk-request", "x-amz-decoded-content-length", "content-length", "content-encoding" -> {}   // don't send these
-                case "x-amz-date" -> remoteRequestHeaders.putSingle("X-Amz-Date", targetXAmzDate); // use now for the remote request
-                case "host" -> remoteRequestHeaders.putSingle("Host", buildRemoteHost(remoteUri)); // replace source host with the remote AWS host
-                default -> remoteRequestHeaders.put(key, value);
+                case "x-amz-date" -> remoteRequestHeadersBuilder.putOrReplaceSingle("X-Amz-Date", targetXAmzDate); // use now for the remote request
+                case "host" -> remoteRequestHeadersBuilder.putOrReplaceSingle("Host", buildRemoteHost(remoteUri)); // replace source host with the remote AWS host
+                default -> remoteRequestHeadersBuilder.addAll(headerName, headerValues);
             }
         });
 
         signingMetadata.credentials()
                 .requiredRemoteCredential()
                 .session()
-                .ifPresent(sessionToken -> remoteRequestHeaders.add("x-amz-security-token", sessionToken));
+                .ifPresent(sessionToken -> remoteRequestHeadersBuilder.putOrReplaceSingle("x-amz-security-token", sessionToken));
 
-        request.requestContent().contentLength().ifPresent(length -> remoteRequestHeaders.putSingle("content-length", Integer.toString(length)));
+        request.requestContent().contentLength().ifPresent(length -> remoteRequestHeadersBuilder.putOrReplaceSingle("content-length", Integer.toString(length)));
 
         contentInputStream(request.requestContent(), signingMetadata).ifPresent(inputStream -> {
             remoteRequestBuilder.setBodyGenerator(new StreamingBodyGenerator(inputStream));
-            remoteRequestHeaders.putSingle("x-amz-content-sha256", "UNSIGNED-PAYLOAD");
+            remoteRequestHeadersBuilder.putOrReplaceSingle("x-amz-content-sha256", "UNSIGNED-PAYLOAD");
         });
 
         // set the new signed request auth header
+        MultiMap remoteRequestHeaders = remoteRequestHeadersBuilder.build();
         String signature = signingController.signRequest(
                 signingMetadata,
                 request.requestAuthorization().region(),
@@ -134,10 +135,10 @@ public class TrinoS3ProxyClient
                 remoteRequestHeaders,
                 request.queryParameters(),
                 request.httpVerb());
-        remoteRequestHeaders.putSingle("Authorization", signature);
 
         // remoteRequestHeaders now has correct values, copy to the remote request
-        remoteRequestHeaders.forEach((name, values) -> values.forEach(value -> remoteRequestBuilder.addHeader(name, value)));
+        remoteRequestHeaders.forEachEntry(remoteRequestBuilder::addHeader);
+        remoteRequestBuilder.addHeader("Authorization", signature);
 
         Request remoteRequest = remoteRequestBuilder.build();
 
@@ -177,10 +178,10 @@ public class TrinoS3ProxyClient
         return remoteUri.getHost() + ":" + port;
     }
 
-    private static UriBuilder uriBuilder(MultivaluedMap<String, String> queryParameters)
+    private static UriBuilder uriBuilder(MultiMap queryParameters)
     {
         UriBuilder uriBuilder = UriBuilder.newInstance();
-        queryParameters.forEach((name, values) -> uriBuilder.queryParam(name, values.toArray()));
+        queryParameters.forEachEntry(uriBuilder::queryParam);
         return uriBuilder;
     }
 }

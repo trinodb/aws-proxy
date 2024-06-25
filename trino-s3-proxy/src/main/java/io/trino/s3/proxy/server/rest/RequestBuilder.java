@@ -16,10 +16,11 @@ package io.trino.s3.proxy.server.rest;
 import com.google.common.base.Splitter;
 import com.google.common.base.Suppliers;
 import io.airlift.log.Logger;
+import io.trino.s3.proxy.server.collections.ImmutableMultiMap;
+import io.trino.s3.proxy.server.collections.MultiMap;
 import io.trino.s3.proxy.server.rest.RequestContent.ContentType;
 import io.trino.s3.proxy.server.signing.RequestAuthorization;
 import jakarta.ws.rs.WebApplicationException;
-import jakarta.ws.rs.core.MultivaluedMap;
 import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.UriBuilder;
 import org.glassfish.jersey.server.ContainerRequest;
@@ -34,9 +35,7 @@ import java.util.Locale;
 import java.util.Optional;
 import java.util.function.Supplier;
 
-import static com.google.common.base.MoreObjects.firstNonNull;
 import static com.google.common.io.ByteStreams.toByteArray;
-import static io.trino.s3.proxy.server.collections.MultiMapHelper.lowercase;
 
 class RequestBuilder
 {
@@ -46,19 +45,19 @@ class RequestBuilder
 
     static Request fromRequest(ContainerRequest request)
     {
-        MultivaluedMap<String, String> requestHeaders = request.getHeaders();
-        String xAmzDate = Optional.ofNullable(requestHeaders.getFirst("x-amz-date")).orElseThrow(() -> {
+        MultiMap requestHeaders = ImmutableMultiMap.copyOfCaseInsensitive(request.getHeaders().entrySet());
+        String xAmzDate = requestHeaders.getFirst("x-amz-date").orElseThrow(() -> {
             log.debug("Missing \"x-amz-date\" header");
             return new WebApplicationException(Response.Status.BAD_REQUEST);
         });
-        Optional<String> securityTokenHeader = Optional.ofNullable(requestHeaders.getFirst("x-amz-security-token"));
-        RequestContent requestContent = buildRequestContent(request);
+        Optional<String> securityTokenHeader = requestHeaders.getFirst("x-amz-security-token");
+        RequestContent requestContent = request.hasEntity() ? buildRequestContent(request.getEntityStream(), getRequestContentTypeFromHeader(requestHeaders)) : RequestContent.EMPTY;
         return new Request(
-                RequestAuthorization.parse(firstNonNull(requestHeaders.getFirst("authorization"), ""), securityTokenHeader),
+                RequestAuthorization.parse(requestHeaders.getFirst("authorization").orElse(""), securityTokenHeader),
                 xAmzDate,
                 request.getRequestUri(),
-                request.getRequestHeaders(),
-                request.getUriInfo().getQueryParameters(),
+                requestHeaders,
+                ImmutableMultiMap.copyOf(request.getUriInfo().getQueryParameters().entrySet()),
                 request.getMethod(),
                 requestContent);
     }
@@ -66,8 +65,8 @@ class RequestBuilder
     static ParsedS3Request fromRequest(Request request, String requestPath, Optional<String> serverHostName)
     {
         String httpVerb = request.httpVerb();
-        MultivaluedMap<String, String> queryParameters = request.requestQueryParameters();
-        MultivaluedMap<String, String> headers = lowercase(request.requestHeaders());
+        MultiMap queryParameters = request.requestQueryParameters();
+        MultiMap headers = request.requestHeaders();
         Optional<String> rawQuery = Optional.ofNullable(request.requestUri().getRawQuery());
         RequestContent requestContent = request.requestContent();
 
@@ -76,7 +75,7 @@ class RequestBuilder
         BucketAndKey bucketAndKey = serverHostName
                 .flatMap(serverHostNameValue -> {
                     String lowercaseServerHostName = serverHostNameValue.toLowerCase(Locale.ROOT);
-                    return Optional.ofNullable(headers.getFirst("host"))
+                    return headers.getFirst("host")
                             .map(value -> UriBuilder.fromUri("http://" + value.toLowerCase(Locale.ROOT)).build().getHost())
                             .filter(value -> value.endsWith(lowercaseServerHostName))
                             .map(value -> value.substring(0, value.length() - lowercaseServerHostName.length()))
@@ -95,13 +94,9 @@ class RequestBuilder
         return new ParsedS3Request(request.requestAuthorization(), request.requestDate(), bucketAndKey.bucket, keyInBucket, headers, queryParameters, httpVerb, bucketAndKey.rawKey, rawQuery, requestContent);
     }
 
-    private static RequestContent buildRequestContent(ContainerRequest request)
+    private static RequestContent buildRequestContent(InputStream requestEntityStream, String requestContentType)
     {
-        if (!request.hasEntity()) {
-            return RequestContent.EMPTY;
-        }
-
-        ContentType contentType = switch (encoding(request.getRequestHeaders())) {
+        ContentType contentType = switch (requestContentType) {
             case "aws-chunked" -> ContentType.AWS_CHUNKED;
             case "chunked" -> ContentType.W3C_CHUNKED;
             default -> ContentType.STANDARD;
@@ -112,7 +107,7 @@ class RequestBuilder
             // memoize the entity bytes so it can be called multiple times
             bytesSupplier = Suppliers.memoize(() -> {
                 try {
-                    return Optional.of(toByteArray(request.getEntityStream()));
+                    return Optional.of(toByteArray(requestEntityStream));
                 }
                 catch (IOException e) {
                     throw new WebApplicationException(Response.Status.BAD_REQUEST);
@@ -149,13 +144,13 @@ class RequestBuilder
             {
                 return standardBytes()
                         .map(bytes -> (InputStream) new ByteArrayInputStream(bytes))
-                        .or(() -> Optional.of(request.getEntityStream()));
+                        .or(() -> Optional.of(requestEntityStream));
             }
         };
     }
 
-    private static String encoding(MultivaluedMap<String, String> requestHeaders)
+    private static String getRequestContentTypeFromHeader(MultiMap requestHeaders)
     {
-        return firstNonNull(requestHeaders.getFirst("content-encoding"), firstNonNull(requestHeaders.getFirst("transfer-encoding"), ""));
+        return requestHeaders.getFirst("content-encoding").or(() -> requestHeaders.getFirst("transfer-encoding")).orElse("");
     }
 }

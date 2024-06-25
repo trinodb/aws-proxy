@@ -13,20 +13,24 @@
  */
 package io.trino.s3.proxy.server.signing;
 
+import com.google.common.collect.ImmutableSet;
 import com.google.inject.Inject;
+import io.trino.s3.proxy.server.collections.ImmutableMultiMap;
+import io.trino.s3.proxy.server.collections.MultiMap;
 import io.trino.s3.proxy.server.credentials.Credential;
 import io.trino.s3.proxy.server.credentials.Credentials;
 import io.trino.s3.proxy.server.credentials.CredentialsController;
 import io.trino.s3.proxy.server.rest.Request;
 import io.trino.s3.proxy.server.rest.RequestContent;
 import jakarta.ws.rs.WebApplicationException;
-import jakarta.ws.rs.core.MultivaluedMap;
 import jakarta.ws.rs.core.Response;
 
 import java.net.URI;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Locale;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
@@ -39,6 +43,8 @@ public class SigningController
 {
     private final Duration maxClockDrift;
     private final CredentialsController credentialsController;
+
+    private static final Set<String> LOWERCASE_HEADERS = ImmutableSet.of("content-type");
 
     @Inject
     public SigningController(CredentialsController credentialsController, SigningControllerConfig signingControllerConfig)
@@ -58,7 +64,7 @@ public class SigningController
     }
 
     // temporary - remove once Airlift has been updated
-    public enum Mode
+    private enum Mode
     {
         ADJUSTED_HEADERS,
         UNADJUSTED_HEADERS,
@@ -70,8 +76,8 @@ public class SigningController
             String requestDate,
             Function<Credentials, Credential> credentialsSupplier,
             URI requestURI,
-            MultivaluedMap<String, String> requestHeaders,
-            MultivaluedMap<String, String> queryParameters,
+            MultiMap requestHeaders,
+            MultiMap queryParameters,
             String httpMethod)
     {
         return internalSignRequest(
@@ -106,7 +112,7 @@ public class SigningController
             Function<Credentials, Credential> credentialsSupplier,
             URI requestURI,
             SigningHeaders signingHeaders,
-            MultivaluedMap<String, String> queryParameters,
+            MultiMap queryParameters,
             String httpMethod)
     {
         Credential credential = credentialsSupplier.apply(metadata.credentials());
@@ -134,7 +140,7 @@ public class SigningController
     {
         // temp workaround until https://github.com/airlift/airlift/pull/1178 is accepted
         return Stream.of(Mode.values()).flatMap(mode -> {
-            SigningHeaders signingHeaders = SigningHeaders.build(mode, request.requestHeaders(), request.requestAuthorization().lowercaseSignedHeaders());
+            SigningHeaders signingHeaders = SigningHeaders.build(adjustHeaders(mode, request.requestHeaders()), request.requestAuthorization().lowercaseSignedHeaders());
             SigningContext signingContext = internalSignRequest(
                     metadata,
                     request.requestAuthorization().region(),
@@ -147,5 +153,23 @@ public class SigningController
                     request.httpVerb());
             return request.requestAuthorization().authorization().equals(signingContext.signingAuthorization().authorization()) ? Stream.of(metadata.withSigningContext(signingContext)) : Stream.of();
         }).findFirst();
+    }
+
+    private static String lowercaseHeader(String headerName, String headerValue)
+    {
+        if (!LOWERCASE_HEADERS.contains(headerName)) {
+            return headerValue;
+        }
+        return headerValue.toLowerCase(Locale.ROOT);
+    }
+
+    private static MultiMap adjustHeaders(Mode mode, MultiMap headers)
+    {
+        if (mode == Mode.UNADJUSTED_HEADERS) {
+            return headers;
+        }
+        ImmutableMultiMap.Builder adjustedHeaderBuilder = ImmutableMultiMap.builder(headers.isCaseSensitiveKeys());
+        headers.forEachEntry((headerName, headerValue) -> adjustedHeaderBuilder.add(headerName, lowercaseHeader(headerName, headerValue)));
+        return adjustedHeaderBuilder.build();
     }
 }
