@@ -154,13 +154,12 @@ public class TrinoS3ProxyClient
         Request remoteRequest = remoteRequestBuilder.build();
 
         executorService.submit(() -> {
+            StreamingResponseHandler responseHandler = new StreamingResponseHandler(asyncResponse, requestLoggingSession);
             try {
-                httpClient.execute(remoteRequest, new StreamingResponseHandler(asyncResponse, requestLoggingSession));
+                httpClient.execute(remoteRequest, responseHandler);
             }
             catch (Throwable e) {
-                requestLoggingSession.logException(e);
-                requestLoggingSession.close();
-                asyncResponse.resume(e);
+                responseHandler.handleException(remoteRequest, new RuntimeException(e));
             }
         });
     }
