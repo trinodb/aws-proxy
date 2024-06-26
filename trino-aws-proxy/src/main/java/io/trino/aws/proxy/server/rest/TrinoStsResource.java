@@ -57,26 +57,28 @@ public class TrinoStsResource
 
     @SuppressWarnings("SwitchStatementWithTooFewBranches")
     @POST
-    public Response post(@Context Request request, @Context SigningMetadata signingMetadata)
+    public Response post(@Context Request request, @Context SigningMetadata signingMetadata, @Context RequestLoggingSession requestLoggingSession)
     {
         Map<String, String> arguments = deserializeRequest(request.requestQueryParameters(), request.requestContent().standardBytes());
 
         String action = Optional.ofNullable(arguments.get("Action")).orElse("");
 
         return switch (action) {
-            case "AssumeRole" -> assumeRole(request.requestAuthorization().region(), signingMetadata, arguments);
+            case "AssumeRole" -> assumeRole(request.requestAuthorization().region(), signingMetadata, arguments, requestLoggingSession);
             default -> {
                 log.debug("Request missing \"Action\". Arguments: %s", arguments);
+                requestLoggingSession.logError("request.action.unsupported", arguments);
                 yield Response.status(Response.Status.BAD_REQUEST).build();
             }
         };
     }
 
-    private Response assumeRole(String region, SigningMetadata signingMetadata, Map<String, String> arguments)
+    private Response assumeRole(String region, SigningMetadata signingMetadata, Map<String, String> arguments, RequestLoggingSession requestLoggingSession)
     {
         String roleArn = arguments.get("RoleArn");
         if (roleArn == null) {
             log.debug("Request missing \"RoleArn\". Arguments: %s", arguments);
+            requestLoggingSession.logError("request.role-arn.missing", arguments);
             return Response.status(Response.Status.BAD_REQUEST).build();
         }
         Optional<String> roleSessionName = Optional.ofNullable(arguments.get("RoleSessionName"));
@@ -86,6 +88,7 @@ public class TrinoStsResource
         EmulatedAssumedRole assumedRole = assumedRoleProvider.assumeEmulatedRole(signingMetadata.credentials().emulated(), region, roleArn, externalId, roleSessionName, durationSeconds)
                 .orElseThrow(() -> {
                     log.debug("Assume role failed. Arguments: %s", arguments);
+                    requestLoggingSession.logError("request.assume-role.failure", arguments);
                     return new WebApplicationException(Response.status(Response.Status.UNAUTHORIZED).build());
                 });
 
@@ -103,6 +106,10 @@ public class TrinoStsResource
             throw new WebApplicationException(e, Response.Status.INTERNAL_SERVER_ERROR);
         }
 
+        requestLoggingSession.logProperty("response.assume-role.arn", response.assumedRoleUser().arn());
+        requestLoggingSession.logProperty("response.assume-role.role-id", response.assumedRoleUser().assumedRoleId());
+        requestLoggingSession.logProperty("response.assume-role.access-key", response.credentials().accessKeyId());
+        requestLoggingSession.logProperty("response.assume-role.expiration", response.credentials().expiration());
         return Response.ok(xml, MediaType.APPLICATION_XML_TYPE).build();
     }
 
