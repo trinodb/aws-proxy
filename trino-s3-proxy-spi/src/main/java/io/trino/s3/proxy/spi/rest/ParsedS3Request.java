@@ -18,10 +18,12 @@ import io.trino.s3.proxy.spi.collections.MultiMap;
 import io.trino.s3.proxy.spi.signing.RequestAuthorization;
 
 import java.util.Optional;
+import java.util.UUID;
 
 import static java.util.Objects.requireNonNull;
 
 public record ParsedS3Request(
+        UUID requestId,
         RequestAuthorization requestAuthorization,
         String requestDate,
         String bucketName,
@@ -35,6 +37,7 @@ public record ParsedS3Request(
 {
     public ParsedS3Request
     {
+        requireNonNull(requestId, "requestId is null");
         requireNonNull(requestAuthorization, "requestAuthorization is null");
         requireNonNull(requestDate, "requestDate is null");
         requireNonNull(bucketName, "bucketName is null");
