@@ -40,6 +40,7 @@ import io.trino.aws.proxy.server.signing.SigningModule;
 import io.trino.aws.proxy.spi.TrinoAwsProxyServerPlugin;
 import io.trino.aws.proxy.spi.credentials.AssumedRoleProvider;
 import io.trino.aws.proxy.spi.credentials.CredentialsProvider;
+import io.trino.aws.proxy.spi.security.S3DatabaseSecurityFacadeProvider;
 import io.trino.aws.proxy.spi.security.S3SecurityFacadeProvider;
 import io.trino.aws.proxy.spi.security.SecurityResponse;
 import io.trino.aws.proxy.spi.signing.SigningController;
@@ -77,7 +78,6 @@ public class TrinoAwsProxyServerModule
 
         binder.bind(SigningController.class).to(InternalSigningController.class).in(Scopes.SINGLETON);
         binder.bind(CredentialsController.class).in(Scopes.SINGLETON);
-        binder.bind(S3SecurityController.class).in(Scopes.SINGLETON);
         binder.bind(RequestLoggerController.class).in(Scopes.SINGLETON);
 
         // TODO config, etc.
@@ -86,6 +86,10 @@ public class TrinoAwsProxyServerModule
 
         // deprecation is removed in next release of Airlift
         httpServerBinder(binder).enableLegacyUriCompliance();
+
+        // no default for S3SecurityFacadeProvider/S3DatabaseSecurityFacadeProvider - it's handled internally by S3SecurityController
+        newOptionalBinder(binder, S3SecurityFacadeProvider.class);
+        newOptionalBinder(binder, S3DatabaseSecurityFacadeProvider.class);
 
         newOptionalBinder(binder, CredentialsProvider.class).setDefault().toInstance((_, _) -> Optional.empty());
         newOptionalBinder(binder, AssumedRoleProvider.class).setDefault().toInstance((_, _, _, _, _, _) -> Optional.empty());
@@ -108,6 +112,7 @@ public class TrinoAwsProxyServerModule
 
     protected void moduleSpecificBinding(Binder binder)
     {
+        binder.bind(S3SecurityController.class).in(Scopes.SINGLETON);
         newOptionalBinder(binder, S3SecurityFacadeProvider.class).setDefault().toInstance(_ -> _ -> SecurityResponse.DEFAULT);
         binder.bind(RemoteS3Facade.class).to(VirtualHostStyleRemoteS3Facade.class).in(Scopes.SINGLETON);
     }

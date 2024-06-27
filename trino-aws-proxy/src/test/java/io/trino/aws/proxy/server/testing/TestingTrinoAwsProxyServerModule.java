@@ -18,12 +18,11 @@ import com.google.inject.BindingAnnotation;
 import com.google.inject.Scopes;
 import io.trino.aws.proxy.server.TrinoAwsProxyServerModule;
 import io.trino.aws.proxy.server.remote.RemoteS3Facade;
-import io.trino.aws.proxy.spi.security.S3SecurityFacadeProvider;
+import io.trino.aws.proxy.server.security.S3SecurityController;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.Target;
 
-import static com.google.inject.multibindings.OptionalBinder.newOptionalBinder;
 import static io.trino.aws.proxy.spi.TrinoAwsProxyBinder.trinoAwsProxyBinder;
 import static java.lang.annotation.ElementType.FIELD;
 import static java.lang.annotation.ElementType.METHOD;
@@ -49,7 +48,7 @@ public class TestingTrinoAwsProxyServerModule
         binder.bind(RemoteS3Facade.class).to(TestingRemoteS3Facade.class).in(Scopes.SINGLETON);
         binder.bind(TestingRemoteS3Facade.class).in(Scopes.SINGLETON);
 
-        newOptionalBinder(binder, S3SecurityFacadeProvider.class).setDefault().to(TestingS3SecurityFacade.class).in(Scopes.SINGLETON);
-        binder.bind(TestingS3SecurityFacade.class).in(Scopes.SINGLETON);
+        binder.bind(S3SecurityController.class).to(TestingS3SecurityController.class).in(Scopes.SINGLETON);
+        binder.bind(TestingS3SecurityController.class).in(Scopes.SINGLETON);
     }
 }

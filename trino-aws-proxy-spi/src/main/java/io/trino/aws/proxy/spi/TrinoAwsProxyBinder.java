@@ -17,6 +17,7 @@ import com.google.inject.Binder;
 import com.google.inject.binder.LinkedBindingBuilder;
 import io.trino.aws.proxy.spi.credentials.AssumedRoleProvider;
 import io.trino.aws.proxy.spi.credentials.CredentialsProvider;
+import io.trino.aws.proxy.spi.security.S3DatabaseSecurityFacadeProvider;
 import io.trino.aws.proxy.spi.security.S3SecurityFacadeProvider;
 
 import java.util.function.Consumer;
@@ -36,6 +37,8 @@ public interface TrinoAwsProxyBinder
     TrinoAwsProxyBinder bindAssumedRoleProvider(Consumer<LinkedBindingBuilder<AssumedRoleProvider>> assumedRoleProviderBinder);
 
     TrinoAwsProxyBinder bindS3SecurityFacadeProvider(Consumer<LinkedBindingBuilder<S3SecurityFacadeProvider>> securityFacadeProviderBinder);
+
+    TrinoAwsProxyBinder bindS3DatabaseSecurity(Consumer<LinkedBindingBuilder<S3DatabaseSecurityFacadeProvider>> databaseSecurityProviderBinder);
 
     final class InternalBinder
             implements TrinoAwsProxyBinder
@@ -65,6 +68,13 @@ public interface TrinoAwsProxyBinder
         public TrinoAwsProxyBinder bindS3SecurityFacadeProvider(Consumer<LinkedBindingBuilder<S3SecurityFacadeProvider>> securityFacadeProviderBinder)
         {
             securityFacadeProviderBinder.accept(newOptionalBinder(binder, S3SecurityFacadeProvider.class).setBinding());
+            return this;
+        }
+
+        @Override
+        public TrinoAwsProxyBinder bindS3DatabaseSecurity(Consumer<LinkedBindingBuilder<S3DatabaseSecurityFacadeProvider>> databaseSecurityProviderBinder)
+        {
+            databaseSecurityProviderBinder.accept(newOptionalBinder(binder, S3DatabaseSecurityFacadeProvider.class).setBinding());
             return this;
         }
     }

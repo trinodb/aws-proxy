@@ -30,6 +30,9 @@ import static java.util.Objects.requireNonNull;
 @TrinoAwsProxyTest(filters = WithAllContainers.class)
 public class TestPySparkSql
 {
+    public static final String DATABASE_NAME = "db";
+    public static final String TABLE_NAME = "people";
+
     private final S3Client s3Client;
     private final PySparkContainer pySparkContainer;
 
@@ -44,6 +47,14 @@ public class TestPySparkSql
     public void testSql()
             throws Exception
     {
+        createDatabaseAndTable(s3Client, pySparkContainer);
+
+        clearInputStreamAndClose(inputToContainerStdin(pySparkContainer.containerId(), "spark.sql(\"select * from %s.%s\").show()".formatted(DATABASE_NAME, TABLE_NAME)), line -> line.equals("|    John Galt| 28|"));
+    }
+
+    public static void createDatabaseAndTable(S3Client s3Client, PySparkContainer container)
+            throws Exception
+    {
         // create the test bucket
         s3Client.createBucket(r -> r.bucket("test"));
 
@@ -51,18 +62,16 @@ public class TestPySparkSql
         s3Client.putObject(r -> r.bucket("test").key("table/file.csv"), Path.of(Resources.getResource("test.csv").toURI()));
 
         // create the database
-        clearInputStreamAndClose(inputToContainerStdin(pySparkContainer.containerId(), "spark.sql(\"create database db\")"), line -> line.equals("DataFrame[]"));
+        clearInputStreamAndClose(inputToContainerStdin(container.containerId(), "spark.sql(\"create database %s\")".formatted(DATABASE_NAME)), line -> line.equals("DataFrame[]"));
 
         // create the DB
-        clearInputStreamAndClose(inputToContainerStdin(pySparkContainer.containerId(), """
+        clearInputStreamAndClose(inputToContainerStdin(container.containerId(), """
                 spark.sql(""\"
-                  CREATE TABLE IF NOT EXISTS db.people(name STRING, age INT)
+                  CREATE TABLE IF NOT EXISTS %s.%s(name STRING, age INT)
                   ROW FORMAT SERDE 'org.apache.hadoop.hive.serde2.OpenCSVSerde'
                   LOCATION 's3a://test/table/'
                   TBLPROPERTIES ("s3select.format" = "csv");
                   ""\")
-                """), line -> line.equals("DataFrame[]"));
-
-        clearInputStreamAndClose(inputToContainerStdin(pySparkContainer.containerId(), "spark.sql(\"select * from db.people\").show()"), line -> line.equals("|    John Galt| 28|"));
+                """.formatted(DATABASE_NAME, TABLE_NAME)), line -> line.equals("DataFrame[]"));
     }
 }
