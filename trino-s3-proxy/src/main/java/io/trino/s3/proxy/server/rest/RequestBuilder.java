@@ -36,6 +36,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.function.Supplier;
 
 import static com.google.common.io.ByteStreams.toByteArray;
@@ -56,6 +57,7 @@ class RequestBuilder
         Optional<String> securityTokenHeader = requestHeaders.getFirst("x-amz-security-token");
         RequestContent requestContent = request.hasEntity() ? buildRequestContent(request.getEntityStream(), getRequestContentTypeFromHeader(requestHeaders)) : RequestContent.EMPTY;
         return new Request(
+                UUID.randomUUID(),
                 RequestAuthorization.parse(requestHeaders.getFirst("authorization").orElse(""), securityTokenHeader),
                 xAmzDate,
                 request.getRequestUri(),
@@ -94,7 +96,18 @@ class RequestBuilder
                 });
 
         String keyInBucket = URLDecoder.decode(bucketAndKey.rawKey, StandardCharsets.UTF_8);
-        return new ParsedS3Request(request.requestAuthorization(), request.requestDate(), bucketAndKey.bucket, keyInBucket, headers, queryParameters, httpVerb, bucketAndKey.rawKey, rawQuery, requestContent);
+        return new ParsedS3Request(
+                request.requestId(),
+                request.requestAuthorization(),
+                request.requestDate(),
+                bucketAndKey.bucket,
+                keyInBucket,
+                headers,
+                queryParameters,
+                httpVerb,
+                bucketAndKey.rawKey,
+                rawQuery,
+                requestContent);
     }
 
     private static RequestContent buildRequestContent(InputStream requestEntityStream, String requestContentType)
