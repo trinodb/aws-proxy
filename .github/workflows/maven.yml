@@ -30,4 +30,4 @@ jobs:
         cache: maven
 
     - name: Build
-      run: mvn -B package --file pom.xml
+      run: mvn -Dhttp-client.idle-timeout=2m -B package --file pom.xml
