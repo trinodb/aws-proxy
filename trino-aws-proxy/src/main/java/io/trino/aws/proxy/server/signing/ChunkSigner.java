@@ -14,6 +14,7 @@
 package io.trino.aws.proxy.server.signing;
 
 import com.google.common.hash.HashCode;
+import io.trino.aws.proxy.spi.timestamps.AwsTimestamp;
 import software.amazon.awssdk.auth.signer.internal.AbstractAws4Signer;
 import software.amazon.awssdk.auth.signer.internal.SigningAlgorithm;
 import software.amazon.awssdk.auth.signer.internal.chunkedencoding.AwsS3V4ChunkSigner;
@@ -25,6 +26,7 @@ import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
+import java.time.Instant;
 
 /**
  * Extracted/copied from {@link AwsS3V4ChunkSigner} and <a href="https://docs.aws.amazon.com/AmazonS3/latest/API/sigv4-streaming.html">sigv4-streaming</a>.
@@ -38,9 +40,9 @@ class ChunkSigner
     private final String keyPath;
     private final Mac hmacSha256;
 
-    ChunkSigner(String requestDate, String keyPath, byte[] signingKey)
+    ChunkSigner(Instant requestDate, String keyPath, byte[] signingKey)
     {
-        this.dateTime = requestDate;
+        this.dateTime = AwsTimestamp.toRequestFormat(requestDate);
         this.keyPath = keyPath;
 
         try {

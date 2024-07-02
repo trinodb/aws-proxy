@@ -16,6 +16,7 @@ package io.trino.aws.proxy.server.rest;
 import com.google.common.base.Splitter;
 import com.google.common.base.Suppliers;
 import io.airlift.log.Logger;
+import io.trino.aws.proxy.server.signing.SigningQueryParameters;
 import io.trino.aws.proxy.spi.collections.ImmutableMultiMap;
 import io.trino.aws.proxy.spi.collections.MultiMap;
 import io.trino.aws.proxy.spi.rest.ParsedS3Request;
@@ -23,6 +24,7 @@ import io.trino.aws.proxy.spi.rest.Request;
 import io.trino.aws.proxy.spi.rest.RequestContent;
 import io.trino.aws.proxy.spi.rest.RequestContent.ContentType;
 import io.trino.aws.proxy.spi.signing.RequestAuthorization;
+import io.trino.aws.proxy.spi.timestamps.AwsTimestamp;
 import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.core.UriBuilder;
 import org.glassfish.jersey.server.ContainerRequest;
@@ -32,6 +34,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
+import java.time.Instant;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
@@ -39,6 +42,7 @@ import java.util.UUID;
 import java.util.function.Supplier;
 
 import static com.google.common.io.ByteStreams.toByteArray;
+import static io.trino.aws.proxy.server.signing.SigningQueryParameters.splitQueryParameters;
 import static jakarta.ws.rs.core.Response.Status.BAD_REQUEST;
 
 class RequestBuilder
@@ -50,19 +54,34 @@ class RequestBuilder
     static Request fromRequest(ContainerRequest request)
     {
         MultiMap requestHeaders = ImmutableMultiMap.copyOfCaseInsensitive(request.getHeaders().entrySet());
-        String xAmzDate = requestHeaders.getFirst("x-amz-date").orElseThrow(() -> {
-            log.debug("Missing \"x-amz-date\" header");
-            return new WebApplicationException(BAD_REQUEST);
-        });
-        Optional<String> securityTokenHeader = requestHeaders.getFirst("x-amz-security-token");
+        Optional<Instant> requestTimestamp;
+
         RequestContent requestContent = request.hasEntity() ? buildRequestContent(request.getEntityStream(), requestHeaders, getRequestContentTypeFromHeader(requestHeaders)) : RequestContent.EMPTY;
+        SigningQueryParameters signingQueryParameters = splitQueryParameters(ImmutableMultiMap.copyOf(request.getUriInfo().getQueryParameters(true).entrySet()));
+
+        Optional<RequestAuthorization> requestAuthorization = requestHeaders.getFirst("authorization")
+                .map(authorizationHeader -> RequestAuthorization.parse(authorizationHeader, requestHeaders.getFirst("x-amz-security-token")));
+        if (requestAuthorization.isPresent()) {
+            requestTimestamp = requestHeaders.getFirst("x-amz-date")
+                    .map(AwsTimestamp::fromRequestTimestamp);
+        }
+        else {
+            requestAuthorization = signingQueryParameters.toRequestAuthorization();
+            requestTimestamp = signingQueryParameters.requestDate();
+        }
         return new Request(
                 UUID.randomUUID(),
-                RequestAuthorization.parse(requestHeaders.getFirst("authorization").orElse(""), securityTokenHeader),
-                xAmzDate,
+                requestAuthorization.orElseThrow(() -> {
+                    log.debug("request authorization is missing");
+                    return new WebApplicationException(BAD_REQUEST);
+                }),
+                requestTimestamp.orElseThrow(() -> {
+                    log.debug("Missing request date");
+                    return new WebApplicationException(BAD_REQUEST);
+                }),
                 request.getRequestUri(),
                 requestHeaders,
-                ImmutableMultiMap.copyOf(request.getUriInfo().getQueryParameters().entrySet()),
+                signingQueryParameters.passthroughQueryParameters(),
                 request.getMethod(),
                 requestContent);
     }
@@ -95,19 +114,23 @@ class RequestBuilder
                     return new BucketAndKey(parts.get(0), parts.get(1));
                 });
 
-        String keyInBucket = URLDecoder.decode(bucketAndKey.rawKey, StandardCharsets.UTF_8);
         return new ParsedS3Request(
                 request.requestId(),
                 request.requestAuthorization(),
                 request.requestDate(),
                 bucketAndKey.bucket,
-                keyInBucket,
+                decodeUriComponent(bucketAndKey.rawKey()),
                 headers,
                 queryParameters,
                 httpVerb,
                 bucketAndKey.rawKey,
                 rawQuery,
                 requestContent);
+    }
+
+    private static String decodeUriComponent(String component)
+    {
+        return URLDecoder.decode(component, StandardCharsets.UTF_8);
     }
 
     @SuppressWarnings("SwitchStatementWithTooFewBranches")

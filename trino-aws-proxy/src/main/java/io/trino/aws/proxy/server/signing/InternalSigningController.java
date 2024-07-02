@@ -25,6 +25,7 @@ import io.trino.aws.proxy.spi.credentials.Credential;
 import io.trino.aws.proxy.spi.credentials.Credentials;
 import io.trino.aws.proxy.spi.rest.Request;
 import io.trino.aws.proxy.spi.rest.RequestContent;
+import io.trino.aws.proxy.spi.signing.RequestAuthorization;
 import io.trino.aws.proxy.spi.signing.SigningContext;
 import io.trino.aws.proxy.spi.signing.SigningController;
 import io.trino.aws.proxy.spi.signing.SigningMetadata;
@@ -41,9 +42,6 @@ import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
-import static io.trino.aws.proxy.server.signing.Signer.AMZ_DATE_FORMAT;
-import static io.trino.aws.proxy.server.signing.Signer.RESPONSE_DATE_FORMAT;
-import static io.trino.aws.proxy.server.signing.Signer.ZONE;
 import static java.util.Objects.requireNonNull;
 
 public class InternalSigningController
@@ -66,18 +64,6 @@ public class InternalSigningController
         maxClockDrift = signingControllerConfig.getMaxClockDrift().toJavaTime();
     }
 
-    @Override
-    public String formatRequestInstant(Instant instant)
-    {
-        return instant.atZone(ZONE).format(AMZ_DATE_FORMAT);
-    }
-
-    @Override
-    public String formatResponseInstant(Instant instant)
-    {
-        return instant.atZone(ZONE).format(RESPONSE_DATE_FORMAT);
-    }
-
     // temporary - remove once Airlift has been updated
     private enum Mode
     {
@@ -86,10 +72,11 @@ public class InternalSigningController
     }
 
     @Override
-    public String signRequest(
+    public RequestAuthorization signRequest(
             SigningMetadata metadata,
             String region,
-            String requestDate,
+            Instant requestDate,
+            Optional<Instant> signatureExpiry,
             Function<Credentials, Credential> credentialsSupplier,
             URI requestURI,
             MultiMap requestHeaders,
@@ -100,12 +87,13 @@ public class InternalSigningController
                 metadata,
                 region,
                 requestDate,
+                signatureExpiry,
                 RequestContent.EMPTY,
                 credentialsSupplier,
                 requestURI,
                 SigningHeaders.build(requestHeaders),
                 queryParameters,
-                httpMethod).signingAuthorization().authorization();
+                httpMethod).signingAuthorization();
     }
 
     @Override
@@ -128,7 +116,8 @@ public class InternalSigningController
     private SigningContext internalSignRequest(
             SigningMetadata metadata,
             String region,
-            String requestDate,
+            Instant requestDate,
+            Optional<Instant> signatureExpiry,
             RequestContent requestContent,
             Function<Credentials, Credential> credentialsSupplier,
             URI requestURI,
@@ -140,7 +129,19 @@ public class InternalSigningController
 
         Optional<byte[]> entity = metadata.signingServiceType().contentIsSigned() ? requestContent.standardBytes() : Optional.empty();
 
-        return Signer.sign(
+        return signatureExpiry.map(expiry -> Signer.presign(
+                metadata.signingServiceType().serviceName(),
+                requestURI,
+                signingHeaders,
+                queryParameters,
+                region,
+                requestDate,
+                expiry,
+                httpMethod,
+                credential,
+                maxClockDrift,
+                entity)
+        ).orElseGet(() -> Signer.sign(
                 metadata.signingServiceType().serviceName(),
                 requestURI,
                 signingHeaders,
@@ -148,10 +149,9 @@ public class InternalSigningController
                 region,
                 requestDate,
                 httpMethod,
-                credential.accessKey(),
-                credential.secretKey(),
+                credential,
                 maxClockDrift,
-                entity);
+                entity));
     }
 
     @SuppressWarnings("resource")
@@ -167,6 +167,7 @@ public class InternalSigningController
                     metadata,
                     request.requestAuthorization().region(),
                     request.requestDate(),
+                    request.requestAuthorization().expiry(),
                     request.requestContent(),
                     credentialsSupplier,
                     request.requestUri(),
@@ -174,15 +175,13 @@ public class InternalSigningController
                     request.requestQueryParameters(),
                     request.httpVerb());
 
-            String requestAuthorization = request.requestAuthorization().authorization();
-            String generatedAuthorization = signingContext.signingAuthorization().authorization();
-            boolean generatedMatchesRequest = requestAuthorization.equals(generatedAuthorization);
+            boolean generatedMatchesRequest = request.requestAuthorization().equals(signingContext.signingAuthorization());
             if (generatedMatchesRequest) {
                 return Stream.of(metadata.withSigningContext(signingContext));
             }
 
             requestLoggerController.currentRequestSession(request.requestId())
-                    .logError("request.security.authorization.mismatch", ImmutableMap.of("request", requestAuthorization, "generated", generatedAuthorization));
+                    .logError("request.security.authorization.mismatch", ImmutableMap.of("request", request.requestAuthorization(), "generated", signingContext.signingAuthorization()));
             return Stream.of();
         }).findFirst();
     }

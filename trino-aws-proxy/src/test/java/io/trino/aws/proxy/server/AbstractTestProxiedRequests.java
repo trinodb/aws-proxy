@@ -13,7 +13,6 @@
  */
 package io.trino.aws.proxy.server;
 
-import com.google.common.io.Resources;
 import jakarta.annotation.PreDestroy;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -40,10 +39,8 @@ import software.amazon.awssdk.services.s3.model.UploadPartRequest;
 import software.amazon.awssdk.services.s3.model.UploadPartResponse;
 
 import java.io.ByteArrayOutputStream;
-import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
-import java.nio.file.Path;
 import java.time.Duration;
 import java.util.Comparator;
 import java.util.List;
@@ -56,6 +53,7 @@ import java.util.stream.IntStream;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.util.concurrent.MoreExecutors.shutdownAndAwaitTermination;
+import static io.trino.aws.proxy.server.testing.TestingUtil.TEST_FILE;
 import static java.util.Objects.requireNonNull;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -125,16 +123,15 @@ public abstract class AbstractTestProxiedRequests
     public void testUploadAndDelete()
             throws IOException
     {
-        Path path = new File(Resources.getResource("testFile.txt").getPath()).toPath();
         PutObjectRequest putObjectRequest = PutObjectRequest.builder().bucket("two").key("test").build();
-        PutObjectResponse putObjectResponse = internalClient.putObject(putObjectRequest, path);
+        PutObjectResponse putObjectResponse = internalClient.putObject(putObjectRequest, TEST_FILE);
         assertThat(putObjectResponse.sdkHttpResponse().statusCode()).isEqualTo(200);
 
         GetObjectRequest getObjectRequest = GetObjectRequest.builder().bucket("two").key("test").build();
         ByteArrayOutputStream readContents = new ByteArrayOutputStream();
         internalClient.getObject(getObjectRequest).transferTo(readContents);
 
-        String expectedContents = Files.readString(path);
+        String expectedContents = Files.readString(TEST_FILE);
 
         assertThat(readContents.toString()).isEqualTo(expectedContents);
 
@@ -143,7 +140,7 @@ public abstract class AbstractTestProxiedRequests
                 .hasSize(1)
                 .first()
                 .extracting(S3Object::key, S3Object::size)
-                .containsExactlyInAnyOrder("test", Files.size(path));
+                .containsExactlyInAnyOrder("test", Files.size(TEST_FILE));
 
         DeleteObjectRequest deleteObjectRequest = DeleteObjectRequest.builder().bucket("two").key("test").build();
         internalClient.deleteObject(deleteObjectRequest);

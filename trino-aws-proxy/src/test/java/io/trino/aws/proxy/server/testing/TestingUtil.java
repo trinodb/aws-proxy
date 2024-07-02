@@ -13,6 +13,7 @@
  */
 package io.trino.aws.proxy.server.testing;
 
+import com.google.common.io.Resources;
 import com.google.inject.BindingAnnotation;
 import io.trino.aws.proxy.spi.credentials.Credential;
 import io.trino.aws.proxy.spi.credentials.Credentials;
@@ -24,6 +25,7 @@ import java.io.File;
 import java.lang.annotation.Retention;
 import java.lang.annotation.Target;
 import java.net.URI;
+import java.nio.file.Path;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Stream;
@@ -44,6 +46,7 @@ public final class TestingUtil
 
     // Domain name with a wildcard CNAME pointing to localhost - needed to test Virtual Host style addressing
     public static final String LOCALHOST_DOMAIN = "local.gate0.net";
+    public static final Path TEST_FILE = new File(Resources.getResource("testFile.txt").getPath()).toPath();
 
     private static final File targetDirectory = new File(TestingUtil.class.getProtectionDomain().getCodeSource().getLocation().getPath())
             .getParentFile();
