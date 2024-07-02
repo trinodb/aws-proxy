@@ -92,10 +92,15 @@ public class TrinoStsResource
                     return new WebApplicationException(Response.status(Response.Status.UNAUTHORIZED).build());
                 });
 
+        String assumedRoleSession = assumedRole.emulatedCredential().session().orElseThrow(() -> {
+            log.debug("Assume role returned an illegal response - no session was created. Arguments: %s", arguments);
+            requestLoggingSession.logError("request.assume-role.illegal-response", arguments);
+            return new WebApplicationException(Response.status(Response.Status.UNAUTHORIZED).build());
+        });
         String expiration = signingController.formatResponseInstant(assumedRole.expiration());
         AssumeRoleResult response = new AssumeRoleResult(
                 new AssumedRoleUser(assumedRole.arn(), assumedRole.roleId()),
-                new AssumeRoleResponse.Credentials(assumedRole.credential().accessKey(), assumedRole.credential().secretKey(), assumedRole.session(), expiration));
+                new AssumeRoleResponse.Credentials(assumedRole.emulatedCredential().accessKey(), assumedRole.emulatedCredential().secretKey(), assumedRoleSession, expiration));
 
         String xml;
         try {

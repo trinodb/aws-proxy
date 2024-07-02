@@ -89,11 +89,11 @@ public class TestingCredentialsRolesProvider
         return Optional.ofNullable(credentials.get(originalEmulatedAccessKey))
                 .map(internal -> {
                     String sessionToken = UUID.randomUUID().toString();
-                    Session session = new Session(new Credential(UUID.randomUUID().toString(), UUID.randomUUID().toString()), originalEmulatedAccessKey, Instant.now().plusSeconds(TimeUnit.HOURS.toSeconds(1)));
+                    Session session = new Session(new Credential(UUID.randomUUID().toString(), UUID.randomUUID().toString(), Optional.of(sessionToken)), originalEmulatedAccessKey, Instant.now().plusSeconds(TimeUnit.HOURS.toSeconds(1)));
 
                     assumedRoleSessions.put(sessionToken, session);
 
-                    return new EmulatedAssumedRole(session.sessionCredential, sessionToken, requestArn, UUID.randomUUID().toString(), session.expiration);
+                    return new EmulatedAssumedRole(session.sessionCredential, requestArn, UUID.randomUUID().toString(), session.expiration);
                 });
     }
 

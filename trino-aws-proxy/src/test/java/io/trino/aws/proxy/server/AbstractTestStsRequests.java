@@ -62,6 +62,6 @@ public abstract class AbstractTestStsRequests
 
         Optional<Credentials> credentials = credentialsProvider.credentials(awsCredentials.accessKeyId(), Optional.of(awsCredentials.sessionToken()));
         assertThat(credentials).isNotEmpty();
-        assertThat(credentials.map(Credentials::emulated)).contains(new Credential(awsCredentials.accessKeyId(), awsCredentials.secretAccessKey()));
+        assertThat(credentials.map(Credentials::emulated)).contains(new Credential(awsCredentials.accessKeyId(), awsCredentials.secretAccessKey(), Optional.of(awsCredentials.sessionToken())));
     }
 }

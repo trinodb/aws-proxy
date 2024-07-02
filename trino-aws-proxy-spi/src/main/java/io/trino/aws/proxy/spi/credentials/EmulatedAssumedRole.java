@@ -17,12 +17,11 @@ import java.time.Instant;
 
 import static java.util.Objects.requireNonNull;
 
-public record EmulatedAssumedRole(Credential credential, String session, String arn, String roleId, Instant expiration)
+public record EmulatedAssumedRole(Credential emulatedCredential, String arn, String roleId, Instant expiration)
 {
     public EmulatedAssumedRole
     {
-        requireNonNull(credential, "credential is null");
-        requireNonNull(session, "session is null");
+        requireNonNull(emulatedCredential, "emulatedCredential is null");
         requireNonNull(arn, "arn is null");
         requireNonNull(roleId, "roleId is null");
         requireNonNull(expiration, "expiration is null");

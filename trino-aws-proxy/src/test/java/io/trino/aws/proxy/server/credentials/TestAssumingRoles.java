@@ -67,7 +67,7 @@ public class TestAssumingRoles
                 .orElseThrow(() -> new RuntimeException("Failed to assume role"));
 
         try (S3Client client = clientBuilder(localS3URI)
-                .credentialsProvider(() -> AwsSessionCredentials.create(emulatedAssumedRole.credential().accessKey(), emulatedAssumedRole.credential().secretKey(), emulatedAssumedRole.session()))
+                .credentialsProvider(() -> AwsSessionCredentials.create(emulatedAssumedRole.emulatedCredential().accessKey(), emulatedAssumedRole.emulatedCredential().secretKey(), emulatedAssumedRole.emulatedCredential().session().orElseThrow()))
                 .build()) {
             // valid assumed role session - should work
             ListBucketsResponse listBucketsResponse = client.listBuckets();
