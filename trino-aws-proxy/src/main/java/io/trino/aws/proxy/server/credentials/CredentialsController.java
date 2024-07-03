@@ -135,15 +135,12 @@ public class CredentialsController
     @SuppressWarnings("resource")
     public <T> Optional<T> withCredentials(String emulatedAccessKey, Optional<String> emulatedSessionToken, Function<Credentials, Optional<T>> credentialsConsumer)
     {
-        Optional<T> result = credentialsProvider.credentials(emulatedAccessKey, emulatedSessionToken)
-                .flatMap(credentials -> credentials.remoteSessionRole()
-                        .flatMap(remoteSessionRole -> internalRemoteSession(remoteSessionRole, credentials).withUsage(credentials, credentialsConsumer))
-                        .or(() -> credentialsConsumer.apply(credentials)));
-
-        result.ifPresentOrElse(_ -> log.debug("Credentials found. EmulatedAccessKey: %s", emulatedAccessKey),
+        Optional<Credentials> retrievedCredentials = credentialsProvider.credentials(emulatedAccessKey, emulatedSessionToken);
+        retrievedCredentials.ifPresentOrElse(_ -> log.debug("Credentials found. EmulatedAccessKey: %s", emulatedAccessKey),
                 () -> log.debug("Credentials not found. EmulatedAccessKey: %s", emulatedAccessKey));
-
-        return result;
+        return retrievedCredentials.flatMap(credentials -> credentials.remoteSessionRole()
+                .flatMap(remoteSessionRole -> internalRemoteSession(remoteSessionRole, credentials).withUsage(credentials, credentialsConsumer))
+                .or(() -> credentialsConsumer.apply(credentials)));
     }
 
     private Session internalRemoteSession(RemoteSessionRole remoteSessionRole, Credentials credentials)
