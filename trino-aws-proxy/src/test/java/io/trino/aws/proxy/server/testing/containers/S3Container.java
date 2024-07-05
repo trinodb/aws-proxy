@@ -129,12 +129,17 @@ public class S3Container
 
         storageClient = S3Client.builder()
                 .region(Region.US_EAST_1)
-                .endpointOverride(URI.create(container.getS3URL()))
+                .endpointOverride(endpoint())
                 .forcePathStyle(true)
                 .credentialsProvider(() -> AwsBasicCredentials.create(credential.accessKey(), credential.secretKey()))
                 .build();
 
         policyUserCredential = new Credential(UUID.randomUUID().toString(), UUID.randomUUID().toString());
+    }
+
+    public URI endpoint()
+    {
+        return URI.create(container.getS3URL());
     }
 
     public HostAndPort containerHost()
