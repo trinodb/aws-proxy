@@ -17,7 +17,6 @@ import com.google.common.io.Resources;
 import com.google.inject.Inject;
 import io.airlift.http.server.testing.TestingHttpServer;
 import io.airlift.log.Logger;
-import io.trino.aws.proxy.server.TrinoAwsProxyConfig;
 import io.trino.aws.proxy.server.testing.TestingUtil;
 import io.trino.aws.proxy.server.testing.TestingUtil.ForTesting;
 import io.trino.aws.proxy.spi.credentials.Credentials;
@@ -48,10 +47,10 @@ public class MetastoreContainer
 
     @SuppressWarnings("resource")
     @Inject
-    public MetastoreContainer(PostgresContainer postgresContainer, TestingHttpServer httpServer, @ForTesting Credentials testingCredentials, TrinoAwsProxyConfig trinoAwsProxyConfig)
+    public MetastoreContainer(PostgresContainer postgresContainer, TestingHttpServer httpServer, @ForTesting Credentials testingCredentials, S3Container s3Container)
             throws IOException
     {
-        String s3Endpoint = asHostUrl(httpServer.getBaseUrl().resolve(trinoAwsProxyConfig.getS3Path()).toString());
+        String s3Endpoint = asHostUrl(s3Container.endpoint().toString());
 
         File postgresJar = TestingUtil.findTestJar("postgres");
         File hadoopJar = TestingUtil.findTestJar("hadoop");
@@ -59,8 +58,8 @@ public class MetastoreContainer
 
         String hiveSiteXml = Resources.toString(Resources.getResource("hive-site.xml"), StandardCharsets.UTF_8)
                 .replace("$ENDPOINT$", s3Endpoint)
-                .replace("$ACCESS_KEY$", testingCredentials.emulated().accessKey())
-                .replace("$SECRET_KEY$", testingCredentials.emulated().secretKey());
+                .replace("$ACCESS_KEY$", testingCredentials.requiredRemoteCredential().accessKey())
+                .replace("$SECRET_KEY$", testingCredentials.requiredRemoteCredential().secretKey());
 
         // need to disable SSL to postgres otherwise HMS throws an exception and quits
         String serviceOpts = "-Djavax.jdo.option.ConnectionDriverName=org.postgresql.Driver -Djavax.jdo.option.ConnectionURL=%s -Djavax.jdo.option.ConnectionUserName=%s -Djavax.jdo.option.ConnectionPassword=%s"
@@ -79,6 +78,7 @@ public class MetastoreContainer
                 .waitingFor(new LogMessageWaitStrategy().withRegEx(".*Starting Hive Metastore Server.*"));
 
         exposeHostPort(httpServer.getPort());
+        exposeHostPort(s3Container.containerHost().getPort());
         exposeHostPort(postgresContainer.port());
 
         container.start();
