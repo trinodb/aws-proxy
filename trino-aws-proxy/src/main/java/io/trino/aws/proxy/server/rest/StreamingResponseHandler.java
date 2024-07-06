@@ -39,14 +39,14 @@ class StreamingResponseHandler
     private static final String PRESIGNED_URL_HEADER_BASE = "X-Trino-Pre-Signed-Url-";
 
     private final AsyncResponse asyncResponse;
-    private final Map<String, URI> presignedHeaders;
+    private final Map<String, URI> presignedUrls;
     private final RequestLoggingSession requestLoggingSession;
     private final AtomicBoolean hasBeenResumed = new AtomicBoolean(false);
 
-    StreamingResponseHandler(AsyncResponse asyncResponse, Map<String, URI> presignedHeaders, RequestLoggingSession requestLoggingSession)
+    StreamingResponseHandler(AsyncResponse asyncResponse, Map<String, URI> presignedUrls, RequestLoggingSession requestLoggingSession)
     {
         this.asyncResponse = requireNonNull(asyncResponse, "asyncResponse is null");
-        this.presignedHeaders = ImmutableMap.copyOf(presignedHeaders);
+        this.presignedUrls = ImmutableMap.copyOf(presignedUrls);
         this.requestLoggingSession = requireNonNull(requestLoggingSession, "requestLoggingSession is null");
     }
 
@@ -88,7 +88,7 @@ class StreamingResponseHandler
         requestLoggingSession.logProperty("response.status", response.getStatusCode());
         requestLoggingSession.logProperty("response.headers", response.getHeaders());
 
-        presignedHeaders.forEach((method, uri) -> responseBuilder.header(PRESIGNED_URL_HEADER_BASE + method, uri.toString()));
+        presignedUrls.forEach((method, uri) -> responseBuilder.header(PRESIGNED_URL_HEADER_BASE + method, uri.toString()));
 
         // this will block until StreamingOutput completes
 

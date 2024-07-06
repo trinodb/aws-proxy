@@ -25,12 +25,11 @@ import io.trino.aws.proxy.spi.signing.SigningMetadata;
 import java.net.URI;
 import java.time.Instant;
 import java.util.Map;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 public class TestingS3PresignController
         extends S3PresignController
 {
-    private final AtomicBoolean rewriteUrisForContainers = new AtomicBoolean(true);
+    private volatile boolean rewriteUrisForContainers = true;
 
     @Inject
     public TestingS3PresignController(SigningController signingController, TrinoAwsProxyConfig trinoAwsProxyConfig, S3SecurityController s3SecurityController)
@@ -41,7 +40,7 @@ public class TestingS3PresignController
     @Override
     public Map<String, URI> buildPresignedRemoteUrls(SigningMetadata signingMetadata, ParsedS3Request request, Instant targetRequestTimestamp, URI remoteUri)
     {
-        if (rewriteUrisForContainers.get()) {
+        if (rewriteUrisForContainers) {
             remoteUri = URI.create(TestContainerUtil.asHostUrl(remoteUri.toString()));
         }
         return super.buildPresignedRemoteUrls(signingMetadata, request, targetRequestTimestamp, remoteUri);
@@ -49,6 +48,6 @@ public class TestingS3PresignController
 
     public void setRewriteUrisForContainers(boolean doRewrites)
     {
-        rewriteUrisForContainers.set(doRewrites);
+        rewriteUrisForContainers = doRewrites;
     }
 }

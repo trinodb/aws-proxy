@@ -209,8 +209,6 @@ public class TestPresigningHeaders
                 outputStream.flush();
             }
 
-            ByteStreams.toByteArray(urlConnection.getInputStream());
-
             return urlConnection.getHeaderField("eTag");
         }
         finally {
