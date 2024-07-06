@@ -46,6 +46,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 import static com.google.common.util.concurrent.MoreExecutors.shutdownAndAwaitTermination;
+import static io.airlift.http.client.StreamingBodyGenerator.streamingBodyGenerator;
 import static java.lang.annotation.ElementType.FIELD;
 import static java.lang.annotation.ElementType.METHOD;
 import static java.lang.annotation.ElementType.PARAMETER;
@@ -131,7 +132,7 @@ public class TrinoS3ProxyClient
         request.requestContent().contentLength().ifPresent(length -> remoteRequestHeadersBuilder.putOrReplaceSingle("content-length", Integer.toString(length)));
 
         contentInputStream(request.requestContent(), signingMetadata).ifPresent(inputStream -> {
-            remoteRequestBuilder.setBodyGenerator(new StreamingBodyGenerator(inputStream));
+            remoteRequestBuilder.setBodyGenerator(streamingBodyGenerator(inputStream));
             remoteRequestHeadersBuilder.putOrReplaceSingle("x-amz-content-sha256", "UNSIGNED-PAYLOAD");
         });
 
