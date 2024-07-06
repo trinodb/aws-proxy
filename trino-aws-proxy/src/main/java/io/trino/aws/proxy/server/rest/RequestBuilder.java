@@ -24,7 +24,6 @@ import io.trino.aws.proxy.spi.rest.RequestContent;
 import io.trino.aws.proxy.spi.rest.RequestContent.ContentType;
 import io.trino.aws.proxy.spi.signing.RequestAuthorization;
 import jakarta.ws.rs.WebApplicationException;
-import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.UriBuilder;
 import org.glassfish.jersey.server.ContainerRequest;
 
@@ -40,6 +39,7 @@ import java.util.UUID;
 import java.util.function.Supplier;
 
 import static com.google.common.io.ByteStreams.toByteArray;
+import static jakarta.ws.rs.core.Response.Status.BAD_REQUEST;
 
 class RequestBuilder
 {
@@ -52,10 +52,10 @@ class RequestBuilder
         MultiMap requestHeaders = ImmutableMultiMap.copyOfCaseInsensitive(request.getHeaders().entrySet());
         String xAmzDate = requestHeaders.getFirst("x-amz-date").orElseThrow(() -> {
             log.debug("Missing \"x-amz-date\" header");
-            return new WebApplicationException(Response.Status.BAD_REQUEST);
+            return new WebApplicationException(BAD_REQUEST);
         });
         Optional<String> securityTokenHeader = requestHeaders.getFirst("x-amz-security-token");
-        RequestContent requestContent = request.hasEntity() ? buildRequestContent(request.getEntityStream(), getRequestContentTypeFromHeader(requestHeaders)) : RequestContent.EMPTY;
+        RequestContent requestContent = request.hasEntity() ? buildRequestContent(request.getEntityStream(), requestHeaders, getRequestContentTypeFromHeader(requestHeaders)) : RequestContent.EMPTY;
         return new Request(
                 UUID.randomUUID(),
                 RequestAuthorization.parse(requestHeaders.getFirst("authorization").orElse(""), securityTokenHeader),
@@ -110,7 +110,8 @@ class RequestBuilder
                 requestContent);
     }
 
-    private static RequestContent buildRequestContent(InputStream requestEntityStream, String requestContentType)
+    @SuppressWarnings("SwitchStatementWithTooFewBranches")
+    private static RequestContent buildRequestContent(InputStream requestEntityStream, MultiMap requestHeaders, String requestContentType)
     {
         ContentType contentType = switch (requestContentType) {
             case "aws-chunked" -> ContentType.AWS_CHUNKED;
@@ -118,29 +119,45 @@ class RequestBuilder
             default -> ContentType.STANDARD;
         };
 
-        Supplier<Optional<byte[]>> bytesSupplier;
-        if (contentType == ContentType.STANDARD) {
-            // memoize the entity bytes so it can be called multiple times
-            bytesSupplier = Suppliers.memoize(() -> {
+        Supplier<Optional<byte[]>> bytesSupplier = switch (contentType) {
+            case STANDARD -> Suppliers.memoize(() -> {
                 try {
                     return Optional.of(toByteArray(requestEntityStream));
                 }
                 catch (IOException e) {
-                    throw new WebApplicationException(Response.Status.BAD_REQUEST);
+                    throw new WebApplicationException(BAD_REQUEST);
                 }
             });
-        }
-        else {
-            // we always stream chunked content. Never load it into memory.
-            bytesSupplier = Optional::empty;
-        }
+
+            default -> Optional::empty;
+        };
+
+        Supplier<Optional<Integer>> contentLengthSupplier = switch (contentType) {
+            case STANDARD -> () -> bytesSupplier.get().map(bytes -> bytes.length);
+
+            case AWS_CHUNKED -> () -> {
+                int contentLength = requestHeaders.getFirst("x-amz-decoded-content-length")
+                        .map(header -> {
+                            try {
+                                return Integer.parseInt(header);
+                            }
+                            catch (NumberFormatException e) {
+                                throw new WebApplicationException(e, BAD_REQUEST);
+                            }
+                        })
+                        .orElseThrow(() -> new WebApplicationException(BAD_REQUEST));
+                return Optional.of(contentLength);
+            };
+
+            default -> Optional::empty;
+        };
 
         return new RequestContent()
         {
             @Override
             public Optional<Integer> contentLength()
             {
-                return bytesSupplier.get().map(bytes -> bytes.length);
+                return contentLengthSupplier.get();
             }
 
             @Override
