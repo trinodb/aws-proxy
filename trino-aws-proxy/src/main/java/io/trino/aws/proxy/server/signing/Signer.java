@@ -48,6 +48,7 @@ import static io.trino.aws.proxy.server.signing.Signers.aws4Signer;
 import static io.trino.aws.proxy.server.signing.Signers.legacyAws4Signer;
 import static jakarta.ws.rs.core.Response.Status.BAD_REQUEST;
 import static jakarta.ws.rs.core.Response.Status.UNAUTHORIZED;
+import static java.util.Objects.requireNonNull;
 
 final class Signer
 {
@@ -90,12 +91,13 @@ final class Signer
         return internalSign(
                 (signingApi, requestToSign) -> {
                     SdkHttpFullRequest signedRequest = signingApi.presign(requestToSign, presignerParamsBuilder.build());
-                    return SigningQueryParameters.splitQueryParameters(ImmutableMultiMap.copyOf(signedRequest.rawQueryParameters().entrySet()))
+                    RequestAuthorization requestAuthorization = SigningQueryParameters.splitQueryParameters(ImmutableMultiMap.copyOf(signedRequest.rawQueryParameters().entrySet()))
                             .toRequestAuthorization()
                             .orElseThrow(() -> {
                                 log.debug("Presigner did not generate a valid request");
                                 return new WebApplicationException(BAD_REQUEST);
                             });
+                    return new InternalRequestAuthorization(requestAuthorization, signedRequest.getUri());
                 },
                 SdkHttpFullRequest.builder(),
                 presignerParamsBuilder,
@@ -144,12 +146,13 @@ final class Signer
         return internalSign(
                 (signingApi, requestToSign) -> {
                     SdkHttpFullRequest signedRequest = signingApi.sign(requestToSign, signerParamsBuilder.build());
-                    return RequestAuthorization.parse(
+                    RequestAuthorization requestAuthorization = RequestAuthorization.parse(
                             signedRequest.firstMatchingHeader("Authorization").orElseThrow(() -> {
                                 log.debug("Signer did not generate \"Authorization\" header");
                                 return new WebApplicationException(BAD_REQUEST);
                             }),
                             credential.session());
+                    return new InternalRequestAuthorization(requestAuthorization, signedRequest.getUri());
                 },
                 requestBuilder,
                 signerParamsBuilder,
@@ -164,8 +167,17 @@ final class Signer
                 entity);
     }
 
+    private record InternalRequestAuthorization(RequestAuthorization requestAuthorization, URI signingUri)
+    {
+        private InternalRequestAuthorization
+        {
+            requireNonNull(requestAuthorization, "requestAuthorization is null");
+            requireNonNull(signingUri, "signingUri is null");
+        }
+    }
+
     private static <R extends Aws4SignerParams.Builder<R>> SigningContext internalSign(
-            BiFunction<Signers.SigningApi, SdkHttpFullRequest, RequestAuthorization> authorizationBuilder,
+            BiFunction<Signers.SigningApi, SdkHttpFullRequest, InternalRequestAuthorization> authorizationBuilder,
             SdkHttpFullRequest.Builder requestBuilder,
             R paramsBuilder,
             String serviceName,
@@ -198,25 +210,25 @@ final class Signer
         Clock clock = Clock.fixed(requestDate, AwsTimestamp.ZONE);
         paramsBuilder.signingClockOverride(clock);
 
-        RequestAuthorization requestAuthorization = isLegacy(signingHeaders)
+        InternalRequestAuthorization internalRequestAuthorization = isLegacy(signingHeaders)
                 ? authorizationBuilder.apply(legacyAws4Signer, requestBuilder.build())
                 : authorizationBuilder.apply(aws4Signer, requestBuilder.build());
         return buildSigningContext(
-                requestAuthorization,
+                internalRequestAuthorization,
                 signingKey(credentials, new Aws4SignerRequestParams(paramsBuilder.build())),
                 requestDate,
                 signingHeaders.getFirst("x-amz-content-sha256"));
     }
 
-    private static SigningContext buildSigningContext(RequestAuthorization requestAuthorization, byte[] signingKey, Instant requestDate, Optional<String> contentHash)
+    private static SigningContext buildSigningContext(InternalRequestAuthorization internalRequestAuthorization, byte[] signingKey, Instant requestDate, Optional<String> contentHash)
     {
-        if (!requestAuthorization.isValid()) {
-            log.debug("Invalid RequestAuthorization. RequestAuthorization: %s", requestAuthorization);
+        if (!internalRequestAuthorization.requestAuthorization.isValid()) {
+            log.debug("Invalid RequestAuthorization. RequestAuthorization: %s", internalRequestAuthorization);
             throw new WebApplicationException(UNAUTHORIZED);
         }
-        ChunkSigner chunkSigner = new ChunkSigner(requestDate, requestAuthorization.keyPath(), signingKey);
-        ChunkSigningSession chunkSigningSession = new InternalChunkSigningSession(chunkSigner, requestAuthorization.signature());
-        return new SigningContext(requestAuthorization, chunkSigningSession, contentHash);
+        ChunkSigner chunkSigner = new ChunkSigner(requestDate, internalRequestAuthorization.requestAuthorization.keyPath(), signingKey);
+        ChunkSigningSession chunkSigningSession = new InternalChunkSigningSession(chunkSigner, internalRequestAuthorization.requestAuthorization.signature());
+        return new SigningContext(internalRequestAuthorization.requestAuthorization, chunkSigningSession, contentHash, internalRequestAuthorization.signingUri);
     }
 
     private static void enforceMaxDrift(Instant requestDate, Duration pastMaxClockDrift, Duration futureMaxClockDrift)

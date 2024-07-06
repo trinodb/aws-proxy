@@ -14,6 +14,7 @@
 package io.trino.aws.proxy.server.rest;
 
 import com.google.common.base.Throwables;
+import com.google.common.collect.ImmutableMap;
 import io.airlift.http.client.HeaderName;
 import io.airlift.http.client.HttpStatus;
 import io.airlift.http.client.Request;
@@ -24,6 +25,8 @@ import jakarta.ws.rs.container.AsyncResponse;
 import jakarta.ws.rs.core.StreamingOutput;
 
 import java.io.InputStream;
+import java.net.URI;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -33,13 +36,17 @@ import static java.util.Objects.requireNonNull;
 class StreamingResponseHandler
         implements ResponseHandler<Void, RuntimeException>
 {
+    private static final String PRESIGNED_URL_HEADER_BASE = "X-Trino-Pre-Signed-Url-";
+
     private final AsyncResponse asyncResponse;
+    private final Map<String, URI> presignedHeaders;
     private final RequestLoggingSession requestLoggingSession;
     private final AtomicBoolean hasBeenResumed = new AtomicBoolean(false);
 
-    StreamingResponseHandler(AsyncResponse asyncResponse, RequestLoggingSession requestLoggingSession)
+    StreamingResponseHandler(AsyncResponse asyncResponse, Map<String, URI> presignedHeaders, RequestLoggingSession requestLoggingSession)
     {
         this.asyncResponse = requireNonNull(asyncResponse, "asyncResponse is null");
+        this.presignedHeaders = ImmutableMap.copyOf(presignedHeaders);
         this.requestLoggingSession = requireNonNull(requestLoggingSession, "requestLoggingSession is null");
     }
 
@@ -80,6 +87,8 @@ class StreamingResponseHandler
 
         requestLoggingSession.logProperty("response.status", response.getStatusCode());
         requestLoggingSession.logProperty("response.headers", response.getHeaders());
+
+        presignedHeaders.forEach((method, uri) -> responseBuilder.header(PRESIGNED_URL_HEADER_BASE + method, uri.toString()));
 
         // this will block until StreamingOutput completes
 

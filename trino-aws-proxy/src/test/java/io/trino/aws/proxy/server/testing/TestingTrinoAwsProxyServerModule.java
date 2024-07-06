@@ -18,6 +18,7 @@ import com.google.inject.BindingAnnotation;
 import com.google.inject.Scopes;
 import io.trino.aws.proxy.server.TrinoAwsProxyServerModule;
 import io.trino.aws.proxy.server.remote.RemoteS3Facade;
+import io.trino.aws.proxy.server.rest.S3PresignController;
 import io.trino.aws.proxy.server.security.S3SecurityController;
 
 import java.lang.annotation.Retention;
@@ -50,5 +51,8 @@ public class TestingTrinoAwsProxyServerModule
 
         binder.bind(S3SecurityController.class).to(TestingS3SecurityController.class).in(Scopes.SINGLETON);
         binder.bind(TestingS3SecurityController.class).in(Scopes.SINGLETON);
+
+        binder.bind(S3PresignController.class).to(TestingS3PresignController.class).in(Scopes.SINGLETON);
+        binder.bind(TestingS3PresignController.class).in(Scopes.SINGLETON);
     }
 }
