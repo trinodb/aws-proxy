@@ -49,7 +49,19 @@ public class TestPySparkSql
     {
         createDatabaseAndTable(s3Client, pySparkContainer);
 
-        clearInputStreamAndClose(inputToContainerStdin(pySparkContainer.containerId(), "spark.sql(\"select * from %s.%s\").show()".formatted(DATABASE_NAME, TABLE_NAME)), line -> line.equals("|    John Galt| 28|"));
+        clearInputStreamAndClose(inputToContainerStdin(pySparkContainer.containerId(),
+                "spark.sql(\"select * from %s.%s\").show()".formatted(DATABASE_NAME, TABLE_NAME)), line -> line.equals("|    John Galt| 28|"));
+
+        clearInputStreamAndClose(inputToContainerStdin(pySparkContainer.containerId(), """
+                columns = ['name', 'age']
+                vals = [('a', 10), ('b', 20), ('c', 30)]
+                
+                df = spark.createDataFrame(vals, columns)
+                df.write.insertInto('%s.%s')
+                """.formatted(DATABASE_NAME, TABLE_NAME)), line -> line.contains("Stage 1:"));
+
+        clearInputStreamAndClose(inputToContainerStdin(pySparkContainer.containerId(),
+                "spark.sql(\"select * from %s.%s\").show()".formatted(DATABASE_NAME, TABLE_NAME)), line -> line.equals("|            c| 30|"));
     }
 
     public static void createDatabaseAndTable(S3Client s3Client, PySparkContainer container)

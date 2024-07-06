@@ -88,6 +88,11 @@ public final class TestingUtil
                 .orElseThrow(() -> new AssertionError("Unable to find test jar: " + name));
     }
 
+    public static File findProjectClassDirectory(Class<?> clazz)
+    {
+        return new File(clazz.getProtectionDomain().getCodeSource().getLocation().getPath());
+    }
+
     public static String getFileFromStorage(S3Client storageClient, String bucketName, String key)
             throws IOException
     {
