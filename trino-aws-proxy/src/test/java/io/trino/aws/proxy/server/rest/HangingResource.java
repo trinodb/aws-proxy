@@ -13,6 +13,7 @@
  */
 package io.trino.aws.proxy.server.rest;
 
+import com.google.common.collect.ImmutableMap;
 import com.google.inject.Inject;
 import io.airlift.http.client.HttpClient;
 import io.airlift.http.client.Request;
@@ -62,7 +63,7 @@ public class HangingResource
     {
         // simulate calling a remote request and streaming the result while the remote server hangs
         Request request = prepareGet().setUri(uriInfo.getBaseUri().resolve("hang")).build();
-        httpClient.execute(request, new StreamingResponseHandler(asyncResponse, () -> {}));
+        httpClient.execute(request, new StreamingResponseHandler(asyncResponse, ImmutableMap.of(), () -> {}));
     }
 
     @GET

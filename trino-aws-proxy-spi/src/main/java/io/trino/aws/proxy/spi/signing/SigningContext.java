@@ -13,16 +13,18 @@
  */
 package io.trino.aws.proxy.spi.signing;
 
+import java.net.URI;
 import java.util.Optional;
 
 import static java.util.Objects.requireNonNull;
 
-public record SigningContext(RequestAuthorization signingAuthorization, ChunkSigningSession chunkSigningSession, Optional<String> contentHash)
+public record SigningContext(RequestAuthorization signingAuthorization, ChunkSigningSession chunkSigningSession, Optional<String> contentHash, URI signingUri)
 {
     public SigningContext
     {
         requireNonNull(signingAuthorization, "signingAuthorization is null");
         requireNonNull(chunkSigningSession, "chunkSigningSession is null");
         requireNonNull(contentHash, "contentHash is null");
+        requireNonNull(signingUri, "signingUri is null");
     }
 }

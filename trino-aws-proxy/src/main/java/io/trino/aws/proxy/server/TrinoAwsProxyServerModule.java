@@ -28,6 +28,7 @@ import io.trino.aws.proxy.server.credentials.CredentialsController;
 import io.trino.aws.proxy.server.remote.RemoteS3Module;
 import io.trino.aws.proxy.server.rest.RequestFilter;
 import io.trino.aws.proxy.server.rest.RequestLoggerController;
+import io.trino.aws.proxy.server.rest.S3PresignController;
 import io.trino.aws.proxy.server.rest.TrinoS3ProxyClient;
 import io.trino.aws.proxy.server.rest.TrinoS3ProxyClient.ForProxyClient;
 import io.trino.aws.proxy.server.rest.TrinoS3Resource;
@@ -112,6 +113,7 @@ public class TrinoAwsProxyServerModule
 
     protected void moduleSpecificBinding(Binder binder)
     {
+        binder.bind(S3PresignController.class).in(Scopes.SINGLETON);
         binder.bind(S3SecurityController.class).in(Scopes.SINGLETON);
         newOptionalBinder(binder, S3SecurityFacadeProvider.class).setDefault().toInstance(_ -> _ -> SUCCESS);
         install(new RemoteS3Module());

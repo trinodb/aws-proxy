@@ -15,15 +15,22 @@ package io.trino.aws.proxy.server;
 
 import io.airlift.configuration.Config;
 import io.airlift.configuration.ConfigDescription;
+import io.airlift.units.Duration;
+import io.airlift.units.MinDuration;
 import jakarta.validation.constraints.NotNull;
 
 import java.util.Optional;
+import java.util.concurrent.TimeUnit;
+
+import static java.util.Objects.requireNonNull;
 
 public class TrinoAwsProxyConfig
 {
     private Optional<String> s3HostName = Optional.empty();
     private String s3Path = "/api/v1/s3Proxy/s3";
     private String stsPath = "/api/v1/s3Proxy/sts";
+    private Duration presignedUrlsDuration = new Duration(15, TimeUnit.MINUTES);
+    private boolean generatePresignedUrlsOnHead = true;
 
     @Config("aws.proxy.s3.hostname")
     @ConfigDescription("Hostname to use for S3 REST operations, virtual-host style addressing is only supported if this is set")
@@ -65,5 +72,32 @@ public class TrinoAwsProxyConfig
     public String getStsPath()
     {
         return stsPath;
+    }
+
+    @MinDuration("1ms")
+    public Duration getPresignedUrlsDuration()
+    {
+        return presignedUrlsDuration;
+    }
+
+    @Config("aws.proxy.s3.presigned-url.duration")
+    @ConfigDescription("Duration of read/write pre-signed URLs")
+    public TrinoAwsProxyConfig setPresignedUrlsDuration(Duration presignedUrlsDuration)
+    {
+        this.presignedUrlsDuration = requireNonNull(presignedUrlsDuration, "presignedUrlsDuration is null");
+        return this;
+    }
+
+    public boolean isGeneratePresignedUrlsOnHead()
+    {
+        return generatePresignedUrlsOnHead;
+    }
+
+    @Config("aws.proxy.s3.presigned-url.head-generation.enabled")
+    @ConfigDescription("Whether or not to generate pre-signed URL response headers on HEAD requests")
+    public TrinoAwsProxyConfig setGeneratePresignedUrlsOnHead(boolean generatePresignedUrlsOnHead)
+    {
+        this.generatePresignedUrlsOnHead = generatePresignedUrlsOnHead;
+        return this;
     }
 }

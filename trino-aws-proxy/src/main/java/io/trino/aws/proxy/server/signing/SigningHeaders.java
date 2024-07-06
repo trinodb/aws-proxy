@@ -27,6 +27,8 @@ import java.util.stream.Stream;
 
 final class SigningHeaders
 {
+    static final SigningHeaders EMPTY = new SigningHeaders(ImmutableMultiMap.empty(), ImmutableSet.of());
+
     private static final Set<String> IGNORED_HEADERS = ImmutableSet.of(
             "x-amzn-trace-id",
             "expect",

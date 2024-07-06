@@ -13,11 +13,13 @@
  */
 package io.trino.aws.proxy.server.rest;
 
+import com.google.common.collect.ImmutableMap;
 import com.google.inject.BindingAnnotation;
 import com.google.inject.Inject;
 import io.airlift.http.client.HttpClient;
 import io.airlift.http.client.Request;
 import io.airlift.log.Logger;
+import io.trino.aws.proxy.server.TrinoAwsProxyConfig;
 import io.trino.aws.proxy.server.remote.RemoteS3Facade;
 import io.trino.aws.proxy.server.security.S3SecurityController;
 import io.trino.aws.proxy.spi.credentials.Credentials;
@@ -43,6 +45,7 @@ import java.lang.annotation.Target;
 import java.net.URI;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -59,13 +62,13 @@ public class TrinoS3ProxyClient
 {
     private static final Logger log = Logger.get(TrinoS3ProxyClient.class);
 
-    private static final int CHUNK_SIZE = 8_192 * 8;
-
     private final HttpClient httpClient;
     private final SigningController signingController;
     private final RemoteS3Facade remoteS3Facade;
     private final S3SecurityController s3SecurityController;
+    private final S3PresignController s3PresignController;
     private final ExecutorService executorService = Executors.newVirtualThreadPerTaskExecutor();
+    private final boolean generatePresignedUrlsOnHead;
 
     @Retention(RUNTIME)
     @Target({FIELD, PARAMETER, METHOD})
@@ -73,12 +76,21 @@ public class TrinoS3ProxyClient
     public @interface ForProxyClient {}
 
     @Inject
-    public TrinoS3ProxyClient(@ForProxyClient HttpClient httpClient, SigningController signingController, RemoteS3Facade remoteS3Facade, S3SecurityController s3SecurityController)
+    public TrinoS3ProxyClient(
+            @ForProxyClient HttpClient httpClient,
+            SigningController signingController,
+            RemoteS3Facade remoteS3Facade,
+            S3SecurityController s3SecurityController,
+            TrinoAwsProxyConfig trinoAwsProxyConfig,
+            S3PresignController s3PresignController)
     {
         this.httpClient = requireNonNull(httpClient, "httpClient is null");
         this.signingController = requireNonNull(signingController, "signingController is null");
         this.remoteS3Facade = requireNonNull(remoteS3Facade, "objectStore is null");
         this.s3SecurityController = requireNonNull(s3SecurityController, "securityController is null");
+        this.s3PresignController = requireNonNull(s3PresignController, "presignController is null");
+
+        generatePresignedUrlsOnHead = trinoAwsProxyConfig.isGeneratePresignedUrlsOnHead();
     }
 
     @PreDestroy
@@ -140,6 +152,14 @@ public class TrinoS3ProxyClient
         // All SigV4 requests require an x-amz-content-sha256
         remoteRequestHeadersBuilder.putOrReplaceSingle("x-amz-content-sha256", "UNSIGNED-PAYLOAD");
 
+        Map<String, URI> presignedUrls;
+        if (generatePresignedUrlsOnHead && request.httpVerb().equalsIgnoreCase("HEAD")) {
+            presignedUrls = s3PresignController.buildPresignedRemoteUrls(signingMetadata, request, targetRequestTimestamp, remoteUri);
+        }
+        else {
+            presignedUrls = ImmutableMap.of();
+        }
+
         // set the new signed request auth header
         MultiMap remoteRequestHeaders = remoteRequestHeadersBuilder.build();
         String signature = signingController.signRequest(
@@ -151,7 +171,7 @@ public class TrinoS3ProxyClient
                 remoteUri,
                 remoteRequestHeaders,
                 request.queryParameters(),
-                request.httpVerb()).authorization();
+                request.httpVerb()).signingAuthorization().authorization();
 
         // remoteRequestHeaders now has correct values, copy to the remote request
         remoteRequestHeaders.forEachEntry(remoteRequestBuilder::addHeader);
@@ -160,7 +180,7 @@ public class TrinoS3ProxyClient
         Request remoteRequest = remoteRequestBuilder.build();
 
         executorService.submit(() -> {
-            StreamingResponseHandler responseHandler = new StreamingResponseHandler(asyncResponse, requestLoggingSession);
+            StreamingResponseHandler responseHandler = new StreamingResponseHandler(asyncResponse, presignedUrls, requestLoggingSession);
             try {
                 httpClient.execute(remoteRequest, responseHandler);
             }

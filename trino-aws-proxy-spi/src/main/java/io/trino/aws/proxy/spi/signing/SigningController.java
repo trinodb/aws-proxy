@@ -25,7 +25,7 @@ import java.util.function.Function;
 
 public interface SigningController
 {
-    RequestAuthorization signRequest(
+    SigningContext signRequest(
             SigningMetadata metadata,
             String region,
             Instant requestDate,
@@ -33,6 +33,16 @@ public interface SigningController
             Function<Credentials, Credential> credentialsSupplier,
             URI requestURI,
             MultiMap requestHeaders,
+            MultiMap queryParameters,
+            String httpMethod);
+
+    SigningContext presignRequest(
+            SigningMetadata metadata,
+            String region,
+            Instant requestDate,
+            Optional<Instant> signatureExpiry,
+            Function<Credentials, Credential> credentialsSupplier,
+            URI requestURI,
             MultiMap queryParameters,
             String httpMethod);
 

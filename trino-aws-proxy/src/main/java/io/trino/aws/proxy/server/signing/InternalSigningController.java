@@ -23,7 +23,6 @@ import io.trino.aws.proxy.spi.credentials.Credential;
 import io.trino.aws.proxy.spi.credentials.Credentials;
 import io.trino.aws.proxy.spi.rest.Request;
 import io.trino.aws.proxy.spi.rest.RequestContent;
-import io.trino.aws.proxy.spi.signing.RequestAuthorization;
 import io.trino.aws.proxy.spi.signing.SigningContext;
 import io.trino.aws.proxy.spi.signing.SigningController;
 import io.trino.aws.proxy.spi.signing.SigningMetadata;
@@ -63,7 +62,7 @@ public class InternalSigningController
     }
 
     @Override
-    public RequestAuthorization signRequest(
+    public SigningContext signRequest(
             SigningMetadata metadata,
             String region,
             Instant requestDate,
@@ -84,7 +83,31 @@ public class InternalSigningController
                 requestURI,
                 SigningHeaders.build(requestHeaders),
                 queryParameters,
-                httpMethod).signingAuthorization();
+                httpMethod);
+    }
+
+    @Override
+    public SigningContext presignRequest(
+            SigningMetadata metadata,
+            String region,
+            Instant requestDate,
+            Optional<Instant> signatureExpiry,
+            Function<Credentials, Credential> credentialsSupplier,
+            URI requestURI,
+            MultiMap queryParameters,
+            String httpMethod)
+    {
+        return internalSignRequest(
+                metadata,
+                region,
+                requestDate,
+                signatureExpiry,
+                RequestContent.EMPTY,
+                credentialsSupplier,
+                requestURI,
+                SigningHeaders.EMPTY,
+                queryParameters,
+                httpMethod);
     }
 
     @Override
