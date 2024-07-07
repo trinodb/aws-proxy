@@ -67,6 +67,7 @@ public class TrinoS3ProxyClient
     private final RemoteS3Facade remoteS3Facade;
     private final S3SecurityController s3SecurityController;
     private final S3PresignController s3PresignController;
+    private final LimitStreamController limitStreamController;
     private final ExecutorService executorService = Executors.newVirtualThreadPerTaskExecutor();
     private final boolean generatePresignedUrlsOnHead;
 
@@ -82,13 +83,15 @@ public class TrinoS3ProxyClient
             RemoteS3Facade remoteS3Facade,
             S3SecurityController s3SecurityController,
             TrinoAwsProxyConfig trinoAwsProxyConfig,
-            S3PresignController s3PresignController)
+            S3PresignController s3PresignController,
+            LimitStreamController limitStreamController)
     {
         this.httpClient = requireNonNull(httpClient, "httpClient is null");
         this.signingController = requireNonNull(signingController, "signingController is null");
         this.remoteS3Facade = requireNonNull(remoteS3Facade, "objectStore is null");
         this.s3SecurityController = requireNonNull(s3SecurityController, "securityController is null");
         this.s3PresignController = requireNonNull(s3PresignController, "presignController is null");
+        this.limitStreamController = requireNonNull(limitStreamController, "quotaStreamController is null");
 
         generatePresignedUrlsOnHead = trinoAwsProxyConfig.isGeneratePresignedUrlsOnHead();
     }
@@ -172,7 +175,7 @@ public class TrinoS3ProxyClient
         Request remoteRequest = remoteRequestBuilder.build();
 
         executorService.submit(() -> {
-            StreamingResponseHandler responseHandler = new StreamingResponseHandler(asyncResponse, presignedUrls, requestLoggingSession);
+            StreamingResponseHandler responseHandler = new StreamingResponseHandler(asyncResponse, presignedUrls, requestLoggingSession, limitStreamController);
             try {
                 httpClient.execute(remoteRequest, responseHandler);
             }
@@ -185,13 +188,14 @@ public class TrinoS3ProxyClient
     private Optional<InputStream> contentInputStream(RequestContent requestContent, SigningMetadata signingMetadata)
     {
         return switch (requestContent.contentType()) {
-            case AWS_CHUNKED, AWS_CHUNKED_IN_W3C_CHUNKED -> requestContent.inputStream().map(inputStream -> new AwsChunkedInputStream(inputStream, signingMetadata.requiredSigningContext().chunkSigningSession(), requestContent.contentLength().orElseThrow()));
+            case AWS_CHUNKED, AWS_CHUNKED_IN_W3C_CHUNKED -> requestContent.inputStream()
+                    .map(inputStream -> new AwsChunkedInputStream(limitStreamController.wrap(inputStream), signingMetadata.requiredSigningContext().chunkSigningSession(), requestContent.contentLength().orElseThrow()));
 
             case STANDARD, W3C_CHUNKED -> requestContent.inputStream().map(inputStream -> {
                 SigningContext signingContext = signingMetadata.requiredSigningContext();
                 return signingContext.contentHash()
                         .filter(contentHash -> !contentHash.startsWith("STREAMING-") && !contentHash.startsWith("UNSIGNED-"))
-                        .map(contentHash -> (InputStream) new HashCheckInputStream(inputStream, contentHash, requestContent.contentLength()))
+                        .map(contentHash -> (InputStream) new HashCheckInputStream(limitStreamController.wrap(inputStream), contentHash, requestContent.contentLength()))
                         .orElse(inputStream);
             });
 
