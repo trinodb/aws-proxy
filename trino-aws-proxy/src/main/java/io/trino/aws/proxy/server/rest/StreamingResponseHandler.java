@@ -42,12 +42,14 @@ class StreamingResponseHandler
     private final Map<String, URI> presignedUrls;
     private final RequestLoggingSession requestLoggingSession;
     private final AtomicBoolean hasBeenResumed = new AtomicBoolean(false);
+    private final LimitStreamController limitStreamController;
 
-    StreamingResponseHandler(AsyncResponse asyncResponse, Map<String, URI> presignedUrls, RequestLoggingSession requestLoggingSession)
+    StreamingResponseHandler(AsyncResponse asyncResponse, Map<String, URI> presignedUrls, RequestLoggingSession requestLoggingSession, LimitStreamController limitStreamController)
     {
         this.asyncResponse = requireNonNull(asyncResponse, "asyncResponse is null");
         this.presignedUrls = ImmutableMap.copyOf(presignedUrls);
         this.requestLoggingSession = requireNonNull(requestLoggingSession, "requestLoggingSession is null");
+        this.limitStreamController = requireNonNull(limitStreamController, "quotaStreamController is null");
     }
 
     @Override
@@ -71,7 +73,7 @@ class StreamingResponseHandler
             // HttpClient/Jersey timeouts control behavior. The configured HttpClient idle timeout
             // controls whether the InputStream will time out. Jersey configuration controls
             // OutputStream and general request timeouts.
-            inputStream.transferTo(output);
+            inputStream.transferTo(limitStreamController.wrap(output));
             output.flush();
         };
 

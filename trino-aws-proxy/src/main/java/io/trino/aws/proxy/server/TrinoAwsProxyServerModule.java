@@ -34,6 +34,7 @@ import io.trino.aws.proxy.server.credentials.JsonIdentityProvider;
 import io.trino.aws.proxy.server.credentials.file.FileBasedCredentialsModule;
 import io.trino.aws.proxy.server.credentials.http.HttpCredentialsModule;
 import io.trino.aws.proxy.server.remote.RemoteS3Module;
+import io.trino.aws.proxy.server.rest.LimitStreamController;
 import io.trino.aws.proxy.server.rest.RequestFilter;
 import io.trino.aws.proxy.server.rest.RequestLoggerController;
 import io.trino.aws.proxy.server.rest.S3PresignController;
@@ -91,6 +92,7 @@ public class TrinoAwsProxyServerModule
 
         binder.bind(CredentialsController.class).in(Scopes.SINGLETON);
         binder.bind(RequestLoggerController.class).in(Scopes.SINGLETON);
+        binder.bind(LimitStreamController.class).in(Scopes.SINGLETON);
 
         // TODO config, etc.
         httpClientBinder(binder).bindHttpClient("ProxyClient", ForProxyClient.class);

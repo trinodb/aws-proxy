@@ -15,6 +15,7 @@ package io.trino.aws.proxy.server;
 
 import io.airlift.configuration.Config;
 import io.airlift.configuration.ConfigDescription;
+import io.airlift.units.DataSize;
 import io.airlift.units.Duration;
 import io.airlift.units.MinDuration;
 import jakarta.validation.constraints.Min;
@@ -33,6 +34,7 @@ public class TrinoAwsProxyConfig
     private Duration presignedUrlsDuration = new Duration(15, TimeUnit.MINUTES);
     private boolean generatePresignedUrlsOnHead = true;
     private int requestLoggerSavedQty = 10000;
+    private Optional<DataSize> maxPayloadSize = Optional.empty();
 
     @Config("aws.proxy.s3.hostname")
     @ConfigDescription("Hostname to use for S3 REST operations, virtual-host style addressing is only supported if this is set")
@@ -114,6 +116,20 @@ public class TrinoAwsProxyConfig
     public TrinoAwsProxyConfig setRequestLoggerSavedQty(int requestLoggerSavedQty)
     {
         this.requestLoggerSavedQty = requestLoggerSavedQty;
+        return this;
+    }
+
+    @NotNull
+    public Optional<DataSize> getMaxPayloadSize()
+    {
+        return maxPayloadSize;
+    }
+
+    @Config("aws.proxy.request.payload.max-size")
+    @ConfigDescription("Max request/response payload size, optional")
+    public TrinoAwsProxyConfig setMaxPayloadSize(DataSize maxPayloadSize)
+    {
+        this.maxPayloadSize = Optional.of(requireNonNull(maxPayloadSize, "requestByteQuota is null"));
         return this;
     }
 }
