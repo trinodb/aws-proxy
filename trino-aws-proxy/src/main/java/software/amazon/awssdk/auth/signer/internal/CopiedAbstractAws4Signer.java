@@ -57,6 +57,7 @@ import static software.amazon.awssdk.utils.StringUtils.lowerCase;
  * @param <T> Type of the signing params class that is used for signing the request
  * @param <U> Type of the signing params class that is used for pre signing the request
  */
+@SuppressWarnings("deprecation")
 @SdkInternalApi
 public abstract class CopiedAbstractAws4Signer<T extends Aws4SignerParams, U extends Aws4PresignerParams>
     extends AbstractAwsSigner implements Presigner {

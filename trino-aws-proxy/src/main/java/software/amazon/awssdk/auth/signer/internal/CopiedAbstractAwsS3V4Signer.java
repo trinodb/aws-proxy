@@ -41,6 +41,7 @@ import static software.amazon.awssdk.auth.signer.internal.SignerConstant.X_AMZ_C
 /**
  * AWS4 signer implementation for AWS S3
  */
+@SuppressWarnings("deprecation")
 @SdkInternalApi
 public abstract class CopiedAbstractAwsS3V4Signer
         extends CopiedAbstractAws4Signer<AwsS3V4SignerParams, Aws4PresignerParams>
