@@ -13,10 +13,10 @@
  */
 package io.trino.aws.proxy.spi.signing;
 
-import io.trino.aws.proxy.spi.collections.MultiMap;
 import io.trino.aws.proxy.spi.credentials.Credential;
 import io.trino.aws.proxy.spi.credentials.Credentials;
 import io.trino.aws.proxy.spi.rest.Request;
+import io.trino.aws.proxy.spi.util.MultiMap;
 
 import java.net.URI;
 import java.time.Instant;

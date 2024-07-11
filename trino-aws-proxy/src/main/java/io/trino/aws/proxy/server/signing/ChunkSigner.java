@@ -14,7 +14,7 @@
 package io.trino.aws.proxy.server.signing;
 
 import com.google.common.hash.HashCode;
-import io.trino.aws.proxy.spi.timestamps.AwsTimestamp;
+import io.trino.aws.proxy.spi.util.AwsTimestamp;
 import software.amazon.awssdk.auth.signer.internal.AbstractAws4Signer;
 import software.amazon.awssdk.auth.signer.internal.SigningAlgorithm;
 import software.amazon.awssdk.auth.signer.internal.chunkedencoding.AwsS3V4ChunkSigner;

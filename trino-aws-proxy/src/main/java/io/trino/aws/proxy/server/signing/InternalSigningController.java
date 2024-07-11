@@ -19,8 +19,6 @@ import com.google.inject.Inject;
 import io.airlift.log.Logger;
 import io.trino.aws.proxy.server.credentials.CredentialsController;
 import io.trino.aws.proxy.server.rest.RequestLoggerController;
-import io.trino.aws.proxy.spi.collections.ImmutableMultiMap;
-import io.trino.aws.proxy.spi.collections.MultiMap;
 import io.trino.aws.proxy.spi.credentials.Credential;
 import io.trino.aws.proxy.spi.credentials.Credentials;
 import io.trino.aws.proxy.spi.rest.Request;
@@ -30,6 +28,8 @@ import io.trino.aws.proxy.spi.signing.SigningContext;
 import io.trino.aws.proxy.spi.signing.SigningController;
 import io.trino.aws.proxy.spi.signing.SigningMetadata;
 import io.trino.aws.proxy.spi.signing.SigningServiceType;
+import io.trino.aws.proxy.spi.util.ImmutableMultiMap;
+import io.trino.aws.proxy.spi.util.MultiMap;
 import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.core.Response;
 

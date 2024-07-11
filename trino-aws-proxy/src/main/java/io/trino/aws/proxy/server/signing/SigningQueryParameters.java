@@ -15,10 +15,10 @@ package io.trino.aws.proxy.server.signing;
 
 import com.google.common.collect.ImmutableSet;
 import io.airlift.log.Logger;
-import io.trino.aws.proxy.spi.collections.ImmutableMultiMap;
-import io.trino.aws.proxy.spi.collections.MultiMap;
 import io.trino.aws.proxy.spi.signing.RequestAuthorization;
-import io.trino.aws.proxy.spi.timestamps.AwsTimestamp;
+import io.trino.aws.proxy.spi.util.AwsTimestamp;
+import io.trino.aws.proxy.spi.util.ImmutableMultiMap;
+import io.trino.aws.proxy.spi.util.MultiMap;
 
 import java.time.Instant;
 import java.util.NoSuchElementException;
