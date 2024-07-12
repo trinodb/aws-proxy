@@ -39,12 +39,14 @@ import io.trino.aws.proxy.spi.signing.SigningMetadata;
 import io.trino.aws.proxy.spi.signing.SigningServiceType;
 import io.trino.aws.proxy.spi.util.AwsTimestamp;
 import io.trino.aws.proxy.spi.util.ImmutableMultiMap;
+import io.trino.aws.proxy.spi.util.MultiMap;
 import jakarta.ws.rs.core.UriBuilder;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import software.amazon.awssdk.auth.signer.internal.chunkedencoding.AwsS3V4ChunkSigner;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.DeleteBucketRequest;
+import software.amazon.awssdk.services.s3.model.HeadObjectResponse;
 
 import java.io.IOException;
 import java.net.URI;
@@ -62,6 +64,7 @@ import static io.airlift.http.client.StatusResponseHandler.createStatusResponseH
 import static io.trino.aws.proxy.server.testing.TestingUtil.assertFileNotInS3;
 import static io.trino.aws.proxy.server.testing.TestingUtil.cleanupBuckets;
 import static io.trino.aws.proxy.server.testing.TestingUtil.getFileFromStorage;
+import static io.trino.aws.proxy.server.testing.TestingUtil.headObjectInStorage;
 import static java.util.Objects.requireNonNull;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -74,6 +77,7 @@ public class TestGenericRestRequests
     private final Credentials testingCredentials;
     private final S3Client storageClient;
 
+    private static final String TEST_CONTENT_TYPE = "text/plain;charset=utf-8";
     private static final String goodContent = "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Viverra aliquet eget sit amet tellus cras adipiscing. Viverra mauris in aliquam sem fringilla. Facilisis mauris sit amet massa vitae. Mauris vitae ultricies leo integer malesuada. Sed libero enim sed faucibus turpis in eu mi bibendum. Lorem sed risus ultricies tristique nulla aliquet enim. Quis blandit turpis cursus in hac habitasse platea dictumst quisque. Diam maecenas ultricies mi eget mauris pharetra et ultrices neque. Aliquam sem fringilla ut morbi.";
 
     // first char is different case
@@ -133,6 +137,17 @@ public class TestGenericRestRequests
         // Upload in 3 chunks
         assertThat(doAwsChunkedUpload(bucket, "aws-chunked-3-partitions", goodContent, 3, validCredential).getStatusCode()).isEqualTo(200);
         assertThat(getFileFromStorage(storageClient, bucket, "aws-chunked-3-partitions")).isEqualTo(goodContent);
+
+        // Upload in 3 chunks with multiple content-encodings
+        ImmutableMultiMap.Builder extraHeadersBuilder = ImmutableMultiMap.builder(false)
+                .add("x-amz-meta-metadata-key", "some-metadata-value")
+                .add("Content-Encoding", "gzip,compress");
+        assertThat(doAwsChunkedUpload(bucket, "aws-chunked-with-metadata", goodContent, 3, validCredential, validCredential, Function.identity(), extraHeadersBuilder.build()).getStatusCode()).isEqualTo(200);
+        assertThat(getFileFromStorage(storageClient, bucket, "aws-chunked-with-metadata")).isEqualTo(goodContent);
+        HeadObjectResponse headObjectResponse = headObjectInStorage(storageClient, bucket, "aws-chunked-with-metadata");
+        assertThat(headObjectResponse.contentEncoding()).isEqualTo("gzip,compress");
+        assertThat(headObjectResponse.contentType()).isEqualTo(TEST_CONTENT_TYPE);
+        assertThat(headObjectResponse.metadata()).containsEntry("metadata-key", "some-metadata-value");
     }
 
     @Test
@@ -154,7 +169,7 @@ public class TestGenericRestRequests
         assertFileNotInS3(storageClient, bucket, fileKey);
 
         // The request and the chunks are signed with different keys - both valid, but not matching
-        assertThat(doAwsChunkedUpload(bucket, fileKey, goodContent, 2, validCredential, validCredentialTwo, Function.identity()).getStatusCode()).isEqualTo(401);
+        assertThat(doAwsChunkedUpload(bucket, fileKey, goodContent, 2, validCredential, validCredentialTwo, Function.identity(), ImmutableMultiMap.empty()).getStatusCode()).isEqualTo(401);
         assertFileNotInS3(storageClient, bucket, fileKey);
 
         // Final chunk has an invalid size
@@ -216,20 +231,29 @@ public class TestGenericRestRequests
 
     private StatusResponse doAwsChunkedUpload(String bucket, String key, String contentToUpload, int partitionCount, Credential credential, Function<String, String> chunkedPayloadMutator)
     {
-        return doAwsChunkedUpload(bucket, key, contentToUpload, partitionCount, credential, credential, chunkedPayloadMutator);
+        return doAwsChunkedUpload(bucket, key, contentToUpload, partitionCount, credential, credential, chunkedPayloadMutator, ImmutableMultiMap.empty());
     }
 
-    private StatusResponse doAwsChunkedUpload(String bucket, String key, String contentToUpload, int partitionCount, Credential requestSigningCredential, Credential chunkSigningCredential, Function<String, String> chunkedPayloadMutator)
+    private StatusResponse doAwsChunkedUpload(
+            String bucket,
+            String key,
+            String contentToUpload,
+            int partitionCount,
+            Credential requestSigningCredential,
+            Credential chunkSigningCredential,
+            Function<String, String> chunkedPayloadMutator,
+            MultiMap extraHeaders)
     {
-        ImmutableMultiMap.Builder requestHeaderBuilder = ImmutableMultiMap.builder(false);
         Instant requestDate = Instant.now();
+        ImmutableMultiMap.Builder requestHeaderBuilder = ImmutableMultiMap.builder(false);
+        extraHeaders.forEach(requestHeaderBuilder::addAll);
         requestHeaderBuilder
                 .add("Host", "%s:%d".formatted(baseUri.getHost(), baseUri.getPort()))
                 .add("X-Amz-Date", AwsTimestamp.toRequestFormat(requestDate))
                 .add("X-Amz-Content-Sha256", "STREAMING-AWS4-HMAC-SHA256-PAYLOAD")
                 .add("X-Amz-Decoded-Content-Length", String.valueOf(contentToUpload.length()))
                 .add("Content-Length", String.valueOf(TestingChunkSigningSession.getExpectedChunkedStreamSize(contentToUpload, partitionCount)))
-                .add("Content-Type", "text/plain")
+                .add("Content-Type", TEST_CONTENT_TYPE)
                 .add("Content-Encoding", "aws-chunked");
         InternalSigningController signingController = new InternalSigningController(
                 new CredentialsController(new TestingRemoteS3Facade(), credentialsRolesProvider),

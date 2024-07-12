@@ -13,6 +13,7 @@
  */
 package io.trino.aws.proxy.server;
 
+import com.google.common.collect.ImmutableMap;
 import io.trino.aws.proxy.server.testing.TestingUtil;
 import jakarta.annotation.PreDestroy;
 import org.junit.jupiter.api.AfterEach;
@@ -29,6 +30,7 @@ import software.amazon.awssdk.services.s3.model.CreateMultipartUploadResponse;
 import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
 import software.amazon.awssdk.services.s3.model.DeleteObjectResponse;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
+import software.amazon.awssdk.services.s3.model.HeadObjectResponse;
 import software.amazon.awssdk.services.s3.model.ListBucketsResponse;
 import software.amazon.awssdk.services.s3.model.ListObjectsResponse;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
@@ -53,6 +55,7 @@ import java.util.stream.IntStream;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.util.concurrent.MoreExecutors.shutdownAndAwaitTermination;
 import static io.trino.aws.proxy.server.testing.TestingUtil.TEST_FILE;
+import static io.trino.aws.proxy.server.testing.TestingUtil.headObjectInStorage;
 import static java.util.Objects.requireNonNull;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -137,6 +140,27 @@ public abstract class AbstractTestProxiedRequests
 
         listObjectsResponse = internalClient.listObjects(request -> request.bucket("two"));
         assertThat(listObjectsResponse.contents()).isEmpty();
+    }
+
+    @Test
+    public void testUploadWithContentTypeAndMetadata()
+    {
+        PutObjectRequest putObjectRequest = PutObjectRequest.builder()
+                .bucket("two")
+                .key("testWithMetadata")
+                .contentType("text/plain;charset=utf-8")
+                .contentEncoding("gzip,compress")
+                .metadata(ImmutableMap.of("metadata-key", "metadata-value"))
+                .build();
+        PutObjectResponse putObjectResponse = internalClient.putObject(putObjectRequest, TEST_FILE);
+        assertThat(putObjectResponse.sdkHttpResponse().statusCode()).isEqualTo(200);
+
+        HeadObjectResponse headObjectResponse = headObjectInStorage(internalClient, "two", "testWithMetadata");
+        assertThat(headObjectResponse.sdkHttpResponse().statusCode()).isEqualTo(200);
+
+        assertThat(headObjectResponse.contentType()).isEqualTo("text/plain;charset=utf-8");
+        assertThat(headObjectResponse.contentEncoding()).isEqualTo("gzip,compress");
+        assertThat(headObjectResponse.metadata()).containsEntry("metadata-key", "metadata-value");
     }
 
     @Test

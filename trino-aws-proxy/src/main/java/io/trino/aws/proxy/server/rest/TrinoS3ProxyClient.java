@@ -13,6 +13,7 @@
  */
 package io.trino.aws.proxy.server.rest;
 
+import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableMap;
 import com.google.inject.BindingAnnotation;
 import com.google.inject.Inject;
@@ -49,6 +50,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.stream.Collectors;
 
 import static com.google.common.util.concurrent.MoreExecutors.shutdownAndAwaitTermination;
 import static io.airlift.http.client.StreamingBodyGenerator.streamingBodyGenerator;
@@ -131,8 +133,11 @@ public class TrinoS3ProxyClient
             switch (headerName) {
                 case "x-amz-security-token" -> {}  // we add this below
                 case "authorization" -> {} // we will create our own authorization header
-                case "amz-sdk-invocation-id", "amz-sdk-request", "x-amz-decoded-content-length", "content-length", "content-encoding" -> {}   // don't send these
+                case "amz-sdk-invocation-id", "amz-sdk-request", "x-amz-decoded-content-length", "content-length", "transfer-encoding" -> {}   // don't send these
                 case "x-amz-date" -> {} // we will add our own later
+                case "content-encoding" -> remoteRequestHeadersBuilder.add(headerName, headerValues.stream()
+                        .flatMap(headerValue -> Splitter.on(",").splitToStream(headerValue))
+                        .collect(Collectors.joining(",")));
                 case "host" -> remoteRequestHeadersBuilder.putOrReplaceSingle("Host", buildRemoteHost(remoteUri)); // replace source host with the remote AWS host
                 default -> remoteRequestHeadersBuilder.addAll(headerName, headerValues);
             }
