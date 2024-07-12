@@ -36,6 +36,7 @@ import org.junit.jupiter.api.Test;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.DeleteBucketRequest;
 import software.amazon.awssdk.services.s3.model.HeadObjectResponse;
+import software.amazon.awssdk.services.s3.model.S3Exception;
 
 import java.io.IOException;
 import java.net.URI;
@@ -51,6 +52,7 @@ import static io.trino.aws.proxy.server.testing.TestingUtil.getFileFromStorage;
 import static io.trino.aws.proxy.server.testing.TestingUtil.headObjectInStorage;
 import static java.util.Objects.requireNonNull;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 
 @TrinoAwsProxyTest(filters = TestGenericRestRequests.Filter.class)
 public class TestGenericRestRequests
@@ -90,9 +92,13 @@ public class TestGenericRestRequests
     // first char is different case
     private static final String badContent = "lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Viverra aliquet eget sit amet tellus cras adipiscing. Viverra mauris in aliquam sem fringilla. Facilisis mauris sit amet massa vitae. Mauris vitae ultricies leo integer malesuada. Sed libero enim sed faucibus turpis in eu mi bibendum. Lorem sed risus ultricies tristique nulla aliquet enim. Quis blandit turpis cursus in hac habitasse platea dictumst quisque. Diam maecenas ultricies mi eget mauris pharetra et ultrices neque. Aliquam sem fringilla ut morbi.";
 
-    private static final String goodSha256 = "cf091f1003948bfb21f6f166c9ff59a3cc393b106ad744ce9fdae49bdd2d26c9";
+    private static final String goodContentSha256 = "cf091f1003948bfb21f6f166c9ff59a3cc393b106ad744ce9fdae49bdd2d26c9";
 
-    private static final String badSha256 = "bf091f1003948bfb21f6f166c9ff59a3cc393b106ad744ce9fdae49bdd2d26c9";
+    // same as goodContentSha256 with one character replaced
+    private static final String goodContentBadSha256 = "bf091f1003948bfb21f6f166c9ff59a3cc393b106ad744ce9fdae49bdd2d26c9";
+
+    // actual SHA256 of badContent
+    private static final String badContentSha256 = "29b87372a66b1a091b2b4481ece6fb8564186b82ede3f2e77abaa135330c413f";
 
     public static class Filter
             extends WithTestingHttpClient
@@ -137,10 +143,22 @@ public class TestGenericRestRequests
 
         storageClient.createBucket(r -> r.bucket("two").build());
 
-        assertThat(doAwsChunkedUpload(goodChunkedContent).getStatusCode()).isEqualTo(200);
+        // The chunk signatures are correct but the overall signature in the request is not
+        Request goodChunksBadSignature = sampleAwsChunkedUploadRequestBuilder(goodChunkedContent)
+                .setHeader("Host", "127.9.9.9:999")
+                .build();
+        assertThat(httpClient.execute(goodChunksBadSignature, createStatusResponseHandler()).getStatusCode()).isEqualTo(401);
+
+        // Problems with the chunk signature
         assertThat(doAwsChunkedUpload(badChunkedContent1).getStatusCode()).isEqualTo(401);
         assertThat(doAwsChunkedUpload(badChunkedContent2).getStatusCode()).isEqualTo(401);
 
+        // TODO - as per #102, some of the chunks would have been sent to S3 so this assert would fail
+        // By this point, no request has succeeded - there should be no content in the bucket
+        // assertFileNotInBucket("two", "test");
+
+        // Correct chunk and signature
+        assertThat(doAwsChunkedUpload(goodChunkedContent).getStatusCode()).isEqualTo(200);
         assertThat(getFileFromStorage(storageClient, "two", "test")).isEqualTo(shortLoremIpsum);
     }
 
@@ -200,6 +218,7 @@ public class TestGenericRestRequests
 
     @Test
     public void testPutObject()
+            throws IOException
     {
         storageClient.createBucket(r -> r.bucket("foo").build());
 
@@ -207,10 +226,23 @@ public class TestGenericRestRequests
         Credentials credentials = new Credentials(credential, testingCredentials.remote(), Optional.empty());
         credentialsRolesProvider.addCredentials(credentials);
 
-        assertThat(doPutObject(goodContent, goodSha256).getStatusCode()).isEqualTo(200);
-        assertThat(doPutObject(badContent, goodSha256).getStatusCode()).isEqualTo(401);
-        assertThat(doPutObject(goodContent, badSha256).getStatusCode()).isEqualTo(401);
-        assertThat(doPutObject(badContent, badSha256).getStatusCode()).isEqualTo(401);
+        // Content does not match its hash
+        assertThat(doPutObject(badContent, goodContentSha256).getStatusCode()).isEqualTo(401);
+        assertFileNotInBucket("foo", "bar");
+
+        assertThat(doPutObject(goodContent, goodContentBadSha256).getStatusCode()).isEqualTo(401);
+        assertFileNotInBucket("foo", "bar");
+
+        assertThat(doPutObject(badContent, goodContentBadSha256).getStatusCode()).isEqualTo(401);
+        assertFileNotInBucket("foo", "bar");
+
+        // Content matches its hash, but is different from the hash that was used in the signature
+        assertThat(doPutObject(badContent, badContentSha256).getStatusCode()).isEqualTo(401);
+        assertFileNotInBucket("foo", "bar");
+
+        // Correct content and hash
+        assertThat(doPutObject(goodContent, goodContentSha256).getStatusCode()).isEqualTo(200);
+        assertThat(getFileFromStorage(storageClient, "foo", "bar")).isEqualTo(goodContent);
     }
 
     private StatusResponse doPutObject(String content, String sha256)
@@ -238,15 +270,10 @@ public class TestGenericRestRequests
         return httpClient.execute(request, createStatusResponseHandler());
     }
 
-    private StatusResponse doAwsChunkedUpload(String content)
+    private Request.Builder sampleAwsChunkedUploadRequestBuilder(String content)
     {
-        URI uri = UriBuilder.fromUri(baseUri)
-                .path("two")
-                .path("test")
-                .build();
-
         // values discovered from an AWS CLI request sent to a dummy local HTTP server
-        Request request = preparePut().setUri(uri)
+        return preparePut().setUri(UriBuilder.fromUri(baseUri).path("two").path("test").build())
                 .setHeader("Host", "127.0.0.1:62820")
                 .setHeader("User-Agent", "aws-sdk-java/2.25.32 Mac_OS_X/13.6.7 OpenJDK_64-Bit_Server_VM/22.0.1+8-16 Java/22.0.1 kotlin/1.9.23-release-779 vendor/Oracle_Corporation io/sync http/Apache cfg/retry-mode/legacy")
                 .setHeader("X-Amz-Date", "20240618T080640Z")
@@ -258,9 +285,18 @@ public class TestGenericRestRequests
                 .setHeader("amz-sdk-request", "attempt=1; max=4")
                 .setHeader("Content-Length", "296")
                 .setHeader("Content-Type", "text/plain")
-                .setBodyGenerator(createStaticBodyGenerator(content, StandardCharsets.UTF_8))
-                .build();
+                .setBodyGenerator(createStaticBodyGenerator(content, StandardCharsets.UTF_8));
+    }
+    private StatusResponse doAwsChunkedUpload(String content)
+    {
+        return httpClient.execute(sampleAwsChunkedUploadRequestBuilder(content).build(), createStatusResponseHandler());
+    }
 
-        return httpClient.execute(request, createStatusResponseHandler());
+    private void assertFileNotInBucket(String bucket, String key)
+    {
+        assertThatExceptionOfType(S3Exception.class)
+                .isThrownBy(() -> getFileFromStorage(storageClient, bucket, key))
+                .extracting(S3Exception::statusCode)
+                .isEqualTo(404);
     }
 }
