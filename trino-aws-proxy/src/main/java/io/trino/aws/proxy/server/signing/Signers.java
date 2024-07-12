@@ -17,6 +17,7 @@ import software.amazon.awssdk.auth.credentials.AwsCredentials;
 import software.amazon.awssdk.auth.signer.internal.AbstractAwsS3V4Signer;
 import software.amazon.awssdk.auth.signer.internal.Aws4SignerRequestParams;
 import software.amazon.awssdk.auth.signer.internal.CopiedAbstractAwsS3V4Signer;
+import software.amazon.awssdk.auth.signer.params.Aws4PresignerParams;
 import software.amazon.awssdk.auth.signer.params.AwsS3V4SignerParams;
 import software.amazon.awssdk.core.checksums.SdkChecksum;
 import software.amazon.awssdk.http.SdkHttpFullRequest;
@@ -34,6 +35,8 @@ class Signers
     interface SigningApi
     {
         SdkHttpFullRequest sign(SdkHttpFullRequest request, AwsS3V4SignerParams signingParams);
+
+        SdkHttpFullRequest presign(SdkHttpFullRequest request, Aws4PresignerParams signingParams);
 
         byte[] signingKey(AwsCredentials credentials, Aws4SignerRequestParams signerRequestParams);
     }

@@ -14,8 +14,8 @@
 package io.trino.aws.proxy.server.signing;
 
 import com.google.common.collect.ImmutableSet;
-import io.trino.aws.proxy.spi.collections.ImmutableMultiMap;
-import io.trino.aws.proxy.spi.collections.MultiMap;
+import io.trino.aws.proxy.spi.util.ImmutableMultiMap;
+import io.trino.aws.proxy.spi.util.MultiMap;
 
 import java.util.HashSet;
 import java.util.List;

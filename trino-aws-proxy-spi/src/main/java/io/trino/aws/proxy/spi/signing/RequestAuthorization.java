@@ -17,31 +17,45 @@ import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
+import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static java.util.Objects.requireNonNull;
 
-public record RequestAuthorization(String authorization, String accessKey, String region, String keyPath, Set<String> lowercaseSignedHeaders, String signature, Optional<String> securityToken)
+public record RequestAuthorization(String accessKey, String region, String keyPath, Set<String> lowercaseSignedHeaders, String signature,
+                                   Optional<Instant> expiry, Optional<String> securityToken)
 {
+    public static final RequestAuthorization INVALID = new RequestAuthorization("", "", "", ImmutableSet.of(), "", Optional.empty(), Optional.empty());
+    private static final String SIGNATURE_ALGORITHM = "AWS4-HMAC-SHA256";
+    private static final String CREDENTIAL_HEADER = "%s Credential".formatted(SIGNATURE_ALGORITHM);
+
     public RequestAuthorization
     {
-        requireNonNull(authorization, "authorization is null");
         requireNonNull(accessKey, "accessKey is null");
         requireNonNull(region, "region is null");
         requireNonNull(keyPath, "keyPath is null");
         lowercaseSignedHeaders = ImmutableSet.copyOf(lowercaseSignedHeaders);
         requireNonNull(signature, "signature is null");
+        requireNonNull(expiry, "expiry is null");
         requireNonNull(securityToken, "securityToken is null");
     }
 
     public boolean isValid()
     {
-        return !lowercaseSignedHeaders.isEmpty() && !signature.isEmpty() && !accessKey.isEmpty() && !region.isEmpty();
+        return !lowercaseSignedHeaders.isEmpty() && !signature.isEmpty() && !accessKey.isEmpty() && !region.isEmpty() && expiry.map(expiryTimestamp -> Instant.now().isBefore(expiryTimestamp)).orElse(true);
+    }
+
+    public String authorization()
+    {
+        checkState(expiry.isEmpty(), "authorization cannot be computed for an expiring request");
+
+        return "%s=%s/%s, SignedHeaders=%s, Signature=%s".formatted(CREDENTIAL_HEADER, accessKey, keyPath, String.join(";", lowercaseSignedHeaders), signature);
     }
 
     public static RequestAuthorization parse(String authorization)
@@ -52,7 +66,7 @@ public record RequestAuthorization(String authorization, String accessKey, Strin
     public static RequestAuthorization parse(String authorization, Optional<String> securityToken)
     {
         if (authorization.isBlank()) {
-            return new RequestAuthorization("", "", "", "", ImmutableSet.of(), "", securityToken);
+            return INVALID;
         }
 
         Map<String, String> parts;
@@ -63,8 +77,27 @@ public record RequestAuthorization(String authorization, String accessKey, Strin
             parts = ImmutableMap.of();
         }
 
-        String credentialSpec = parts.getOrDefault("AWS4-HMAC-SHA256 Credential", "");
-        List<String> credentialList = Splitter.on('/').omitEmptyStrings().trimResults().splitToList(credentialSpec);
+        String credentialSpec = parts.getOrDefault("%s Credential".formatted(SIGNATURE_ALGORITHM), "");
+        return parse(credentialSpec, parts.getOrDefault("SignedHeaders", ""), parts.getOrDefault("Signature", ""), Optional.empty(), securityToken);
+    }
+
+    public static RequestAuthorization presignedParse(String algorithm, String credential, String signedHeaders, String signature, long expiry, Instant requestTimestamp, Optional<String> securityToken)
+    {
+        if (!SIGNATURE_ALGORITHM.equals(algorithm)) {
+            return INVALID;
+        }
+
+        return parse(
+                credential,
+                signedHeaders,
+                signature,
+                Optional.of(requestTimestamp.plusSeconds(expiry)),
+                securityToken);
+    }
+
+    private static RequestAuthorization parse(String credential, String signedHeaders, String signature, Optional<Instant> expiry, Optional<String> securityToken)
+    {
+        List<String> credentialList = Splitter.on('/').omitEmptyStrings().trimResults().splitToList(credential);
 
         String accessKey;
         String region;
@@ -80,15 +113,12 @@ public record RequestAuthorization(String authorization, String accessKey, Strin
             keyPath = "";
         }
 
-        String signedHeadersSpec = parts.getOrDefault("SignedHeaders", "");
-        Set<String> signedHeaders = Splitter.on(';').omitEmptyStrings()
+        Set<String> signedHeadersSet = Splitter.on(';').omitEmptyStrings()
                 .trimResults()
-                .splitToStream(signedHeadersSpec)
+                .splitToStream(signedHeaders)
                 .map(header -> header.toLowerCase(Locale.ROOT))
                 .collect(toImmutableSet());
 
-        String signature = parts.getOrDefault("Signature", "");
-
-        return new RequestAuthorization(authorization, accessKey, region, keyPath, signedHeaders, signature, securityToken);
+        return new RequestAuthorization(accessKey, region, keyPath, signedHeadersSet, signature, expiry, securityToken);
     }
 }

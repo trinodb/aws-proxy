@@ -20,8 +20,6 @@ import io.airlift.http.client.Request;
 import io.airlift.log.Logger;
 import io.trino.aws.proxy.server.remote.RemoteS3Facade;
 import io.trino.aws.proxy.server.security.S3SecurityController;
-import io.trino.aws.proxy.spi.collections.ImmutableMultiMap;
-import io.trino.aws.proxy.spi.collections.MultiMap;
 import io.trino.aws.proxy.spi.credentials.Credentials;
 import io.trino.aws.proxy.spi.rest.ParsedS3Request;
 import io.trino.aws.proxy.spi.rest.RequestContent;
@@ -29,6 +27,9 @@ import io.trino.aws.proxy.spi.security.SecurityResponse;
 import io.trino.aws.proxy.spi.signing.SigningContext;
 import io.trino.aws.proxy.spi.signing.SigningController;
 import io.trino.aws.proxy.spi.signing.SigningMetadata;
+import io.trino.aws.proxy.spi.util.AwsTimestamp;
+import io.trino.aws.proxy.spi.util.ImmutableMultiMap;
+import io.trino.aws.proxy.spi.util.MultiMap;
 import jakarta.annotation.PreDestroy;
 import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.container.AsyncResponse;
@@ -112,17 +113,20 @@ public class TrinoS3ProxyClient
         }
 
         ImmutableMultiMap.Builder remoteRequestHeadersBuilder = ImmutableMultiMap.builder(false);
-        String targetXAmzDate = signingController.formatRequestInstant(Instant.now());
+        Instant targetRequestTimestamp = Instant.now();
         request.requestHeaders().forEach((headerName, headerValues) -> {
             switch (headerName) {
                 case "x-amz-security-token" -> {}  // we add this below
                 case "authorization" -> {} // we will create our own authorization header
                 case "amz-sdk-invocation-id", "amz-sdk-request", "x-amz-decoded-content-length", "content-length", "content-encoding" -> {}   // don't send these
-                case "x-amz-date" -> remoteRequestHeadersBuilder.putOrReplaceSingle("X-Amz-Date", targetXAmzDate); // use now for the remote request
+                case "x-amz-date" -> {} // we will add our own later
                 case "host" -> remoteRequestHeadersBuilder.putOrReplaceSingle("Host", buildRemoteHost(remoteUri)); // replace source host with the remote AWS host
                 default -> remoteRequestHeadersBuilder.addAll(headerName, headerValues);
             }
         });
+
+        // Use now for the remote request
+        remoteRequestHeadersBuilder.putOrReplaceSingle("X-Amz-Date", AwsTimestamp.toRequestFormat(targetRequestTimestamp));
 
         signingMetadata.credentials()
                 .requiredRemoteCredential()
@@ -131,22 +135,22 @@ public class TrinoS3ProxyClient
 
         request.requestContent().contentLength().ifPresent(length -> remoteRequestHeadersBuilder.putOrReplaceSingle("content-length", Integer.toString(length)));
 
-        contentInputStream(request.requestContent(), signingMetadata).ifPresent(inputStream -> {
-            remoteRequestBuilder.setBodyGenerator(streamingBodyGenerator(inputStream));
-            remoteRequestHeadersBuilder.putOrReplaceSingle("x-amz-content-sha256", "UNSIGNED-PAYLOAD");
-        });
+        contentInputStream(request.requestContent(), signingMetadata).ifPresent(inputStream -> remoteRequestBuilder.setBodyGenerator(streamingBodyGenerator(inputStream)));
+        // All SigV4 requests require an x-amz-content-sha256
+        remoteRequestHeadersBuilder.putOrReplaceSingle("x-amz-content-sha256", "UNSIGNED-PAYLOAD");
 
         // set the new signed request auth header
         MultiMap remoteRequestHeaders = remoteRequestHeadersBuilder.build();
         String signature = signingController.signRequest(
                 signingMetadata,
                 request.requestAuthorization().region(),
-                targetXAmzDate,
+                targetRequestTimestamp,
+                Optional.empty(),
                 Credentials::requiredRemoteCredential,
                 remoteUri,
                 remoteRequestHeaders,
                 request.queryParameters(),
-                request.httpVerb());
+                request.httpVerb()).authorization();
 
         // remoteRequestHeaders now has correct values, copy to the remote request
         remoteRequestHeaders.forEachEntry(remoteRequestBuilder::addHeader);

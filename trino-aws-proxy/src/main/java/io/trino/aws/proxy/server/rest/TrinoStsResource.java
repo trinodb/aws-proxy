@@ -19,12 +19,12 @@ import com.google.inject.Inject;
 import io.airlift.log.Logger;
 import io.trino.aws.proxy.server.rest.AssumeRoleResponse.AssumeRoleResult;
 import io.trino.aws.proxy.server.rest.AssumeRoleResponse.AssumedRoleUser;
-import io.trino.aws.proxy.spi.collections.MultiMap;
 import io.trino.aws.proxy.spi.credentials.AssumedRoleProvider;
 import io.trino.aws.proxy.spi.credentials.EmulatedAssumedRole;
 import io.trino.aws.proxy.spi.rest.Request;
-import io.trino.aws.proxy.spi.signing.SigningController;
 import io.trino.aws.proxy.spi.signing.SigningMetadata;
+import io.trino.aws.proxy.spi.util.AwsTimestamp;
+import io.trino.aws.proxy.spi.util.MultiMap;
 import jakarta.ws.rs.POST;
 import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.core.Context;
@@ -43,14 +43,12 @@ public class TrinoStsResource
 {
     private static final Logger log = Logger.get(TrinoStsResource.class);
 
-    private final SigningController signingController;
     private final AssumedRoleProvider assumedRoleProvider;
     private final XmlMapper xmlMapper;
 
     @Inject
-    public TrinoStsResource(SigningController signingController, AssumedRoleProvider assumedRoleProvider, XmlMapper xmlMapper)
+    public TrinoStsResource(AssumedRoleProvider assumedRoleProvider, XmlMapper xmlMapper)
     {
-        this.signingController = requireNonNull(signingController, "signingController is null");
         this.assumedRoleProvider = requireNonNull(assumedRoleProvider, "assumedRoleProvider is null");
         this.xmlMapper = requireNonNull(xmlMapper, "xmlMapper is null");
     }
@@ -97,7 +95,7 @@ public class TrinoStsResource
             requestLoggingSession.logError("request.assume-role.illegal-response", arguments);
             return new WebApplicationException(Response.status(Response.Status.UNAUTHORIZED).build());
         });
-        String expiration = signingController.formatResponseInstant(assumedRole.expiration());
+        String expiration = AwsTimestamp.toResponseFormat(assumedRole.expiration());
         AssumeRoleResult response = new AssumeRoleResult(
                 new AssumedRoleUser(assumedRole.arn(), assumedRole.roleId()),
                 new AssumeRoleResponse.Credentials(assumedRole.emulatedCredential().accessKey(), assumedRole.emulatedCredential().secretKey(), assumedRoleSession, expiration));

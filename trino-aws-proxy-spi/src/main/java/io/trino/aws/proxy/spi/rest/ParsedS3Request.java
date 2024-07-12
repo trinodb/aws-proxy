@@ -13,10 +13,11 @@
  */
 package io.trino.aws.proxy.spi.rest;
 
-import io.trino.aws.proxy.spi.collections.ImmutableMultiMap;
-import io.trino.aws.proxy.spi.collections.MultiMap;
 import io.trino.aws.proxy.spi.signing.RequestAuthorization;
+import io.trino.aws.proxy.spi.util.ImmutableMultiMap;
+import io.trino.aws.proxy.spi.util.MultiMap;
 
+import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -25,7 +26,7 @@ import static java.util.Objects.requireNonNull;
 public record ParsedS3Request(
         UUID requestId,
         RequestAuthorization requestAuthorization,
-        String requestDate,
+        Instant requestDate,
         String bucketName,
         String keyInBucket,
         MultiMap requestHeaders,
