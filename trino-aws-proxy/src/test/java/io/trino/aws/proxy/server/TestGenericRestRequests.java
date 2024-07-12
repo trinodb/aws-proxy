@@ -13,6 +13,7 @@
  */
 package io.trino.aws.proxy.server;
 
+import com.google.common.collect.ImmutableList;
 import com.google.inject.Inject;
 import io.airlift.http.client.HttpClient;
 import io.airlift.http.client.Request;
@@ -22,6 +23,7 @@ import io.airlift.units.Duration;
 import io.trino.aws.proxy.server.rest.TrinoS3ProxyConfig;
 import io.trino.aws.proxy.server.testing.TestingCredentialsRolesProvider;
 import io.trino.aws.proxy.server.testing.TestingTrinoAwsProxyServer;
+import io.trino.aws.proxy.server.testing.TestingUtil;
 import io.trino.aws.proxy.server.testing.TestingUtil.ForTesting;
 import io.trino.aws.proxy.server.testing.containers.S3Container.ForS3Container;
 import io.trino.aws.proxy.server.testing.harness.TrinoAwsProxyTest;
@@ -29,17 +31,24 @@ import io.trino.aws.proxy.server.testing.harness.TrinoAwsProxyTestCommonModules.
 import io.trino.aws.proxy.spi.credentials.Credential;
 import io.trino.aws.proxy.spi.credentials.Credentials;
 import jakarta.ws.rs.core.UriBuilder;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.DeleteBucketRequest;
+import software.amazon.awssdk.services.s3.model.HeadObjectResponse;
 
+import java.io.IOException;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
 import static io.airlift.http.client.Request.Builder.preparePut;
 import static io.airlift.http.client.StaticBodyGenerator.createStaticBodyGenerator;
 import static io.airlift.http.client.StatusResponseHandler.createStatusResponseHandler;
+import static io.trino.aws.proxy.server.testing.TestingUtil.getFileFromStorage;
+import static io.trino.aws.proxy.server.testing.TestingUtil.headObjectInStorage;
 import static java.util.Objects.requireNonNull;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -52,28 +61,29 @@ public class TestGenericRestRequests
     private final Credentials testingCredentials;
     private final S3Client storageClient;
 
+    private static final String shortLoremIpsum = "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.";
     private static final String goodChunkedContent = """
                 7b;chunk-signature=20e300fbbad6946a482aaa7de0bdc8f592d4c372306dd746a22d18b7b66b4527\r
-                Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.\r
+                %s\r
                 0;chunk-signature=ae4265701a9e0796d671d3339c71db240c0c87b2f6e2f9c6ca7cd781fdcf641a\r
                 \r
-                """;
+                """.formatted(shortLoremIpsum);
 
     // first chunk-signature is bad
     private static final String badChunkedContent1 = """
                 7b;chunk-signature=10e300fbbad6946a482aaa7de0bdc8f592d4c372306dd746a22d18b7b66b4527\r
-                Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.\r
+                %s\r
                 0;chunk-signature=ae4265701a9e0796d671d3339c71db240c0c87b2f6e2f9c6ca7cd781fdcf641a\r
                 \r
-                """;
+                """.formatted(shortLoremIpsum);
 
     // second chunk-signature is bad
     private static final String badChunkedContent2 = """
                 7b;chunk-signature=20e300fbbad6946a482aaa7de0bdc8f592d4c372306dd746a22d18b7b66b4527\r
-                Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.\r
+                %s\r
                 0;chunk-signature=9e4265701a9e0796d671d3339c71db240c0c87b2f6e2f9c6ca7cd781fdcf641a\r
                 \r
-                """;
+                """.formatted(shortLoremIpsum);
 
     private static final String goodContent = "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Viverra aliquet eget sit amet tellus cras adipiscing. Viverra mauris in aliquam sem fringilla. Facilisis mauris sit amet massa vitae. Mauris vitae ultricies leo integer malesuada. Sed libero enim sed faucibus turpis in eu mi bibendum. Lorem sed risus ultricies tristique nulla aliquet enim. Quis blandit turpis cursus in hac habitasse platea dictumst quisque. Diam maecenas ultricies mi eget mauris pharetra et ultrices neque. Aliquam sem fringilla ut morbi.";
 
@@ -110,8 +120,16 @@ public class TestGenericRestRequests
         this.storageClient = requireNonNull(storageClient, "storageClient is null");
     }
 
+    @AfterEach
+    public void cleanupBuckets()
+    {
+        TestingUtil.cleanupBuckets(storageClient);
+        storageClient.listBuckets().buckets().forEach(bucket -> storageClient.deleteBucket(DeleteBucketRequest.builder().bucket(bucket.name()).build()));
+    }
+
     @Test
     public void testAwsChunkedUpload()
+            throws IOException
     {
         Credential credential = new Credential("c160cd8c-8273-4e34-bcf5-3dbddec0c6e0", "464cbc68-2d4f-4e4d-b653-5b1630db9f56");
         Credentials credentials = new Credentials(credential, testingCredentials.remote(), Optional.empty());
@@ -122,6 +140,62 @@ public class TestGenericRestRequests
         assertThat(doAwsChunkedUpload(goodChunkedContent).getStatusCode()).isEqualTo(200);
         assertThat(doAwsChunkedUpload(badChunkedContent1).getStatusCode()).isEqualTo(401);
         assertThat(doAwsChunkedUpload(badChunkedContent2).getStatusCode()).isEqualTo(401);
+
+        assertThat(getFileFromStorage(storageClient, "two", "test")).isEqualTo(shortLoremIpsum);
+    }
+
+    @Test
+    public void testAwsChunkedUploadWithMetadata()
+            throws IOException
+    {
+        storageClient.createBucket(r -> r.bucket("two").build());
+
+        testAwsChunkedUploadWithMetadata(ImmutableList.of("gzip,compress,aws-chunked"));
+        testAwsChunkedUploadWithMetadata(ImmutableList.of("gzip,compress", "aws-chunked"));
+    }
+
+    private void testAwsChunkedUploadWithMetadata(List<String> contentEncodingHeaders)
+            throws IOException
+    {
+        Credential credential = new Credential("c160cd8c-8273-4e34-bcf5-3dbddec0c6e0", "464cbc68-2d4f-4e4d-b653-5b1630db9f56");
+        Credentials credentials = new Credentials(credential, testingCredentials.remote(), Optional.empty());
+        credentialsRolesProvider.addCredentials(credentials);
+
+        URI uri = UriBuilder.fromUri(baseUri)
+                .path("two")
+                .path("testWithMetadata")
+                .build();
+
+        String content = """
+                7b;chunk-signature=d10eae46e386d05132ca7677e4fb0cc2588e02a57818da7938ace696243c10e9\r
+                %s\r
+                0;chunk-signature=e7a805bc6ed430a7282a002e32ba8a02c4e2c9adfdb43a7a6ded5d5c0bab55cf\r
+                \r
+                """.formatted(shortLoremIpsum);
+
+        // values discovered from an AWS CLI request sent to a dummy local HTTP server
+        Request.Builder requestBuilder = preparePut().setUri(uri)
+                .setHeader("Host", "127.0.0.1:52510")
+                .setHeader("User-Agent", "aws-sdk-java/2.25.32 Mac_OS_X/14.5 OpenJDK_64-Bit_Server_VM/22.0.1+8 Java/22.0.1 kotlin/2.0.0-release-341 vendor/Eclipse_Adoptium io/sync http/Apache cfg/retry-mode/legacy")
+                .setHeader("X-Amz-Date", "20240712T112703Z")
+                .setHeader("x-amz-content-sha256", "STREAMING-AWS4-HMAC-SHA256-PAYLOAD")
+                .setHeader("x-amz-decoded-content-length", "123")
+                .setHeader("Authorization", "AWS4-HMAC-SHA256 Credential=c160cd8c-8273-4e34-bcf5-3dbddec0c6e0/20240712/us-east-1/s3/aws4_request, SignedHeaders=amz-sdk-invocation-id;amz-sdk-request;content-encoding;content-length;content-type;host;x-amz-content-sha256;x-amz-date;x-amz-decoded-content-length;x-amz-meta-metadata-key, Signature=2a6854bd147d1fcbeddc02c04a6e241eacf05f42f79a4819e18b4d118d6c54cd")
+                .setHeader("amz-sdk-invocation-id", "c7135c74-ad43-4899-1409-331874a6bd78")
+                .setHeader("amz-sdk-request", "attempt=1; max=4")
+                .setHeader("Content-Length", "296")
+                .setHeader("Content-Type", "text/plain;charset=UTF-8")
+                .setHeader("x-amz-meta-metadata-key", "metadata-value")
+                .setBodyGenerator(createStaticBodyGenerator(content, StandardCharsets.UTF_8));
+        contentEncodingHeaders.forEach(contentEncodingHeader -> requestBuilder.addHeader("Content-Encoding", contentEncodingHeader));
+        Request request = requestBuilder.build();
+        assertThat(httpClient.execute(request, createStatusResponseHandler()).getStatusCode()).isEqualTo(200);
+        assertThat(getFileFromStorage(storageClient, "two", "testWithMetadata")).isEqualTo(shortLoremIpsum);
+        HeadObjectResponse headObjectResponse = headObjectInStorage(storageClient, "two", "testWithMetadata");
+        assertThat(headObjectResponse.sdkHttpResponse().statusCode()).isEqualTo(200);
+        assertThat(headObjectResponse.contentType()).isEqualTo("text/plain;charset=UTF-8");
+        assertThat(headObjectResponse.contentEncoding()).isEqualTo("gzip,compress");
+        assertThat(headObjectResponse.metadata()).containsEntry("metadata-key", "metadata-value");
     }
 
     @Test

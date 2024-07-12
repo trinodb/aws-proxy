@@ -13,6 +13,8 @@
  */
 package io.trino.aws.proxy.server;
 
+import com.google.common.collect.ImmutableMap;
+import io.trino.aws.proxy.server.testing.TestingUtil;
 import jakarta.annotation.PreDestroy;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -25,13 +27,12 @@ import software.amazon.awssdk.services.s3.model.CompletedMultipartUpload;
 import software.amazon.awssdk.services.s3.model.CompletedPart;
 import software.amazon.awssdk.services.s3.model.CreateMultipartUploadRequest;
 import software.amazon.awssdk.services.s3.model.CreateMultipartUploadResponse;
-import software.amazon.awssdk.services.s3.model.Delete;
 import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
 import software.amazon.awssdk.services.s3.model.DeleteObjectResponse;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
+import software.amazon.awssdk.services.s3.model.HeadObjectResponse;
 import software.amazon.awssdk.services.s3.model.ListBucketsResponse;
 import software.amazon.awssdk.services.s3.model.ListObjectsResponse;
-import software.amazon.awssdk.services.s3.model.ObjectIdentifier;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectResponse;
 import software.amazon.awssdk.services.s3.model.S3Object;
@@ -54,6 +55,7 @@ import java.util.stream.IntStream;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.util.concurrent.MoreExecutors.shutdownAndAwaitTermination;
 import static io.trino.aws.proxy.server.testing.TestingUtil.TEST_FILE;
+import static io.trino.aws.proxy.server.testing.TestingUtil.headObjectInStorage;
 import static java.util.Objects.requireNonNull;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -80,16 +82,7 @@ public abstract class AbstractTestProxiedRequests
     @AfterEach
     public void cleanupBuckets()
     {
-        remoteClient.listBuckets().buckets().forEach(bucket -> remoteClient.listObjectsV2Paginator(request -> request.bucket(bucket.name())).forEach(s3ObjectPage -> {
-            if (s3ObjectPage.contents().isEmpty()) {
-                return;
-            }
-            List<ObjectIdentifier> objectIdentifiers = s3ObjectPage.contents()
-                    .stream()
-                    .map(s3Object -> ObjectIdentifier.builder().key(s3Object.key()).build())
-                    .collect(toImmutableList());
-            remoteClient.deleteObjects(deleteRequest -> deleteRequest.bucket(bucket.name()).delete(Delete.builder().objects(objectIdentifiers).build()));
-        }));
+        TestingUtil.cleanupBuckets(remoteClient);
     }
 
     @Test
@@ -147,6 +140,27 @@ public abstract class AbstractTestProxiedRequests
 
         listObjectsResponse = internalClient.listObjects(request -> request.bucket("two"));
         assertThat(listObjectsResponse.contents()).isEmpty();
+    }
+
+    @Test
+    public void testUploadWithContentTypeAndMetadata()
+    {
+        PutObjectRequest putObjectRequest = PutObjectRequest.builder()
+                .bucket("two")
+                .key("testWithMetadata")
+                .contentType("text/plain;charset=utf-8")
+                .contentEncoding("gzip,compress")
+                .metadata(ImmutableMap.of("metadata-key", "metadata-value"))
+                .build();
+        PutObjectResponse putObjectResponse = internalClient.putObject(putObjectRequest, TEST_FILE);
+        assertThat(putObjectResponse.sdkHttpResponse().statusCode()).isEqualTo(200);
+
+        HeadObjectResponse headObjectResponse = headObjectInStorage(internalClient, "two", "testWithMetadata");
+        assertThat(headObjectResponse.sdkHttpResponse().statusCode()).isEqualTo(200);
+
+        assertThat(headObjectResponse.contentType()).isEqualTo("text/plain;charset=utf-8");
+        assertThat(headObjectResponse.contentEncoding()).isEqualTo("gzip,compress");
+        assertThat(headObjectResponse.metadata()).containsEntry("metadata-key", "metadata-value");
     }
 
     @Test

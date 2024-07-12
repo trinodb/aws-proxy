@@ -41,6 +41,7 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Supplier;
 
+import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.io.ByteStreams.toByteArray;
 import static io.trino.aws.proxy.server.signing.SigningQueryParameters.splitQueryParameters;
 import static jakarta.ws.rs.core.Response.Status.BAD_REQUEST;
@@ -56,7 +57,7 @@ class RequestBuilder
         MultiMap requestHeaders = ImmutableMultiMap.copyOfCaseInsensitive(request.getHeaders().entrySet());
         Optional<Instant> requestTimestamp;
 
-        RequestContent requestContent = request.hasEntity() ? buildRequestContent(request.getEntityStream(), requestHeaders, getRequestContentTypeFromHeader(requestHeaders)) : RequestContent.EMPTY;
+        RequestContent requestContent = request.hasEntity() ? buildRequestContent(request.getEntityStream(), requestHeaders) : RequestContent.EMPTY;
         SigningQueryParameters signingQueryParameters = splitQueryParameters(ImmutableMultiMap.copyOf(request.getUriInfo().getQueryParameters(true).entrySet()));
 
         Optional<RequestAuthorization> requestAuthorization = requestHeaders.getFirst("authorization")
@@ -134,13 +135,9 @@ class RequestBuilder
     }
 
     @SuppressWarnings("SwitchStatementWithTooFewBranches")
-    private static RequestContent buildRequestContent(InputStream requestEntityStream, MultiMap requestHeaders, String requestContentType)
+    private static RequestContent buildRequestContent(InputStream requestEntityStream, MultiMap requestHeaders)
     {
-        ContentType contentType = switch (requestContentType) {
-            case "aws-chunked" -> ContentType.AWS_CHUNKED;
-            case "chunked" -> ContentType.W3C_CHUNKED;
-            default -> ContentType.STANDARD;
-        };
+        ContentType contentType = getRequestContentTypeFromHeaders(requestHeaders);
 
         Supplier<Optional<byte[]>> bytesSupplier = switch (contentType) {
             case STANDARD -> Suppliers.memoize(() -> {
@@ -205,8 +202,36 @@ class RequestBuilder
         };
     }
 
-    private static String getRequestContentTypeFromHeader(MultiMap requestHeaders)
+    private static Optional<ContentType> getChunkingType(String valueToParse)
     {
-        return requestHeaders.getFirst("content-encoding").or(() -> requestHeaders.getFirst("transfer-encoding")).orElse("");
+        return switch (valueToParse.toLowerCase(Locale.ROOT).trim()) {
+            case "aws-chunked" -> Optional.of(ContentType.AWS_CHUNKED);
+            case "chunked" -> Optional.of(ContentType.W3C_CHUNKED);
+            default -> Optional.empty();
+        };
+    }
+
+    private static ContentType getRequestContentTypeFromHeaders(MultiMap requestHeaders)
+    {
+        List<String> requestContentEncoding = requestHeaders.get("content-encoding");
+        if (requestContentEncoding.isEmpty()) {
+            return getChunkingType(requestHeaders.getFirst("transfer-encoding").orElse("")).orElse(ContentType.STANDARD);
+        }
+        // As per RFC9110 Section 5.3.1:
+        // Multiple content encoding headers may be sent
+        // Or alternatively a single one may contain multiple comma-separated values
+        List<ContentType> allContentEncodings = requestContentEncoding.stream()
+                .flatMap(item -> Splitter.on(",").splitToStream(item))
+                .map(RequestBuilder::getChunkingType)
+                .filter(Optional::isPresent)
+                .map(Optional::get)
+                .collect(toImmutableList());
+        if (allContentEncodings.isEmpty()) {
+            return ContentType.STANDARD;
+        }
+        if (allContentEncodings.size() > 1) {
+            throw new WebApplicationException(BAD_REQUEST);
+        }
+        return allContentEncodings.getFirst();
     }
 }
