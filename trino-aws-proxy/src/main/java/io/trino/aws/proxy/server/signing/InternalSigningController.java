@@ -28,7 +28,6 @@ import io.trino.aws.proxy.spi.signing.SigningContext;
 import io.trino.aws.proxy.spi.signing.SigningController;
 import io.trino.aws.proxy.spi.signing.SigningMetadata;
 import io.trino.aws.proxy.spi.signing.SigningServiceType;
-import io.trino.aws.proxy.spi.util.ImmutableMultiMap;
 import io.trino.aws.proxy.spi.util.MultiMap;
 import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.core.Response;
@@ -40,7 +39,6 @@ import java.util.Locale;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
-import java.util.stream.Stream;
 
 import static java.util.Objects.requireNonNull;
 
@@ -62,13 +60,6 @@ public class InternalSigningController
         this.requestLoggerController = requireNonNull(requestLoggerController, "requestLoggerController is null");
 
         maxClockDrift = signingControllerConfig.getMaxClockDrift().toJavaTime();
-    }
-
-    // temporary - remove once Airlift has been updated
-    private enum Mode
-    {
-        ADJUSTED_HEADERS,
-        UNADJUSTED_HEADERS,
     }
 
     @Override
@@ -160,30 +151,27 @@ public class InternalSigningController
             Request request,
             Function<Credentials, Credential> credentialsSupplier)
     {
-        // temp workaround until https://github.com/airlift/airlift/pull/1178 is accepted
-        return Stream.of(Mode.values()).flatMap(mode -> {
-            SigningHeaders signingHeaders = SigningHeaders.build(adjustHeaders(mode, request.requestHeaders()), request.requestAuthorization().lowercaseSignedHeaders());
-            SigningContext signingContext = internalSignRequest(
-                    metadata,
-                    request.requestAuthorization().region(),
-                    request.requestDate(),
-                    request.requestAuthorization().expiry(),
-                    request.requestContent(),
-                    credentialsSupplier,
-                    request.requestUri(),
-                    signingHeaders,
-                    request.requestQueryParameters(),
-                    request.httpVerb());
+        SigningHeaders signingHeaders = SigningHeaders.build(request.requestHeaders(), request.requestAuthorization().lowercaseSignedHeaders());
+        SigningContext signingContext = internalSignRequest(
+                metadata,
+                request.requestAuthorization().region(),
+                request.requestDate(),
+                request.requestAuthorization().expiry(),
+                request.requestContent(),
+                credentialsSupplier,
+                request.requestUri(),
+                signingHeaders,
+                request.requestQueryParameters(),
+                request.httpVerb());
 
-            boolean generatedMatchesRequest = request.requestAuthorization().equals(signingContext.signingAuthorization());
-            if (generatedMatchesRequest) {
-                return Stream.of(metadata.withSigningContext(signingContext));
-            }
+        boolean generatedMatchesRequest = request.requestAuthorization().equals(signingContext.signingAuthorization());
+        if (generatedMatchesRequest) {
+            return Optional.of(metadata.withSigningContext(signingContext));
+        }
 
-            requestLoggerController.currentRequestSession(request.requestId())
-                    .logError("request.security.authorization.mismatch", ImmutableMap.of("request", request.requestAuthorization(), "generated", signingContext.signingAuthorization()));
-            return Stream.of();
-        }).findFirst();
+        requestLoggerController.currentRequestSession(request.requestId())
+                .logError("request.security.authorization.mismatch", ImmutableMap.of("request", request.requestAuthorization(), "generated", signingContext.signingAuthorization()));
+        return Optional.empty();
     }
 
     private static String lowercaseHeader(String headerName, String headerValue)
@@ -192,15 +180,5 @@ public class InternalSigningController
             return headerValue;
         }
         return headerValue.toLowerCase(Locale.ROOT);
-    }
-
-    private static MultiMap adjustHeaders(Mode mode, MultiMap headers)
-    {
-        if (mode == Mode.UNADJUSTED_HEADERS) {
-            return headers;
-        }
-        ImmutableMultiMap.Builder adjustedHeaderBuilder = ImmutableMultiMap.builder(headers.isCaseSensitiveKeys());
-        headers.forEachEntry((headerName, headerValue) -> adjustedHeaderBuilder.add(headerName, lowercaseHeader(headerName, headerValue)));
-        return adjustedHeaderBuilder.build();
     }
 }
