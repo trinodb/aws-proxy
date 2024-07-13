@@ -21,6 +21,7 @@ import com.google.inject.Scopes;
 import com.google.inject.TypeLiteral;
 import com.google.inject.multibindings.MapBinder;
 import io.airlift.configuration.AbstractConfigurationAwareModule;
+import io.airlift.http.server.HttpServerBinder;
 import io.airlift.jaxrs.JaxrsBinder;
 import io.airlift.log.Logger;
 import io.trino.aws.proxy.server.credentials.CredentialsController;
@@ -84,8 +85,9 @@ public class TrinoAwsProxyServerModule
         httpClientBinder(binder).bindHttpClient("ProxyClient", ForProxyClient.class);
         binder.bind(TrinoS3ProxyClient.class).in(Scopes.SINGLETON);
 
-        // deprecation is removed in next release of Airlift
-        httpServerBinder(binder).enableLegacyUriCompliance();
+        HttpServerBinder httpServerBinder = httpServerBinder(binder);
+        httpServerBinder.enableLegacyUriCompliance();
+        httpServerBinder.enableCaseSensitiveHeaderCache();
 
         // no default for S3SecurityFacadeProvider/S3DatabaseSecurityFacadeProvider - it's handled internally by S3SecurityController
         newOptionalBinder(binder, S3SecurityFacadeProvider.class);
