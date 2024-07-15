@@ -89,6 +89,9 @@ class AwsChunkedInputStream
         position += count;
 
         chunkSigningSession.ifPresent(session -> session.write(b, off, count));
+        if (position >= chunkSize) {
+            nextChunk();
+        }
 
         return count;
     }

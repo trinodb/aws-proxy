@@ -151,11 +151,12 @@ public class TestGenericRestRequests
 
         // Problems with the chunk signature
         assertThat(doAwsChunkedUpload(badChunkedContent1).getStatusCode()).isEqualTo(401);
+        assertFileNotInBucket("two", "test");
         assertThat(doAwsChunkedUpload(badChunkedContent2).getStatusCode()).isEqualTo(401);
+        assertFileNotInBucket("two", "test");
 
         // TODO - as per #102, some of the chunks would have been sent to S3 so this assert would fail
         // By this point, no request has succeeded - there should be no content in the bucket
-        // assertFileNotInBucket("two", "test");
 
         // Correct chunk and signature
         assertThat(doAwsChunkedUpload(goodChunkedContent).getStatusCode()).isEqualTo(200);
