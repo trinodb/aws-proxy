@@ -15,241 +15,216 @@ package io.trino.aws.proxy.server.rest;
 
 import com.google.common.base.Splitter;
 import io.trino.aws.proxy.spi.signing.ChunkSigningSession;
-import org.apache.commons.httpclient.util.EncodingUtil;
 
-import java.io.ByteArrayOutputStream;
+import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.UncheckedIOException;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
-import static com.google.common.base.Preconditions.checkState;
 import static java.util.Objects.requireNonNull;
-import static org.apache.commons.httpclient.HttpParser.parseHeaders;
 
-// based/copied on Apache Commons ChunkedInputStream
 class AwsChunkedInputStream
         extends InputStream
 {
     private final InputStream delegate;
-    private final Optional<ChunkSigningSession> chunkSigningSession;
+    private final ChunkSigningSession chunkSigningSession;
 
-    private int chunkSize;
-    private int position;
-    private boolean latent = true;
-    private boolean eof;
-    private boolean closed;
+    private enum State
+    {
+        FIRST_CHUNK,
+        MIDDLE_CHUNKS,
+        LAST_CHUNK,
+    }
 
-    AwsChunkedInputStream(InputStream delegate, Optional<ChunkSigningSession> chunkSigningSession)
+    private State state = State.FIRST_CHUNK;
+    private boolean delegateIsDone;
+    private int bytesRemainingInChunk;
+
+    AwsChunkedInputStream(InputStream delegate, ChunkSigningSession chunkSigningSession)
     {
         this.delegate = requireNonNull(delegate, "delegate is null");
         this.chunkSigningSession = requireNonNull(chunkSigningSession, "chunkSigningSession is null");
     }
 
+    @Override
     public int read()
             throws IOException
     {
-        checkState(!closed, "Stream is closed");
-
-        if (eof) {
+        if (isEndOfStream()) {
             return -1;
         }
-        if (position >= chunkSize) {
-            nextChunk();
-            if (eof) {
-                return -1;
-            }
-        }
-        position++;
+
         int i = delegate.read();
-        if (i >= 0) {
-            chunkSigningSession.ifPresent(session -> session.write((byte) (i & 0xff)));
+        if (i < 0) {
+            throw new EOFException("Unexpected end of stream");
         }
+
+        chunkSigningSession.write((byte) (i & 0xff));
+        updateBytesRemaining(1);
+
         return i;
     }
 
+    @Override
     public int read(byte[] b, int off, int len)
             throws IOException
     {
-        checkState(!closed, "Stream is closed");
-
-        if (eof) {
+        if (isEndOfStream()) {
             return -1;
         }
-        if (position >= chunkSize) {
-            nextChunk();
-            if (eof) {
-                return -1;
-            }
+
+        len = Math.min(len, bytesRemainingInChunk);
+
+        int count = delegate.read(b, off, len);
+        if (count < 0) {
+            throw new EOFException("Unexpected end of stream");
         }
 
-        len = Math.min(len, chunkSize - position);
-        int count = delegate.read(b, off, len);
-        position += count;
-
-        chunkSigningSession.ifPresent(session -> session.write(b, off, count));
+        chunkSigningSession.write(b, off, count);
+        updateBytesRemaining(count);
 
         return count;
     }
 
-    private void readCRLF()
+    @Override
+    public void close()
             throws IOException
     {
-        int cr = delegate.read();
-        int lf = delegate.read();
-        if ((cr != '\r') || (lf != '\n')) {
-            throw new IOException("CRLF expected at end of chunk: " + cr + "/" + lf);
+        delegate.close();
+    }
+
+    private void updateBytesRemaining(int count)
+            throws IOException
+    {
+        bytesRemainingInChunk -= count;
+
+        // this will read the next chunk header if we've read the entire current chunk
+        // this ensures that the final chunk signature is validated before its bytes
+        // are made available.
+        //
+        // If the final chunk signature is invalid we will not return the bytes read in
+        // this read() instance and will instead throw an exception. This
+        // will cause the remote to reject the request as we won't have sent all
+        // the bytes specified by the Content-Length header.
+
+        if (bytesRemainingInChunk == 0) {
+            nextChunk();
         }
+        else if (bytesRemainingInChunk < 0) {
+            throw new IllegalStateException("bytesRemainingInChunk has gone negative: " + bytesRemainingInChunk);
+        }
+    }
+
+    private boolean isEndOfStream()
+            throws IOException
+    {
+        if (bytesRemainingInChunk == 0) {
+            nextChunk();
+            return bytesRemainingInChunk == 0;
+        }
+
+        return false;
     }
 
     private void nextChunk()
             throws IOException
     {
-        if (!latent) {
-            readCRLF();
+        if (delegateIsDone) {
+            return;
         }
 
-        ChunkMetadata metadata = chunkMetadata(delegate);
-        chunkSigningSession.ifPresent(session -> {
-            String chunkSignature = metadata.chunkSignature().orElseThrow(() -> new UncheckedIOException(new IOException("Chunk is missing a signature: " + metadata.rawDataString)));
-            session.startChunk(chunkSignature);
-        });
+        switch (state) {
+            case FIRST_CHUNK -> state = State.MIDDLE_CHUNKS;
 
-        chunkSize = metadata.chunkSize;
-        latent = false;
-        position = 0;
-        if (chunkSize == 0) {
-            chunkSigningSession.ifPresent(ChunkSigningSession::complete);
-            eof = true;
-            parseHeaders(delegate, "UTF-8");
-        }
-    }
+            case MIDDLE_CHUNKS -> readEmptyLine();
 
-    private record ChunkMetadata(String rawDataString, int chunkSize, Optional<String> chunkSignature)
-    {
-        private ChunkMetadata
-        {
-            requireNonNull(rawDataString, "rawDataString is null");
-            requireNonNull(chunkSignature, "chunkSignature is null");
-        }
-    }
-
-    private static ChunkMetadata chunkMetadata(InputStream in)
-            throws IOException
-    {
-        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-        // States: 0=normal, 1=\r was scanned, 2=inside quoted string, -1=end
-        int state = 0;
-        while (state != -1) {
-            int b = in.read();
-            if (b == -1) {
-                throw new IOException("chunked stream ended unexpectedly");
-            }
-            switch (state) {
-                case 0:
-                    switch (b) {
-                        case '\r':
-                            state = 1;
-                            break;
-                        case '\"':
-                            state = 2;
-                            /* fall through */
-                        default:
-                            outputStream.write(b);
-                    }
-                    break;
-
-                case 1:
-                    if (b == '\n') {
-                        state = -1;
-                    }
-                    else {
-                        // this was not CRLF
-                        throw new IOException("Protocol violation: Unexpected single newline character in chunk size");
-                    }
-                    break;
-
-                case 2:
-                    switch (b) {
-                        case '\\':
-                            b = in.read();
-                            outputStream.write(b);
-                            break;
-                        case '\"':
-                            state = 0;
-                            /* fall through */
-                        default:
-                            outputStream.write(b);
-                    }
-                    break;
-                default:
-                    throw new RuntimeException("assertion failed");
+            case LAST_CHUNK -> {
+                // exit method
+                return;
             }
         }
 
-        String dataString = EncodingUtil.getAsciiString(outputStream.toByteArray());
+        String header = readLine();
 
-        String chunkSizeString;
-        Optional<String> chunkSignature;
-
-        int separatorIndex = dataString.indexOf(';');
-        if (separatorIndex > 0) {
-            chunkSizeString = dataString.substring(0, separatorIndex).trim();
-
-            if ((separatorIndex + 1) < dataString.length()) {
-                String remainder = dataString.substring(separatorIndex + 1).trim();
-                chunkSignature = Splitter.on(';').trimResults().withKeyValueSeparator('=').split(remainder)
-                        .entrySet()
-                        .stream()
-                        .filter(entry -> entry.getKey().equalsIgnoreCase("chunk-signature"))
-                        .map(Map.Entry::getValue)
-                        .findFirst();
+        boolean success = false;
+        do {
+            List<String> parts = Splitter.on(';').trimResults().limit(2).splitToList(header);
+            if (parts.size() != 2) {
+                break;
             }
-            else {
-                chunkSignature = Optional.empty();
-            }
-        }
-        else {
-            chunkSizeString = dataString.trim();
-            chunkSignature = Optional.empty();
-        }
 
-        int chunkSize;
-        try {
-            chunkSize = Integer.parseInt(chunkSizeString, 16);
-        }
-        catch (NumberFormatException e) {
-            throw new IOException("Bad chunk size: " + chunkSizeString);
-        }
-
-        return new ChunkMetadata(dataString, chunkSize, chunkSignature);
-    }
-
-    public void close()
-            throws IOException
-    {
-        if (!closed) {
+            int chunkSize;
             try {
-                if (!eof) {
-                    exhaustInputStream(this);
+                chunkSize = Integer.parseInt(parts.getFirst(), 16);
+                if (chunkSize < 0) {
+                    break;
                 }
             }
-            finally {
-                eof = true;
-                closed = true;
+            catch (NumberFormatException ignore) {
+                break;
             }
+
+            Optional<String> chunkSignature = Splitter.on(';').trimResults().withKeyValueSeparator('=').split(parts.get(1))
+                    .entrySet()
+                    .stream()
+                    .filter(entry -> entry.getKey().equalsIgnoreCase("chunk-signature"))
+                    .map(Map.Entry::getValue)
+                    .findFirst();
+
+            if (chunkSignature.isEmpty()) {
+                break;
+            }
+
+            chunkSigningSession.startChunk(chunkSignature.get());
+            bytesRemainingInChunk = chunkSize;
+
+            if (chunkSize == 0) {
+                readEmptyLine();
+                chunkSigningSession.complete();
+                state = State.LAST_CHUNK;
+            }
+
+            success = true;
+        }
+        while (false);
+
+        if (!success) {
+            throw new IOException("Invalid chunk header: " + header);
         }
     }
 
-    @SuppressWarnings("StatementWithEmptyBody")
-    private static void exhaustInputStream(InputStream inStream)
+    private void readEmptyLine()
             throws IOException
     {
-        // read and discard the remainder of the message
-        byte[] buffer = new byte[8192];
-        while (inStream.read(buffer) >= 0) {
-            // NOP
+        String crLf = readLine();
+        if (!crLf.isEmpty()) {
+            throw new IOException("Expected CR/LF. Instead read: " + crLf);
         }
+    }
+
+    private String readLine()
+            throws IOException
+    {
+        StringBuilder line = new StringBuilder();
+        while (true) {
+            int i = delegate.read();
+            if (i < 0) {
+                delegateIsDone = true;
+                throw new EOFException("Unexpected end of stream");
+            }
+            if (i == '\r') {
+                break;
+            }
+            line.append((char) (i & 0xff));
+        }
+
+        int i = delegate.read();
+        if (i != '\n') {
+            throw new IOException("Expected LF. Instead read: " + i);
+        }
+
+        return line.toString();
     }
 }
