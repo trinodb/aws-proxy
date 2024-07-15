@@ -172,7 +172,7 @@ public class TrinoS3ProxyClient
     private Optional<InputStream> contentInputStream(RequestContent requestContent, SigningMetadata signingMetadata)
     {
         return switch (requestContent.contentType()) {
-            case AWS_CHUNKED -> requestContent.inputStream().map(inputStream -> new AwsChunkedInputStream(inputStream, Optional.of(signingMetadata.requiredSigningContext().chunkSigningSession())));
+            case AWS_CHUNKED -> requestContent.inputStream().map(inputStream -> new AwsChunkedInputStream(inputStream, signingMetadata.requiredSigningContext().chunkSigningSession()));
 
             case STANDARD, W3C_CHUNKED -> requestContent.inputStream().map(inputStream -> {
                 SigningContext signingContext = signingMetadata.requiredSigningContext();
