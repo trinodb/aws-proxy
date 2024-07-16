@@ -28,7 +28,6 @@ import java.util.stream.Stream;
 final class SigningHeaders
 {
     private static final Set<String> IGNORED_HEADERS = ImmutableSet.of(
-            "x-amz-decoded-content-length",
             "x-amzn-trace-id",
             "expect",
             "accept-encoding",
