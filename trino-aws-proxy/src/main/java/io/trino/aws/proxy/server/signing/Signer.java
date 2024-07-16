@@ -135,20 +135,11 @@ final class Signer
                 .enableChunkedEncoding(enableChunkedEncoding);
         SdkHttpFullRequest.Builder requestBuilder = SdkHttpFullRequest.builder();
         if (enablePayloadSigning) {
-            maybeAmazonContentHash.ifPresent(contentHashHeader -> {
-                if (!contentHashHeader.startsWith("STREAMING-")) {
-                    // because we stream content without spooling we want to re-use the provided content hash
-                    // so that we don't have to calculate it to validate the incoming signature.
-                    // Stash the hash in the OVERRIDE_CONTENT_HASH so that aws4Signer can find it and
-                    // return it.
-                    requestBuilder.putHeader(OVERRIDE_CONTENT_HASH, contentHashHeader);
-                }
-            });
-        }
-        if (enableChunkedEncoding) {
-            // when chunked, the correct signature needs to reset the content length to the original decoded length
-            signingHeaders.getFirst("x-amz-decoded-content-length")
-                    .ifPresent(decodedContentLength -> requestBuilder.putHeader("content-length", decodedContentLength));
+            // because we stream content without spooling we want to re-use the provided content hash
+            // so that we don't have to calculate it to validate the incoming signature.
+            // Stash the hash in the OVERRIDE_CONTENT_HASH so that aws4Signer can find it and
+            // return it.
+            maybeAmazonContentHash.ifPresent(contentHashHeader -> requestBuilder.putHeader(OVERRIDE_CONTENT_HASH, contentHashHeader));
         }
         return internalSign(
                 (signingApi, requestToSign) -> {
