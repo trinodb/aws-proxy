@@ -13,6 +13,7 @@
  */
 package io.trino.aws.proxy.server.signing;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.hash.Hasher;
 import com.google.common.hash.Hashing;
 import io.airlift.log.Logger;
@@ -28,7 +29,8 @@ class InternalChunkSigningSession
 {
     private static final Logger log = Logger.get(InternalChunkSigningSession.class);
 
-    private final ChunkSigner chunkSigner;
+    @VisibleForTesting
+    protected final ChunkSigner chunkSigner;
     private String previousSignature;
     private String expectedSignature;
     private Hasher hasher;
