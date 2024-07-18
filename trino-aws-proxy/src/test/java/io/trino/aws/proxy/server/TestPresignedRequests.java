@@ -25,6 +25,7 @@ import io.airlift.http.client.StatusResponseHandler.StatusResponse;
 import io.airlift.http.client.StringResponseHandler.StringResponse;
 import io.airlift.http.server.testing.TestingHttpServer;
 import io.trino.aws.proxy.server.rest.TrinoS3ProxyConfig;
+import io.trino.aws.proxy.server.testing.TestingUtil;
 import io.trino.aws.proxy.server.testing.TestingUtil.ForTesting;
 import io.trino.aws.proxy.server.testing.containers.S3Container.ForS3Container;
 import io.trino.aws.proxy.server.testing.harness.TrinoAwsProxyTest;
@@ -44,7 +45,6 @@ import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectResponse;
-import software.amazon.awssdk.services.s3.model.S3Exception;
 import software.amazon.awssdk.services.s3.model.UploadPartRequest;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 import software.amazon.awssdk.services.s3.presigner.model.CompleteMultipartUploadPresignRequest;
@@ -60,7 +60,6 @@ import software.amazon.awssdk.services.s3.presigner.model.PresignedUploadPartReq
 import software.amazon.awssdk.services.s3.presigner.model.PutObjectPresignRequest;
 import software.amazon.awssdk.services.s3.presigner.model.UploadPartPresignRequest;
 
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -76,9 +75,9 @@ import static io.airlift.http.client.Request.Builder.preparePut;
 import static io.airlift.http.client.StatusResponseHandler.createStatusResponseHandler;
 import static io.airlift.http.client.StringResponseHandler.createStringResponseHandler;
 import static io.trino.aws.proxy.server.testing.TestingUtil.TEST_FILE;
+import static io.trino.aws.proxy.server.testing.TestingUtil.assertFileNotInS3;
 import static java.util.Objects.requireNonNull;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 
 @TrinoAwsProxyTest(filters = {WithConfiguredBuckets.class, WithTestingHttpClient.class, TestProxiedRequests.Filter.class})
 public class TestPresignedRequests
@@ -159,10 +158,7 @@ public class TestPresignedRequests
             assertThat(response.getStatusCode()).isEqualTo(200);
         }
 
-        GetObjectRequest getObjectRequest = GetObjectRequest.builder().bucket("two").key("presignedPut").build();
-        ByteArrayOutputStream readContents = new ByteArrayOutputStream();
-        internalClient.getObject(getObjectRequest).transferTo(readContents);
-        assertThat(readContents.toString()).isEqualTo(fileContents);
+        assertThat(getFileFromStorage("two", "presignedPut")).isEqualTo(fileContents);
     }
 
     @Test
@@ -186,10 +182,7 @@ public class TestPresignedRequests
             assertThat(response.getStatusCode()).isEqualTo(204);
         }
 
-        assertThatExceptionOfType(S3Exception.class)
-                .isThrownBy(() -> getFileFromStorage("three", "fileToDelete"))
-                .extracting(S3Exception::statusCode)
-                .isEqualTo(404);
+        assertFileNotInS3(storageClient, "three", "fileToDelete");
     }
 
     @Test
@@ -302,10 +295,7 @@ public class TestPresignedRequests
     private String getFileFromStorage(String bucketName, String key)
             throws IOException
     {
-        GetObjectRequest getObjectRequest = GetObjectRequest.builder().bucket(bucketName).key(key).build();
-        ByteArrayOutputStream readContents = new ByteArrayOutputStream();
-        internalClient.getObject(getObjectRequest).transferTo(readContents);
-        return readContents.toString();
+        return TestingUtil.getFileFromStorage(internalClient, bucketName, key);
     }
 
     private S3Presigner buildPresigner()

@@ -13,6 +13,7 @@
  */
 package io.trino.aws.proxy.server;
 
+import io.trino.aws.proxy.server.testing.TestingUtil;
 import jakarta.annotation.PreDestroy;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -25,13 +26,11 @@ import software.amazon.awssdk.services.s3.model.CompletedMultipartUpload;
 import software.amazon.awssdk.services.s3.model.CompletedPart;
 import software.amazon.awssdk.services.s3.model.CreateMultipartUploadRequest;
 import software.amazon.awssdk.services.s3.model.CreateMultipartUploadResponse;
-import software.amazon.awssdk.services.s3.model.Delete;
 import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
 import software.amazon.awssdk.services.s3.model.DeleteObjectResponse;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.ListBucketsResponse;
 import software.amazon.awssdk.services.s3.model.ListObjectsResponse;
-import software.amazon.awssdk.services.s3.model.ObjectIdentifier;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectResponse;
 import software.amazon.awssdk.services.s3.model.S3Object;
@@ -80,16 +79,7 @@ public abstract class AbstractTestProxiedRequests
     @AfterEach
     public void cleanupBuckets()
     {
-        remoteClient.listBuckets().buckets().forEach(bucket -> remoteClient.listObjectsV2Paginator(request -> request.bucket(bucket.name())).forEach(s3ObjectPage -> {
-            if (s3ObjectPage.contents().isEmpty()) {
-                return;
-            }
-            List<ObjectIdentifier> objectIdentifiers = s3ObjectPage.contents()
-                    .stream()
-                    .map(s3Object -> ObjectIdentifier.builder().key(s3Object.key()).build())
-                    .collect(toImmutableList());
-            remoteClient.deleteObjects(deleteRequest -> deleteRequest.bucket(bucket.name()).delete(Delete.builder().objects(objectIdentifiers).build()));
-        }));
+        TestingUtil.cleanupBuckets(remoteClient);
     }
 
     @Test

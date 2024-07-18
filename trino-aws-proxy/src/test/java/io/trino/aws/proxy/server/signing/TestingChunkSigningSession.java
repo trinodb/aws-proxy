@@ -24,6 +24,9 @@ import software.amazon.awssdk.auth.signer.params.Aws4SignerParams;
 import software.amazon.awssdk.regions.Region;
 
 import java.time.Instant;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
+import java.util.Locale;
 import java.util.UUID;
 
 import static com.google.common.base.Preconditions.checkArgument;
@@ -33,9 +36,9 @@ import static java.util.Objects.requireNonNull;
 public class TestingChunkSigningSession
         extends InternalChunkSigningSession
 {
+    private static final DateTimeFormatter CHUNK_DATETIME_FORMAT = DateTimeFormatter.ofPattern("yyyyMMdd", Locale.US).withZone(ZoneId.of("Z"));
+
     private final String seed;
-    private final Instant instant;
-    private final byte[] signingKey;
 
     public static TestingChunkSigningSession build()
     {
@@ -46,6 +49,11 @@ public class TestingChunkSigningSession
 
     public static TestingChunkSigningSession build(Credential credential, String seed)
     {
+        return build(credential, seed, Instant.now());
+    }
+
+    public static TestingChunkSigningSession build(Credential credential, String seed, Instant instant)
+    {
         AwsCredentials credentials = AwsBasicCredentials.create(credential.accessKey(), credential.secretKey());
         Aws4SignerParams.Builder<?> builder = Aws4SignerParams.builder()
                 .awsCredentials(credentials)
@@ -54,7 +62,31 @@ public class TestingChunkSigningSession
                 .signingRegion(Region.US_EAST_1);
         byte[] signingKey = Signer.signingKey(credentials, new Aws4SignerRequestParams(builder.build()));
 
-        return new TestingChunkSigningSession(seed, Instant.now(), signingKey);
+        return new TestingChunkSigningSession(seed, instant, signingKey, "%s/us-east-1/s3/aws4_request".formatted(CHUNK_DATETIME_FORMAT.format(instant)));
+    }
+
+    public static int getExpectedChunkedStreamSize(String rawContent, int partitions)
+    {
+        int contentSizeInBytes = rawContent.getBytes(UTF_8).length;
+        int standardChunkSize = Math.ceilDiv(contentSizeInBytes, partitions);
+        // The penultimate chunk may be smaller if alignment is not perfect
+        int penultimateChunkSize = contentSizeInBytes - (standardChunkSize * (partitions - 1));
+        // Each chunk has:
+        //   - A header consisting of "<size>;chunk-signature=<signature>"
+        //   - \r\n
+        //   - <data>
+        //   - \r\n
+        int baseChunkSize = ";chunk-signature=".length() + AwsS3V4ChunkSigner.getSignatureLength() + 4;
+        // Chunk headers without including the size
+        return (baseChunkSize * (partitions + 1)) +
+                // Size of the size field for all chunk except for the last 2
+                (Integer.toString(standardChunkSize, 16).length() * (partitions - 1)) +
+                // Size of the size field for the penultimate chunk
+                (Integer.toString(penultimateChunkSize, 16).length()) +
+                // Size of the size field for the last chunk (size=0, 1 character)
+                1 +
+                // Size of the actual content
+                contentSizeInBytes;
     }
 
     @SuppressWarnings("UnstableApiUsage")
@@ -62,11 +94,10 @@ public class TestingChunkSigningSession
     {
         checkArgument(partitions > 1, "partitions must be greater than 1");
 
-        ChunkSigner chunkSigner = new ChunkSigner(instant, "/dummy", signingKey);
         String previousSignature = seed;
 
         StringBuilder chunkedStream = new StringBuilder();
-        int chunkSize = content.length() / partitions;
+        int chunkSize = Math.ceilDiv(content.length(), partitions);
         int index = 0;
         while (index < content.length()) {
             int thisLength = Math.min(chunkSize, content.length() - index);
@@ -88,12 +119,10 @@ public class TestingChunkSigningSession
         return chunkedStream.toString();
     }
 
-    private TestingChunkSigningSession(String seed, Instant instant, byte[] signingKey)
+    private TestingChunkSigningSession(String seed, Instant instant, byte[] signingKey, String keyPath)
     {
-        super(new ChunkSigner(instant, "/dummy", signingKey), seed);
+        super(new ChunkSigner(instant, keyPath, signingKey), seed);
 
         this.seed = requireNonNull(seed, "seed is null");
-        this.instant = requireNonNull(instant, "instant is null");
-        this.signingKey = requireNonNull(signingKey, "signingKey is null");
     }
 }
