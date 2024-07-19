@@ -52,7 +52,7 @@ public class S3Container
     public static final String POLICY_NAME = "managedPolicy";
 
     private static final String IMAGE_NAME = "minio/minio";
-    private static final String IMAGE_TAG = "RELEASE.2023-09-04T19-57-37Z";
+    private static final String IMAGE_TAG = "RELEASE.2024-07-15T19-02-30Z";
 
     private static final String CONFIG_TEMPLATE = """
             {
@@ -117,6 +117,7 @@ public class S3Container
         container = new MinIOContainer(DockerImageName.parse(IMAGE_NAME).withTag(IMAGE_TAG))
                 .withUserName(credential.accessKey())
                 .withPassword(credential.secretKey())
+                .withEnv("MC_CONFIG_DIR", "/root/.mc/")
                 // setting this allows us to shell into the container and run "mc" commands
                 .withCopyToContainer(config, "/root/.mc/config.json")
                 .withCopyToContainer(policyFile, "/root/policy.json");
