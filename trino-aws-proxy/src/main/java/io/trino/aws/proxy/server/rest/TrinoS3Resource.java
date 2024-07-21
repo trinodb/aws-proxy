@@ -14,6 +14,7 @@
 package io.trino.aws.proxy.server.rest;
 
 import com.google.inject.Inject;
+import io.trino.aws.proxy.server.TrinoAwsProxyConfig;
 import io.trino.aws.proxy.spi.rest.ParsedS3Request;
 import io.trino.aws.proxy.spi.rest.Request;
 import io.trino.aws.proxy.spi.signing.SigningMetadata;

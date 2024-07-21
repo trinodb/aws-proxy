@@ -16,7 +16,6 @@ package io.trino.aws.proxy.server;
 import com.google.inject.Key;
 import io.airlift.http.server.testing.TestingHttpServer;
 import io.airlift.log.Logger;
-import io.trino.aws.proxy.server.rest.TrinoAwsProxyConfig;
 import io.trino.aws.proxy.server.testing.TestingTrinoAwsProxyServer;
 import io.trino.aws.proxy.server.testing.TestingUtil.ForTesting;
 import io.trino.aws.proxy.spi.credentials.Credentials;

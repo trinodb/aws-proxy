@@ -29,7 +29,6 @@ import io.trino.aws.proxy.server.remote.RemoteS3Facade;
 import io.trino.aws.proxy.server.remote.VirtualHostStyleRemoteS3Facade;
 import io.trino.aws.proxy.server.rest.RequestFilter;
 import io.trino.aws.proxy.server.rest.RequestLoggerController;
-import io.trino.aws.proxy.server.rest.TrinoAwsProxyConfig;
 import io.trino.aws.proxy.server.rest.TrinoS3ProxyClient;
 import io.trino.aws.proxy.server.rest.TrinoS3ProxyClient.ForProxyClient;
 import io.trino.aws.proxy.server.rest.TrinoS3Resource;
