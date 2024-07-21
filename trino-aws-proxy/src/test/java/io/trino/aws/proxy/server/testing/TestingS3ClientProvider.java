@@ -16,7 +16,7 @@ package io.trino.aws.proxy.server.testing;
 import com.google.inject.Inject;
 import com.google.inject.Provider;
 import io.airlift.http.server.testing.TestingHttpServer;
-import io.trino.aws.proxy.server.rest.TrinoS3ProxyConfig;
+import io.trino.aws.proxy.server.rest.TrinoAwsProxyConfig;
 import io.trino.aws.proxy.server.testing.TestingUtil.ForTesting;
 import io.trino.aws.proxy.spi.credentials.Credential;
 import io.trino.aws.proxy.spi.credentials.Credentials;
@@ -46,7 +46,7 @@ public class TestingS3ClientProvider
         }
 
         @Inject
-        public TestingS3ClientConfig(TrinoS3ProxyConfig config)
+        public TestingS3ClientConfig(TrinoAwsProxyConfig config)
         {
             this(config.getS3HostName(), config.getS3Path());
         }

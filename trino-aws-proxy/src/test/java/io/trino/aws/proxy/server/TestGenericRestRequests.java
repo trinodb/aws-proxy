@@ -22,7 +22,7 @@ import io.airlift.http.server.testing.TestingHttpServer;
 import io.airlift.units.Duration;
 import io.trino.aws.proxy.server.credentials.CredentialsController;
 import io.trino.aws.proxy.server.rest.RequestLoggerController;
-import io.trino.aws.proxy.server.rest.TrinoS3ProxyConfig;
+import io.trino.aws.proxy.server.rest.TrinoAwsProxyConfig;
 import io.trino.aws.proxy.server.signing.InternalSigningController;
 import io.trino.aws.proxy.server.signing.SigningControllerConfig;
 import io.trino.aws.proxy.server.signing.TestingChunkSigningSession;
@@ -101,9 +101,9 @@ public class TestGenericRestRequests
             @ForTesting HttpClient httpClient,
             @ForTesting Credentials testingCredentials,
             @ForS3Container S3Client storageClient,
-            TrinoS3ProxyConfig trinoS3ProxyConfig)
+            TrinoAwsProxyConfig trinoAwsProxyConfig)
     {
-        baseUri = httpServer.getBaseUrl().resolve(trinoS3ProxyConfig.getS3Path());
+        baseUri = httpServer.getBaseUrl().resolve(trinoAwsProxyConfig.getS3Path());
         this.credentialsRolesProvider = requireNonNull(credentialsRolesProvider, "credentialsRolesProvider is null");
         this.httpClient = requireNonNull(httpClient, "httpClient is null");
         this.testingCredentials = requireNonNull(testingCredentials, "testingCredentials is null");

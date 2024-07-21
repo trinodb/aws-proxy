@@ -14,7 +14,7 @@
 package io.trino.aws.proxy.server;
 
 import io.airlift.http.server.testing.TestingHttpServer;
-import io.trino.aws.proxy.server.rest.TrinoS3ProxyConfig;
+import io.trino.aws.proxy.server.rest.TrinoAwsProxyConfig;
 import io.trino.aws.proxy.spi.credentials.Credential;
 import io.trino.aws.proxy.spi.credentials.Credentials;
 import io.trino.aws.proxy.spi.credentials.CredentialsProvider;
@@ -38,7 +38,7 @@ public abstract class AbstractTestStsRequests
     private final StsClient stsClient;
     private final CredentialsProvider credentialsProvider;
 
-    public AbstractTestStsRequests(Credentials testingCredentials, TestingHttpServer httpServer, CredentialsProvider credentialsProvider, TrinoS3ProxyConfig s3ProxyConfig)
+    public AbstractTestStsRequests(Credentials testingCredentials, TestingHttpServer httpServer, CredentialsProvider credentialsProvider, TrinoAwsProxyConfig s3ProxyConfig)
     {
         this.credentialsProvider = requireNonNull(credentialsProvider, "credentialsProvider is null");
 

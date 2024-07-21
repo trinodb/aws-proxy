@@ -15,7 +15,7 @@ package io.trino.aws.proxy.server.credentials;
 
 import com.google.inject.Inject;
 import io.airlift.http.server.testing.TestingHttpServer;
-import io.trino.aws.proxy.server.rest.TrinoS3ProxyConfig;
+import io.trino.aws.proxy.server.rest.TrinoAwsProxyConfig;
 import io.trino.aws.proxy.server.testing.TestingCredentialsRolesProvider;
 import io.trino.aws.proxy.server.testing.TestingUtil.ForTesting;
 import io.trino.aws.proxy.server.testing.harness.TrinoAwsProxyTest;
@@ -47,7 +47,7 @@ public class TestAssumingRoles
     private final Credentials testingCredentials;
 
     @Inject
-    public TestAssumingRoles(TestingCredentialsRolesProvider credentialsController, TestingHttpServer httpServer, @ForTesting Credentials testingCredentials, TrinoS3ProxyConfig trinoS3ProxyConfig)
+    public TestAssumingRoles(TestingCredentialsRolesProvider credentialsController, TestingHttpServer httpServer, @ForTesting Credentials testingCredentials, TrinoAwsProxyConfig trinoS3ProxyConfig)
     {
         this.credentialsController = requireNonNull(credentialsController, "credentialsController is null");
         this.testingCredentials = requireNonNull(testingCredentials, "testingCredentials is null");

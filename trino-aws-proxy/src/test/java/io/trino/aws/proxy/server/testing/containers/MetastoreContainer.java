@@ -17,7 +17,7 @@ import com.google.common.io.Resources;
 import com.google.inject.Inject;
 import io.airlift.http.server.testing.TestingHttpServer;
 import io.airlift.log.Logger;
-import io.trino.aws.proxy.server.rest.TrinoS3ProxyConfig;
+import io.trino.aws.proxy.server.rest.TrinoAwsProxyConfig;
 import io.trino.aws.proxy.server.testing.TestingUtil;
 import io.trino.aws.proxy.server.testing.TestingUtil.ForTesting;
 import io.trino.aws.proxy.spi.credentials.Credentials;
@@ -48,10 +48,10 @@ public class MetastoreContainer
 
     @SuppressWarnings("resource")
     @Inject
-    public MetastoreContainer(PostgresContainer postgresContainer, TestingHttpServer httpServer, @ForTesting Credentials testingCredentials, TrinoS3ProxyConfig trinoS3ProxyConfig)
+    public MetastoreContainer(PostgresContainer postgresContainer, TestingHttpServer httpServer, @ForTesting Credentials testingCredentials, TrinoAwsProxyConfig trinoAwsProxyConfig)
             throws IOException
     {
-        String s3Endpoint = asHostUrl(httpServer.getBaseUrl().resolve(trinoS3ProxyConfig.getS3Path()).toString());
+        String s3Endpoint = asHostUrl(httpServer.getBaseUrl().resolve(trinoAwsProxyConfig.getS3Path()).toString());
 
         File postgresJar = TestingUtil.findTestJar("postgres");
         File hadoopJar = TestingUtil.findTestJar("hadoop");

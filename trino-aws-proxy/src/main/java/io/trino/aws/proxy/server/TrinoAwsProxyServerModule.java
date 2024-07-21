@@ -29,9 +29,9 @@ import io.trino.aws.proxy.server.remote.RemoteS3Facade;
 import io.trino.aws.proxy.server.remote.VirtualHostStyleRemoteS3Facade;
 import io.trino.aws.proxy.server.rest.RequestFilter;
 import io.trino.aws.proxy.server.rest.RequestLoggerController;
+import io.trino.aws.proxy.server.rest.TrinoAwsProxyConfig;
 import io.trino.aws.proxy.server.rest.TrinoS3ProxyClient;
 import io.trino.aws.proxy.server.rest.TrinoS3ProxyClient.ForProxyClient;
-import io.trino.aws.proxy.server.rest.TrinoS3ProxyConfig;
 import io.trino.aws.proxy.server.rest.TrinoS3Resource;
 import io.trino.aws.proxy.server.rest.TrinoStsResource;
 import io.trino.aws.proxy.server.security.S3SecurityController;
@@ -67,7 +67,7 @@ public class TrinoAwsProxyServerModule
     protected void setup(Binder binder)
     {
         configBinder(binder).bindConfig(SigningControllerConfig.class);
-        TrinoS3ProxyConfig builtConfig = buildConfigObject(TrinoS3ProxyConfig.class);
+        TrinoAwsProxyConfig builtConfig = buildConfigObject(TrinoAwsProxyConfig.class);
 
         JaxrsBinder jaxrsBinder = jaxrsBinder(binder);
 

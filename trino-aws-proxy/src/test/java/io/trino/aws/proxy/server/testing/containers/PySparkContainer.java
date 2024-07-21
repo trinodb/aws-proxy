@@ -16,7 +16,7 @@ package io.trino.aws.proxy.server.testing.containers;
 import com.google.inject.Inject;
 import io.airlift.http.server.testing.TestingHttpServer;
 import io.airlift.log.Logger;
-import io.trino.aws.proxy.server.rest.TrinoS3ProxyConfig;
+import io.trino.aws.proxy.server.rest.TrinoAwsProxyConfig;
 import io.trino.aws.proxy.server.testing.TestingUtil;
 import io.trino.aws.proxy.server.testing.TestingUtil.ForTesting;
 import io.trino.aws.proxy.spi.credentials.Credentials;
@@ -44,7 +44,7 @@ public class PySparkContainer
 
     @SuppressWarnings("resource")
     @Inject
-    public PySparkContainer(MetastoreContainer metastoreContainer, TestingHttpServer httpServer, @ForTesting Credentials testingCredentials, TrinoS3ProxyConfig trinoS3ProxyConfig)
+    public PySparkContainer(MetastoreContainer metastoreContainer, TestingHttpServer httpServer, @ForTesting Credentials testingCredentials, TrinoAwsProxyConfig trinoS3ProxyConfig)
             throws IOException
     {
         File hadoopJar = TestingUtil.findTestJar("hadoop");
