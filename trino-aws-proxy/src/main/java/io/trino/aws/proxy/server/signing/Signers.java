@@ -22,6 +22,7 @@ import software.amazon.awssdk.auth.signer.params.AwsS3V4SignerParams;
 import software.amazon.awssdk.core.checksums.SdkChecksum;
 import software.amazon.awssdk.http.SdkHttpFullRequest;
 
+import java.net.URI;
 import java.util.Optional;
 
 class Signers
@@ -31,6 +32,8 @@ class Signers
     static final SigningApi aws4Signer = new InternalAwsS3V4Signer();
 
     static final SigningApi legacyAws4Signer = new InternalLegacyAwsS3V4Signer();
+
+    private static final URI DUMMY_URI = URI.create("https://local.gate0.net");
 
     interface SigningApi
     {
