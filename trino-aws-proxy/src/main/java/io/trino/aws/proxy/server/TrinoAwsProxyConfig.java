@@ -33,6 +33,7 @@ public class TrinoAwsProxyConfig
     private String stsPath = "/api/v1/s3Proxy/sts";
     private Duration presignedUrlsDuration = new Duration(15, TimeUnit.MINUTES);
     private boolean generatePresignedUrlsOnHead = true;
+    private String logsPath = "/api/v1/s3Proxy/logs";
     private int requestLoggerSavedQty = 10000;
     private Optional<DataSize> maxPayloadSize = Optional.empty();
 
@@ -103,6 +104,20 @@ public class TrinoAwsProxyConfig
     {
         this.generatePresignedUrlsOnHead = generatePresignedUrlsOnHead;
         return this;
+    }
+
+    @Config("aws.proxy.logs.path")
+    @ConfigDescription("URL Path for logs operations, optional")
+    public TrinoAwsProxyConfig setLogsPath(String logsPath)
+    {
+        this.logsPath = logsPath;
+        return this;
+    }
+
+    @NotNull
+    public String getLogsPath()
+    {
+        return logsPath;
     }
 
     @Min(0)

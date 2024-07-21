@@ -38,6 +38,7 @@ import io.trino.aws.proxy.server.rest.LimitStreamController;
 import io.trino.aws.proxy.server.rest.RequestFilter;
 import io.trino.aws.proxy.server.rest.RequestLoggerController;
 import io.trino.aws.proxy.server.rest.S3PresignController;
+import io.trino.aws.proxy.server.rest.TrinoLogsResource;
 import io.trino.aws.proxy.server.rest.TrinoS3ProxyClient;
 import io.trino.aws.proxy.server.rest.TrinoS3ProxyClient.ForProxyClient;
 import io.trino.aws.proxy.server.rest.TrinoS3Resource;
@@ -91,6 +92,7 @@ public class TrinoAwsProxyServerModule
         jaxrsBinder.bind(RequestFilter.class);
         bindResourceAtPath(jaxrsBinder, signingServiceTypesMapBinder, SigningServiceType.S3, TrinoS3Resource.class, builtConfig.getS3Path());
         bindResourceAtPath(jaxrsBinder, signingServiceTypesMapBinder, SigningServiceType.STS, TrinoStsResource.class, builtConfig.getStsPath());
+        bindResourceAtPath(jaxrsBinder, signingServiceTypesMapBinder, SigningServiceType.LOGS, TrinoLogsResource.class, builtConfig.getLogsPath());
 
         binder.bind(CredentialsController.class).in(Scopes.SINGLETON);
         binder.bind(RequestLoggerController.class).in(Scopes.SINGLETON);
