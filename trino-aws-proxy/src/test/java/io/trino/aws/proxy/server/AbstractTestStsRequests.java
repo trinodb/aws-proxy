@@ -14,7 +14,6 @@
 package io.trino.aws.proxy.server;
 
 import io.airlift.http.server.testing.TestingHttpServer;
-import io.trino.aws.proxy.server.rest.TrinoAwsProxyConfig;
 import io.trino.aws.proxy.spi.credentials.Credential;
 import io.trino.aws.proxy.spi.credentials.Credentials;
 import io.trino.aws.proxy.spi.credentials.CredentialsProvider;

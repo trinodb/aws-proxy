@@ -22,7 +22,6 @@ import io.airlift.http.server.testing.TestingHttpServer;
 import io.airlift.units.Duration;
 import io.trino.aws.proxy.server.credentials.CredentialsController;
 import io.trino.aws.proxy.server.rest.RequestLoggerController;
-import io.trino.aws.proxy.server.rest.TrinoAwsProxyConfig;
 import io.trino.aws.proxy.server.signing.InternalSigningController;
 import io.trino.aws.proxy.server.signing.SigningControllerConfig;
 import io.trino.aws.proxy.server.signing.TestingChunkSigningSession;
