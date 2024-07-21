@@ -33,7 +33,7 @@ public class TestProxiedRequests
         @Override
         public TestingTrinoAwsProxyServer.Builder filter(TestingTrinoAwsProxyServer.Builder builder)
         {
-            return builder.withProperty("s3proxy.s3.path", "/api/some/s3/path");
+            return builder.withProperty("aws.proxy.s3.path", "/api/some/s3/path");
         }
     }
 

@@ -32,7 +32,7 @@ public class TestStsRequestsWithEmptyPath
         @Override
         public TestingTrinoAwsProxyServer.Builder filter(TestingTrinoAwsProxyServer.Builder builder)
         {
-            return builder.withProperty("s3proxy.sts.path", "");
+            return builder.withProperty("aws.proxy.sts.path", "");
         }
     }
 

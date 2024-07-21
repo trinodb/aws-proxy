@@ -25,7 +25,7 @@ public class TrinoAwsProxyConfig
     private String s3Path = "/api/v1/s3Proxy/s3";
     private String stsPath = "/api/v1/s3Proxy/sts";
 
-    @Config("s3proxy.s3.hostname")
+    @Config("aws.proxy.s3.hostname")
     @ConfigDescription("Hostname to use for S3 REST operations, virtual-host style addressing is only supported if this is set")
     public TrinoAwsProxyConfig setS3HostName(String s3HostName)
     {
@@ -39,7 +39,7 @@ public class TrinoAwsProxyConfig
         return s3HostName;
     }
 
-    @Config("s3proxy.s3.path")
+    @Config("aws.proxy.s3.path")
     @ConfigDescription("URL Path for S3 operations, optional")
     public TrinoAwsProxyConfig setS3Path(String s3Path)
     {
@@ -53,7 +53,7 @@ public class TrinoAwsProxyConfig
         return s3Path;
     }
 
-    @Config("s3proxy.sts.path")
+    @Config("aws.proxy.sts.path")
     @ConfigDescription("URL Path for STS operations, optional")
     public TrinoAwsProxyConfig setStsPath(String stsPath)
     {
