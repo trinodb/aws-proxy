@@ -258,7 +258,7 @@ public class TestGenericRestRequests
         InternalSigningController signingController = new InternalSigningController(
                 new CredentialsController(new TestingRemoteS3Facade(), credentialsRolesProvider),
                 new SigningControllerConfig().setMaxClockDrift(new Duration(10, TimeUnit.SECONDS)),
-                new RequestLoggerController());
+                new RequestLoggerController(new TrinoAwsProxyConfig()));
 
         URI requestUri = UriBuilder.fromUri(baseUri).path(bucket).path(key).build();
         RequestAuthorization requestAuthorization = signingController.signRequest(new SigningMetadata(SigningServiceType.S3, Credentials.build(requestSigningCredential, testingCredentials.requiredRemoteCredential()), Optional.empty()),

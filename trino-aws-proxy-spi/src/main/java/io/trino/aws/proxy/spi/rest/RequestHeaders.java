@@ -20,6 +20,8 @@ public record RequestHeaders(
         MultiMap passthroughHeaders,
         MultiMap unmodifiedHeaders)
 {
+    public static final RequestHeaders EMPTY = new RequestHeaders(ImmutableMultiMap.empty(), ImmutableMultiMap.empty());
+
     public RequestHeaders {
         passthroughHeaders = ImmutableMultiMap.copyOfCaseInsensitive(passthroughHeaders);
         unmodifiedHeaders = ImmutableMultiMap.copyOfCaseInsensitive(unmodifiedHeaders);

@@ -17,6 +17,7 @@ import io.airlift.configuration.Config;
 import io.airlift.configuration.ConfigDescription;
 import io.airlift.units.Duration;
 import io.airlift.units.MinDuration;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 
 import java.util.Optional;
@@ -31,6 +32,7 @@ public class TrinoAwsProxyConfig
     private String stsPath = "/api/v1/s3Proxy/sts";
     private Duration presignedUrlsDuration = new Duration(15, TimeUnit.MINUTES);
     private boolean generatePresignedUrlsOnHead = true;
+    private int requestLoggerSavedQty = 10000;
 
     @Config("aws.proxy.s3.hostname")
     @ConfigDescription("Hostname to use for S3 REST operations, virtual-host style addressing is only supported if this is set")
@@ -98,6 +100,20 @@ public class TrinoAwsProxyConfig
     public TrinoAwsProxyConfig setGeneratePresignedUrlsOnHead(boolean generatePresignedUrlsOnHead)
     {
         this.generatePresignedUrlsOnHead = generatePresignedUrlsOnHead;
+        return this;
+    }
+
+    @Min(0)
+    public int getRequestLoggerSavedQty()
+    {
+        return requestLoggerSavedQty;
+    }
+
+    @Config("aws.proxy.request.logger.saved-qty")
+    @ConfigDescription("Number of log entries to store")
+    public TrinoAwsProxyConfig setRequestLoggerSavedQty(int requestLoggerSavedQty)
+    {
+        this.requestLoggerSavedQty = requestLoggerSavedQty;
         return this;
     }
 }
