@@ -13,26 +13,50 @@
  */
 package io.trino.aws.proxy.server.rest;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Stopwatch;
 import com.google.common.base.Throwables;
+import com.google.common.collect.EvictingQueue;
 import com.google.common.collect.ImmutableMap;
+import com.google.inject.Inject;
 import io.airlift.log.Logger;
+import io.trino.aws.proxy.server.TrinoAwsProxyConfig;
 import io.trino.aws.proxy.spi.rest.Request;
 import io.trino.aws.proxy.spi.signing.SigningServiceType;
 import jakarta.annotation.PreDestroy;
 import jakarta.ws.rs.WebApplicationException;
 
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
+import java.util.Comparator;
+import java.util.List;
 import java.util.Map;
+import java.util.Queue;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.Predicate;
 
 import static com.google.common.base.Preconditions.checkState;
+import static com.google.common.collect.ImmutableList.toImmutableList;
+import static io.trino.aws.proxy.server.rest.RequestLoggerController.EventType.REQUEST_END;
+import static io.trino.aws.proxy.server.rest.RequestLoggerController.EventType.REQUEST_START;
 import static io.trino.aws.proxy.spi.rest.RequestContent.ContentType.EMPTY;
+import static java.util.Comparator.comparing;
 import static java.util.Objects.requireNonNull;
 
 public class RequestLoggerController
 {
     private static final Logger log = Logger.get(RequestLoggerController.class);
+
+    private static final AtomicLong requestCounter = new AtomicLong();
+
+    private static final Comparator<SaveEntry> COMPARATOR = comparing(SaveEntry::entryId);
+    private static final Comparator<SaveEntry> REVERSED_COMPARATOR = COMPARATOR.reversed();
+
+    private static final DateTimeFormatter EVENT_ID_TIMESTAMP_FORMATTER = DateTimeFormatter.ofPattern("yyyyMMddHHmmssSSSSSS");
+    private static final ZoneId UTC = ZoneId.of("UTC");
 
     private interface LoggerProc
     {
@@ -40,6 +64,21 @@ public class RequestLoggerController
 
         boolean isEnabled();
     }
+
+    private static final LoggerProc nopLogger = new LoggerProc()
+    {
+        @Override
+        public void log(String format, Object... args)
+        {
+            // NOP
+        }
+
+        @Override
+        public boolean isEnabled()
+        {
+            return false;
+        }
+    };
 
     private static final LoggerProc debugLogger = new LoggerProc()
     {
@@ -71,10 +110,48 @@ public class RequestLoggerController
         }
     };
 
+    public record SaveEntry(String entryId, SigningServiceType serviceType, String message, Map<String, String> entries, Instant timestamp)
+    {
+        public SaveEntry
+        {
+            requireNonNull(serviceType, "serviceType is null");
+            requireNonNull(entryId, "entryId is null");
+            requireNonNull(message, "message is null");
+            entries = ImmutableMap.copyOf(entries);
+            requireNonNull(timestamp, "timestamp is null");
+        }
+    }
+
+    public enum EventType
+    {
+        REQUEST_START,
+        REQUEST_END,
+    }
+
+    public static String eventId(Instant timestamp, long requestNumber, EventType eventType)
+    {
+        int typeKey = switch (eventType) {
+            case REQUEST_START -> 0;
+            case REQUEST_END -> 1;
+        };
+
+        return "%s.%s.%s".formatted(EVENT_ID_TIMESTAMP_FORMATTER.format(timestamp.atZone(UTC)), requestNumber, typeKey);
+    }
+
     private static final RequestLoggingSession NOP_REQUEST_LOGGING_SESSION = () -> {};
 
-    private volatile LoggerProc loggerProc = debugLogger;
+    private volatile LoggerProc loggerProc = nopLogger;
     private final Map<UUID, RequestLoggingSession> sessions = new ConcurrentHashMap<>();
+    private final Queue<SaveEntry> saveQueue;
+    private final boolean saveQueueEnabled;
+
+    @Inject
+    public RequestLoggerController(TrinoAwsProxyConfig trinoAwsProxyConfig)
+    {
+        // *2 because we log request/response
+        saveQueue = EvictingQueue.create(trinoAwsProxyConfig.getRequestLoggerSavedQty() * 2);
+        saveQueueEnabled = (trinoAwsProxyConfig.getRequestLoggerSavedQty() > 0);
+    }
 
     @PreDestroy
     public void verifyState()
@@ -107,11 +184,29 @@ public class RequestLoggerController
         return requireNonNull(sessions.get(requestId), "No RequestLoggingSession for requestId: " + requestId);
     }
 
+    public List<SaveEntry> savedEntries(boolean startFromHead, Predicate<SaveEntry> predicate)
+    {
+        return saveQueue
+                .stream()
+                .filter(predicate)
+                .sorted(startFromHead ? COMPARATOR : REVERSED_COMPARATOR)
+                .collect(toImmutableList());
+    }
+
+    @VisibleForTesting
+    public void clearSavedEntries()
+    {
+        saveQueue.clear();
+    }
+
     private RequestLoggingSession internalNewRequestSession(Request request, SigningServiceType serviceType)
     {
-        if (!loggerProc.isEnabled()) {
+        if (!loggerProc.isEnabled() && !saveQueueEnabled) {
             return NOP_REQUEST_LOGGING_SESSION;
         }
+
+        Instant now = Instant.now();
+        long requestNumber = requestCounter.getAndIncrement();
 
         Map<String, String> entries = new ConcurrentHashMap<>();
 
@@ -121,6 +216,8 @@ public class RequestLoggerController
 
         Map<String, Object> requestDetails = ImmutableMap.of(
                 "request.id", request.requestId(),
+                "request.number", requestNumber,
+                "request.timestamp", now,
                 "request.type", serviceType,
                 "request.uri", request.requestUri(),
                 "request.http.method", request.httpVerb(),
@@ -128,7 +225,7 @@ public class RequestLoggerController
 
         addAll(entries, requestDetails);
 
-        logAndClear("RequestStart", entries);
+        logAndClear(requestNumber, serviceType, "RequestStart", entries, now, REQUEST_START);
 
         return new RequestLoggingSession()
         {
@@ -179,7 +276,7 @@ public class RequestLoggerController
                     add(entries, "request.properties", properties);
                     add(entries, "request.errors", errors);
 
-                    logAndClear("RequestEnd", entries);
+                    logAndClear(requestNumber, serviceType, "RequestEnd", entries, now, REQUEST_END);
                 }
                 finally {
                     sessions.remove(request.requestId());
@@ -198,13 +295,19 @@ public class RequestLoggerController
         entries.put(key, String.valueOf(value));
     }
 
-    private void logAndClear(String message, Map<String, String> entries)
+    private void logAndClear(long requestNumber, SigningServiceType serviceType, String message, Map<String, String> entries, Instant now, EventType eventType)
     {
-        // TODO - keep a list of recent entries, etc.
+        String eventId = eventId(now, requestNumber, eventType);
 
-        Map<String, String> copy = ImmutableMap.copyOf(entries);
+        Map<String, String> copy = ImmutableMap.<String, String>builder()
+                .putAll(entries)
+                .put("request.eventId", eventId)
+                .build();
         entries.clear();
 
         loggerProc.log("%s: %s", message, copy);
+        if (saveQueueEnabled) {
+            saveQueue.add(new SaveEntry(eventId, serviceType, message, copy, now));
+        }
     }
 }
