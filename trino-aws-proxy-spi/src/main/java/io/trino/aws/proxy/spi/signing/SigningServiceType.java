@@ -15,10 +15,10 @@ package io.trino.aws.proxy.spi.signing;
 
 import static java.util.Objects.requireNonNull;
 
-public record SigningServiceType(String serviceName, boolean contentIsSigned)
+public record SigningServiceType(String serviceName)
 {
-    public static final SigningServiceType S3 = new SigningServiceType("s3", true);
-    public static final SigningServiceType STS = new SigningServiceType("sts", false);
+    public static final SigningServiceType S3 = new SigningServiceType("s3");
+    public static final SigningServiceType STS = new SigningServiceType("sts");
 
     public SigningServiceType
     {
