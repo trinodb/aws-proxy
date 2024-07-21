@@ -19,6 +19,7 @@ public record SigningServiceType(String serviceName)
 {
     public static final SigningServiceType S3 = new SigningServiceType("s3");
     public static final SigningServiceType STS = new SigningServiceType("sts");
+    public static final SigningServiceType LOGS = new SigningServiceType("logs");
 
     public SigningServiceType
     {

@@ -27,8 +27,6 @@ import jakarta.annotation.PreDestroy;
 import jakarta.ws.rs.WebApplicationException;
 
 import java.time.Instant;
-import java.time.ZoneId;
-import java.time.format.DateTimeFormatter;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
@@ -39,10 +37,12 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Predicate;
 
 import static com.google.common.base.Preconditions.checkState;
+import static com.google.common.base.Strings.padStart;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static io.trino.aws.proxy.server.rest.RequestLoggerController.EventType.REQUEST_END;
 import static io.trino.aws.proxy.server.rest.RequestLoggerController.EventType.REQUEST_START;
 import static io.trino.aws.proxy.spi.rest.RequestContent.ContentType.EMPTY;
+import static java.lang.Long.toHexString;
 import static java.util.Comparator.comparing;
 import static java.util.Objects.requireNonNull;
 
@@ -54,9 +54,6 @@ public class RequestLoggerController
 
     private static final Comparator<SaveEntry> COMPARATOR = comparing(SaveEntry::entryId);
     private static final Comparator<SaveEntry> REVERSED_COMPARATOR = COMPARATOR.reversed();
-
-    private static final DateTimeFormatter EVENT_ID_TIMESTAMP_FORMATTER = DateTimeFormatter.ofPattern("yyyyMMddHHmmssSSSSSS");
-    private static final ZoneId UTC = ZoneId.of("UTC");
 
     private interface LoggerProc
     {
@@ -135,7 +132,7 @@ public class RequestLoggerController
             case REQUEST_END -> 1;
         };
 
-        return "%s.%s.%s".formatted(EVENT_ID_TIMESTAMP_FORMATTER.format(timestamp.atZone(UTC)), requestNumber, typeKey);
+        return "%s.%s.%s".formatted(padStart(toHexString(timestamp.toEpochMilli()), 16, '0'), padStart(toHexString(requestNumber), 16, '0'), typeKey);
     }
 
     private static final RequestLoggingSession NOP_REQUEST_LOGGING_SESSION = () -> {};
