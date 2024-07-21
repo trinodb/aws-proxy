@@ -65,7 +65,7 @@ public final class TrinoAwsProxyTestCommonModules
         @Override
         public TestingTrinoAwsProxyServer.Builder filter(TestingTrinoAwsProxyServer.Builder builder)
         {
-            return builder.withProperty("s3proxy.s3.hostname", LOCALHOST_DOMAIN);
+            return builder.withProperty("aws.proxy.s3.hostname", LOCALHOST_DOMAIN);
         }
     }
 

@@ -164,7 +164,7 @@ public final class TestingTrinoAwsProxyServer
 
         public Builder withServerHostName(String serverHostName)
         {
-            properties.put("s3proxy.hostname", serverHostName);
+            properties.put("aws.proxy.hostname", serverHostName);
             return this;
         }
 
