@@ -15,7 +15,7 @@ package io.trino.aws.proxy.server;
 
 import com.google.inject.Inject;
 import io.airlift.http.server.testing.TestingHttpServer;
-import io.trino.aws.proxy.server.rest.TrinoS3ProxyConfig;
+import io.trino.aws.proxy.server.rest.TrinoAwsProxyConfig;
 import io.trino.aws.proxy.server.testing.TestingTrinoAwsProxyServer;
 import io.trino.aws.proxy.server.testing.TestingUtil.ForTesting;
 import io.trino.aws.proxy.server.testing.harness.BuilderFilter;
@@ -38,7 +38,7 @@ public class TestStsRequestsWithEmptyPath
     }
 
     @Inject
-    public TestStsRequestsWithEmptyPath(@ForTesting Credentials testingCredentials, TestingHttpServer httpServer, CredentialsProvider credentialsProvider, TrinoS3ProxyConfig s3ProxyConfig)
+    public TestStsRequestsWithEmptyPath(@ForTesting Credentials testingCredentials, TestingHttpServer httpServer, CredentialsProvider credentialsProvider, TrinoAwsProxyConfig s3ProxyConfig)
     {
         super(testingCredentials, httpServer, credentialsProvider, s3ProxyConfig);
     }

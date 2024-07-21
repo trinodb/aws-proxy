@@ -19,7 +19,7 @@ import jakarta.validation.constraints.NotNull;
 
 import java.util.Optional;
 
-public class TrinoS3ProxyConfig
+public class TrinoAwsProxyConfig
 {
     private Optional<String> s3HostName = Optional.empty();
     private String s3Path = "/api/v1/s3Proxy/s3";
@@ -27,7 +27,7 @@ public class TrinoS3ProxyConfig
 
     @Config("s3proxy.s3.hostname")
     @ConfigDescription("Hostname to use for S3 REST operations, virtual-host style addressing is only supported if this is set")
-    public TrinoS3ProxyConfig setS3HostName(String s3HostName)
+    public TrinoAwsProxyConfig setS3HostName(String s3HostName)
     {
         this.s3HostName = Optional.ofNullable(s3HostName);
         return this;
@@ -41,7 +41,7 @@ public class TrinoS3ProxyConfig
 
     @Config("s3proxy.s3.path")
     @ConfigDescription("URL Path for S3 operations, optional")
-    public TrinoS3ProxyConfig setS3Path(String s3Path)
+    public TrinoAwsProxyConfig setS3Path(String s3Path)
     {
         this.s3Path = s3Path;
         return this;
@@ -55,7 +55,7 @@ public class TrinoS3ProxyConfig
 
     @Config("s3proxy.sts.path")
     @ConfigDescription("URL Path for STS operations, optional")
-    public TrinoS3ProxyConfig setStsPath(String stsPath)
+    public TrinoAwsProxyConfig setStsPath(String stsPath)
     {
         this.stsPath = stsPath;
         return this;

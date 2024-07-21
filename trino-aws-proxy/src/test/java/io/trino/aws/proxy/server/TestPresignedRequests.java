@@ -24,7 +24,7 @@ import io.airlift.http.client.StaticBodyGenerator;
 import io.airlift.http.client.StatusResponseHandler.StatusResponse;
 import io.airlift.http.client.StringResponseHandler.StringResponse;
 import io.airlift.http.server.testing.TestingHttpServer;
-import io.trino.aws.proxy.server.rest.TrinoS3ProxyConfig;
+import io.trino.aws.proxy.server.rest.TrinoAwsProxyConfig;
 import io.trino.aws.proxy.server.testing.TestingUtil;
 import io.trino.aws.proxy.server.testing.TestingUtil.ForTesting;
 import io.trino.aws.proxy.server.testing.containers.S3Container.ForS3Container;
@@ -98,7 +98,7 @@ public class TestPresignedRequests
             @ForS3Container S3Client storageClient,
             @ForTesting Credentials testingCredentials,
             TestingHttpServer httpServer,
-            TrinoS3ProxyConfig s3ProxyConfig,
+            TrinoAwsProxyConfig s3ProxyConfig,
             XmlMapper xmlMapper)
     {
         this.httpClient = requireNonNull(httpClient, "httpClient is null");

@@ -16,7 +16,7 @@ package io.trino.aws.proxy.server;
 import com.google.inject.Key;
 import io.airlift.http.server.testing.TestingHttpServer;
 import io.airlift.log.Logger;
-import io.trino.aws.proxy.server.rest.TrinoS3ProxyConfig;
+import io.trino.aws.proxy.server.rest.TrinoAwsProxyConfig;
 import io.trino.aws.proxy.server.testing.TestingTrinoAwsProxyServer;
 import io.trino.aws.proxy.server.testing.TestingUtil.ForTesting;
 import io.trino.aws.proxy.spi.credentials.Credentials;
@@ -40,7 +40,7 @@ public final class LocalServer
 
         TestingHttpServer httpServer = trinoS3ProxyServer.getInjector().getInstance(TestingHttpServer.class);
         Credentials testingCredentials = trinoS3ProxyServer.getInjector().getInstance(Key.get(Credentials.class, ForTesting.class));
-        TrinoS3ProxyConfig s3ProxyConfig = trinoS3ProxyServer.getInjector().getInstance(TrinoS3ProxyConfig.class);
+        TrinoAwsProxyConfig s3ProxyConfig = trinoS3ProxyServer.getInjector().getInstance(TrinoAwsProxyConfig.class);
 
         log.info("");
         log.info("Endpoint:   %s", httpServer.getBaseUrl().resolve(s3ProxyConfig.getS3Path()));

@@ -41,7 +41,7 @@ public class TrinoS3Resource
     private final String s3Path;
 
     @Inject
-    public TrinoS3Resource(TrinoS3ProxyClient proxyClient, TrinoS3ProxyConfig trinoS3ProxyConfig)
+    public TrinoS3Resource(TrinoS3ProxyClient proxyClient, TrinoAwsProxyConfig trinoS3ProxyConfig)
     {
         this.proxyClient = requireNonNull(proxyClient, "proxyClient is null");
         this.serverHostName = trinoS3ProxyConfig.getS3HostName();
