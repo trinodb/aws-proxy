@@ -26,6 +26,7 @@
     </licenses>
 
     <modules>
+        <module>000-temp-trino-aws-proxy</module>
         <module>trino-aws-proxy</module>
         <module>trino-aws-proxy-spi</module>
     </modules>
@@ -73,6 +74,12 @@
                 <version>${dep.aws-sdk.version}</version>
                 <type>pom</type>
                 <scope>import</scope>
+            </dependency>
+
+            <dependency>
+                <groupId>${project.groupId}</groupId>
+                <artifactId>000-temp-trino-aws-proxy</artifactId>
+                <version>${project.version}</version>
             </dependency>
 
             <dependency>
@@ -209,6 +216,19 @@
                 <artifactId>maven-checkstyle-plugin</artifactId>
                 <configuration>
                     <violationIgnore>InterfaceIsType</violationIgnore>
+                </configuration>
+            </plugin>
+
+            <plugin>
+                <groupId>org.basepom.maven</groupId>
+                <artifactId>duplicate-finder-maven-plugin</artifactId>
+                <configuration>
+                    <ignoredDependencies>
+                        <dependency>
+                            <groupId>${project.groupId}</groupId>
+                            <artifactId>000-temp-trino-aws-proxy</artifactId>
+                        </dependency>
+                    </ignoredDependencies>
                 </configuration>
             </plugin>
         </plugins>
