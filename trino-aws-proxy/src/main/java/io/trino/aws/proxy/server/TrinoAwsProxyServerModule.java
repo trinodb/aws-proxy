@@ -25,8 +25,7 @@ import io.airlift.http.server.HttpServerBinder;
 import io.airlift.jaxrs.JaxrsBinder;
 import io.airlift.log.Logger;
 import io.trino.aws.proxy.server.credentials.CredentialsController;
-import io.trino.aws.proxy.server.remote.RemoteS3Facade;
-import io.trino.aws.proxy.server.remote.VirtualHostStyleRemoteS3Facade;
+import io.trino.aws.proxy.server.remote.RemoteS3Module;
 import io.trino.aws.proxy.server.rest.RequestFilter;
 import io.trino.aws.proxy.server.rest.RequestLoggerController;
 import io.trino.aws.proxy.server.rest.TrinoS3ProxyClient;
@@ -115,7 +114,7 @@ public class TrinoAwsProxyServerModule
     {
         binder.bind(S3SecurityController.class).in(Scopes.SINGLETON);
         newOptionalBinder(binder, S3SecurityFacadeProvider.class).setDefault().toInstance(_ -> _ -> SUCCESS);
-        binder.bind(RemoteS3Facade.class).to(VirtualHostStyleRemoteS3Facade.class).in(Scopes.SINGLETON);
+        install(new RemoteS3Module());
     }
 
     private void installPlugins()

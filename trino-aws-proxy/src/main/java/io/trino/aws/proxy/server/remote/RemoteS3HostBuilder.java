@@ -13,7 +13,28 @@
  */
 package io.trino.aws.proxy.server.remote;
 
+import com.google.common.base.Strings;
+
 public interface RemoteS3HostBuilder
 {
+    static String getHostName(String bucket, String region, String domain, String hostnameTemplate)
+    {
+        String hostname = hostnameTemplate
+                .replace("${bucket}", bucket)
+                .replace("${region}", region)
+                .replace("${domain}", domain);
+
+        // Handles usecases when the bucket is empty (Eg: List buckets request)
+        if (Strings.isNullOrEmpty(bucket)) {
+            if (hostname.startsWith(".")) {         /* Handles cases when ${bucket} is leading. Eg: "${bucket}.{}.{}" */
+                hostname = hostname.substring(1);
+            }
+            else if (hostname.contains("..")) {     /* Handles cases when ${bucket} is in the midst. Eg: "{}.${bucket}.{}" */
+                hostname = hostname.replace("..", ".");
+            }
+        }
+        return hostname;
+    }
+
     String build(String bucket, String region);
 }
