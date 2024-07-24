@@ -24,6 +24,7 @@ import io.trino.aws.proxy.spi.credentials.Credentials;
 import io.trino.aws.proxy.spi.rest.ParsedS3Request;
 import io.trino.aws.proxy.spi.rest.RequestContent;
 import io.trino.aws.proxy.spi.security.SecurityResponse;
+import io.trino.aws.proxy.spi.security.SecurityResponse.Failure;
 import io.trino.aws.proxy.spi.signing.SigningContext;
 import io.trino.aws.proxy.spi.signing.SigningController;
 import io.trino.aws.proxy.spi.signing.SigningMetadata;
@@ -93,11 +94,11 @@ public class TrinoS3ProxyClient
         URI remoteUri = remoteS3Facade.buildEndpoint(uriBuilder(request.queryParameters()), request.rawPath(), request.bucketName(), request.requestAuthorization().region());
 
         SecurityResponse securityResponse = s3SecurityController.apply(request);
-        if (!securityResponse.canProceed()) {
+        if (securityResponse instanceof Failure(var error)) {
             log.debug("SecurityController check failed. AccessKey: %s, Request: %s, SecurityResponse: %s", signingMetadata.credentials().emulated().accessKey(), request, securityResponse);
             requestLoggingSession.logError("request.security.fail.credentials", signingMetadata.credentials().emulated());
             requestLoggingSession.logError("request.security.fail.request", request);
-            requestLoggingSession.logError("request.security.fail.response", securityResponse);
+            requestLoggingSession.logError("request.security.fail.error", error);
 
             throw new WebApplicationException(Response.Status.UNAUTHORIZED);
         }

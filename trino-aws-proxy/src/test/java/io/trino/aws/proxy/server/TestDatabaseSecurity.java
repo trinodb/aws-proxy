@@ -34,6 +34,7 @@ import static io.trino.aws.proxy.server.TestPySparkSql.createDatabaseAndTable;
 import static io.trino.aws.proxy.server.testing.containers.DockerAttachUtil.clearInputStreamAndClose;
 import static io.trino.aws.proxy.server.testing.containers.DockerAttachUtil.inputToContainerStdin;
 import static io.trino.aws.proxy.spi.TrinoAwsProxyBinder.trinoAwsProxyBinder;
+import static io.trino.aws.proxy.spi.security.SecurityResponse.FAILURE;
 import static java.util.Objects.requireNonNull;
 
 @TrinoAwsProxyTest(filters = TestDatabaseSecurity.Filter.class)
@@ -76,7 +77,7 @@ public class TestDatabaseSecurity
                 public SecurityResponse tableOperation(String tableName, Optional<String> lowercaseAction)
                 {
                     if (disallowGets.get() && request.httpVerb().equalsIgnoreCase("GET")) {
-                        return new SecurityResponse(false, Optional.empty());
+                        return FAILURE;
                     }
                     return S3DatabaseSecurityFacade.super.tableOperation(tableName, lowercaseAction);
                 }

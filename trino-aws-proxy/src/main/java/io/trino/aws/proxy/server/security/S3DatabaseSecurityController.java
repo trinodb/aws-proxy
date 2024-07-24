@@ -22,6 +22,8 @@ import io.trino.aws.proxy.spi.security.S3DatabaseSecurityFacadeProvider;
 import io.trino.aws.proxy.spi.security.S3SecurityFacade;
 import io.trino.aws.proxy.spi.security.S3SecurityFacadeProvider;
 import io.trino.aws.proxy.spi.security.SecurityResponse;
+import io.trino.aws.proxy.spi.security.SecurityResponse.Failure;
+import io.trino.aws.proxy.spi.security.SecurityResponse.Success;
 import jakarta.ws.rs.WebApplicationException;
 
 import java.util.Optional;
@@ -64,18 +66,30 @@ class S3DatabaseSecurityController
                     SecurityResponse securityResponse = securityFacade.tableOperation(tableName, lowercaseAction);
 
                     requestLoggingSession.logProperty("response.database.table-operation.table-name", tableName);
-                    requestLoggingSession.logProperty("response.database.table-operation.can-proceed", securityResponse.canProceed());
-                    requestLoggingSession.logProperty("response.database.table-operation.error", securityResponse.error());
+                    addLogging(requestLoggingSession, "response.database.table-operation.", securityResponse);
 
                     return securityResponse;
                 })
                 .orElseGet(() -> {
                     SecurityResponse securityResponse = securityFacade.nonTableOperation(lowercaseAction);
 
-                    requestLoggingSession.logProperty("response.database.non-table-operation.can-proceed", securityResponse.canProceed());
-                    requestLoggingSession.logProperty("response.database.non-table-operation.error", securityResponse.error());
+                    addLogging(requestLoggingSession, "response.database.non-table-operation.", securityResponse);
 
                     return securityResponse;
                 });
+    }
+
+    private void addLogging(RequestLoggingSession requestLoggingSession, String prefix, SecurityResponse securityResponse)
+    {
+        switch (securityResponse) {
+            case Success _ -> addLogging(requestLoggingSession, prefix, true, Optional.empty());
+            case Failure(var error) -> addLogging(requestLoggingSession, prefix, false, error);
+        }
+    }
+
+    private void addLogging(RequestLoggingSession requestLoggingSession, String prefix, boolean success, Optional<String> error)
+    {
+        requestLoggingSession.logProperty(prefix + "success", success);
+        requestLoggingSession.logProperty(prefix + "error", error);
     }
 }

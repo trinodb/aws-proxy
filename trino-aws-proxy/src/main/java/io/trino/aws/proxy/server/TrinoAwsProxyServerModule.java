@@ -42,7 +42,6 @@ import io.trino.aws.proxy.spi.credentials.AssumedRoleProvider;
 import io.trino.aws.proxy.spi.credentials.CredentialsProvider;
 import io.trino.aws.proxy.spi.security.S3DatabaseSecurityFacadeProvider;
 import io.trino.aws.proxy.spi.security.S3SecurityFacadeProvider;
-import io.trino.aws.proxy.spi.security.SecurityResponse;
 import io.trino.aws.proxy.spi.signing.SigningController;
 import io.trino.aws.proxy.spi.signing.SigningServiceType;
 import org.glassfish.jersey.server.model.Resource;
@@ -56,6 +55,7 @@ import static io.airlift.configuration.ConfigBinder.configBinder;
 import static io.airlift.http.client.HttpClientBinder.httpClientBinder;
 import static io.airlift.http.server.HttpServerBinder.httpServerBinder;
 import static io.airlift.jaxrs.JaxrsBinder.jaxrsBinder;
+import static io.trino.aws.proxy.spi.security.SecurityResponse.SUCCESS;
 
 public class TrinoAwsProxyServerModule
         extends AbstractConfigurationAwareModule
@@ -114,7 +114,7 @@ public class TrinoAwsProxyServerModule
     protected void moduleSpecificBinding(Binder binder)
     {
         binder.bind(S3SecurityController.class).in(Scopes.SINGLETON);
-        newOptionalBinder(binder, S3SecurityFacadeProvider.class).setDefault().toInstance(_ -> _ -> SecurityResponse.DEFAULT);
+        newOptionalBinder(binder, S3SecurityFacadeProvider.class).setDefault().toInstance(_ -> _ -> SUCCESS);
         binder.bind(RemoteS3Facade.class).to(VirtualHostStyleRemoteS3Facade.class).in(Scopes.SINGLETON);
     }
 

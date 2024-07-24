@@ -15,6 +15,8 @@ package io.trino.aws.proxy.spi.security;
 
 import java.util.Optional;
 
+import static io.trino.aws.proxy.spi.security.SecurityResponse.SUCCESS;
+
 public interface S3DatabaseSecurityFacade
 {
     S3DatabaseSecurityFacade DEFAULT = new S3DatabaseSecurityFacade() {};
@@ -26,11 +28,11 @@ public interface S3DatabaseSecurityFacade
 
     default SecurityResponse nonTableOperation(Optional<String> lowercaseAction)
     {
-        return SecurityResponse.DEFAULT;
+        return SUCCESS;
     }
 
     default SecurityResponse tableOperation(String tableName, Optional<String> lowercaseAction)
     {
-        return SecurityResponse.DEFAULT;
+        return SUCCESS;
     }
 }
