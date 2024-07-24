@@ -14,19 +14,19 @@
 package io.trino.aws.proxy.server.credentials.file;
 
 import com.google.inject.Binder;
+import com.google.inject.Module;
 import com.google.inject.Scopes;
-import io.airlift.configuration.AbstractConfigurationAwareModule;
-import io.trino.aws.proxy.spi.credentials.CredentialsProvider;
 
 import static io.airlift.configuration.ConfigBinder.configBinder;
+import static io.trino.aws.proxy.spi.TrinoAwsProxyBinder.trinoAwsProxyBinder;
 
 public class FileBasedCredentialsProviderModule
-        extends AbstractConfigurationAwareModule
+        implements Module
 {
     @Override
-    protected void setup(Binder binder)
+    public void configure(Binder binder)
     {
+        trinoAwsProxyBinder(binder).bindCredentialsProvider(binding -> binding.to(FileBasedCredentialsProvider.class).in(Scopes.SINGLETON));
         configBinder(binder).bindConfig(FileBasedCredentialsProviderConfig.class);
-        binder.bind(CredentialsProvider.class).to(FileBasedCredentialsProvider.class).in(Scopes.SINGLETON);
     }
 }
