@@ -13,12 +13,12 @@
  */
 package io.trino.aws.proxy.server.remote;
 
+import com.google.inject.Inject;
 import jakarta.ws.rs.core.UriBuilder;
 
 import java.net.URI;
 import java.util.Optional;
 
-import static io.trino.aws.proxy.server.remote.AwsRemoteS3FacadeConstants.VIRTUAL_HOST_BUILDER;
 import static java.util.Objects.requireNonNull;
 
 public class VirtualHostStyleRemoteS3Facade
@@ -28,9 +28,10 @@ public class VirtualHostStyleRemoteS3Facade
     private final boolean https;
     private final Optional<Integer> port;
 
-    public VirtualHostStyleRemoteS3Facade()
+    @Inject
+    public VirtualHostStyleRemoteS3Facade(RemoteS3Config remoteS3Config)
     {
-        this(VIRTUAL_HOST_BUILDER, true, Optional.empty());
+        this((bucket, region) -> RemoteS3HostBuilder.getHostName(bucket, region, remoteS3Config.getDomain(), remoteS3Config.getHostnameTemplate()), remoteS3Config.getHttps(), remoteS3Config.getPort());
     }
 
     public VirtualHostStyleRemoteS3Facade(RemoteS3HostBuilder hostBuilder, boolean https, Optional<Integer> port)
