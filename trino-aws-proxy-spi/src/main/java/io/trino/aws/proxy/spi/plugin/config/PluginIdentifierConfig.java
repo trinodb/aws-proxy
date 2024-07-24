@@ -11,16 +11,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.trino.aws.proxy.spi;
+package io.trino.aws.proxy.spi.plugin.config;
 
-import com.google.inject.Module;
+import java.util.Optional;
 
-public interface TrinoAwsProxyServerPlugin
+public interface PluginIdentifierConfig
 {
-    default String name()
-    {
-        return getClass().getSimpleName();
-    }
-
-    Module module();
+    Optional<String> getOptionalPluginIdentifier();
 }

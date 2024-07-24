@@ -17,6 +17,8 @@ import java.util.Optional;
 
 public interface AssumedRoleProvider
 {
+    AssumedRoleProvider NOOP = (_, _, _, _, _, _) -> Optional.empty();
+
     /**
      * Assume a role if possible. The details of role assuming are implementation
      * specific. Your implementation should have a centralized role assuming

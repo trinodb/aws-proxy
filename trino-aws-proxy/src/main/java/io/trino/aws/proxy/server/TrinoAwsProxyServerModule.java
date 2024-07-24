@@ -15,6 +15,7 @@ package io.trino.aws.proxy.server;
 
 import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import com.fasterxml.jackson.dataformat.xml.XmlMapper;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.inject.Binder;
 import com.google.inject.Provides;
 import com.google.inject.Scopes;
@@ -25,6 +26,7 @@ import io.airlift.http.server.HttpServerBinder;
 import io.airlift.jaxrs.JaxrsBinder;
 import io.airlift.log.Logger;
 import io.trino.aws.proxy.server.credentials.CredentialsController;
+import io.trino.aws.proxy.server.credentials.file.FileBasedCredentialsModule;
 import io.trino.aws.proxy.server.remote.RemoteS3Module;
 import io.trino.aws.proxy.server.rest.RequestFilter;
 import io.trino.aws.proxy.server.rest.RequestLoggerController;
@@ -34,19 +36,20 @@ import io.trino.aws.proxy.server.rest.TrinoS3ProxyClient.ForProxyClient;
 import io.trino.aws.proxy.server.rest.TrinoS3Resource;
 import io.trino.aws.proxy.server.rest.TrinoStsResource;
 import io.trino.aws.proxy.server.security.S3SecurityController;
-import io.trino.aws.proxy.server.signing.InternalSigningController;
 import io.trino.aws.proxy.server.signing.SigningControllerConfig;
 import io.trino.aws.proxy.server.signing.SigningModule;
-import io.trino.aws.proxy.spi.TrinoAwsProxyServerPlugin;
 import io.trino.aws.proxy.spi.credentials.AssumedRoleProvider;
 import io.trino.aws.proxy.spi.credentials.CredentialsProvider;
+import io.trino.aws.proxy.spi.plugin.TrinoAwsProxyServerPlugin;
+import io.trino.aws.proxy.spi.plugin.config.AssumedRoleProviderConfig;
+import io.trino.aws.proxy.spi.plugin.config.CredentialsProviderConfig;
+import io.trino.aws.proxy.spi.plugin.config.S3DatabaseSecurityFacadeProviderConfig;
+import io.trino.aws.proxy.spi.plugin.config.S3SecurityFacadeProviderConfig;
 import io.trino.aws.proxy.spi.security.S3DatabaseSecurityFacadeProvider;
 import io.trino.aws.proxy.spi.security.S3SecurityFacadeProvider;
-import io.trino.aws.proxy.spi.signing.SigningController;
 import io.trino.aws.proxy.spi.signing.SigningServiceType;
 import org.glassfish.jersey.server.model.Resource;
 
-import java.util.Optional;
 import java.util.ServiceLoader;
 
 import static com.google.inject.multibindings.MapBinder.newMapBinder;
@@ -55,7 +58,6 @@ import static io.airlift.configuration.ConfigBinder.configBinder;
 import static io.airlift.http.client.HttpClientBinder.httpClientBinder;
 import static io.airlift.http.server.HttpServerBinder.httpServerBinder;
 import static io.airlift.jaxrs.JaxrsBinder.jaxrsBinder;
-import static io.trino.aws.proxy.spi.security.SecurityResponse.SUCCESS;
 
 public class TrinoAwsProxyServerModule
         extends AbstractConfigurationAwareModule
@@ -76,7 +78,6 @@ public class TrinoAwsProxyServerModule
         bindResourceAtPath(jaxrsBinder, signingServiceTypesMapBinder, SigningServiceType.S3, TrinoS3Resource.class, builtConfig.getS3Path());
         bindResourceAtPath(jaxrsBinder, signingServiceTypesMapBinder, SigningServiceType.STS, TrinoStsResource.class, builtConfig.getStsPath());
 
-        binder.bind(SigningController.class).to(InternalSigningController.class).in(Scopes.SINGLETON);
         binder.bind(CredentialsController.class).in(Scopes.SINGLETON);
         binder.bind(RequestLoggerController.class).in(Scopes.SINGLETON);
 
@@ -89,17 +90,37 @@ public class TrinoAwsProxyServerModule
         httpServerBinder.enableCaseSensitiveHeaderCache();
 
         // no default for S3SecurityFacadeProvider/S3DatabaseSecurityFacadeProvider - it's handled internally by S3SecurityController
+        // S3SecurityFacadeProvider binder
+        configBinder(binder).bindConfig(S3SecurityFacadeProviderConfig.class);
         newOptionalBinder(binder, S3SecurityFacadeProvider.class);
+
+        // S3DatabaseSecurityFacadeProvider binder
+        configBinder(binder).bindConfig(S3DatabaseSecurityFacadeProviderConfig.class);
         newOptionalBinder(binder, S3DatabaseSecurityFacadeProvider.class);
 
-        newOptionalBinder(binder, CredentialsProvider.class).setDefault().toInstance((_, _) -> Optional.empty());
-        newOptionalBinder(binder, AssumedRoleProvider.class).setDefault().toInstance((_, _, _, _, _, _) -> Optional.empty());
+        // CredentialsProvider binder
+        configBinder(binder).bindConfig(CredentialsProviderConfig.class);
+        newOptionalBinder(binder, CredentialsProvider.class).setDefault().toProvider(() -> {
+            log.info("Using default %s NOOP implementation", CredentialsProvider.class.getSimpleName());
+            return CredentialsProvider.NOOP;
+        });
+        // CredentialsProvider provided implementations
+        install(new FileBasedCredentialsModule());
 
-        install(new SigningModule());
+        // AssumedRoleProvider binder
+        configBinder(binder).bindConfig(AssumedRoleProviderConfig.class);
+        // AssumedRoleProvider provided implementations
+        newOptionalBinder(binder, AssumedRoleProvider.class).setDefault().toProvider(() -> {
+            log.info("Using default %s NOOP implementation", AssumedRoleProvider.class.getSimpleName());
+            return AssumedRoleProvider.NOOP;
+        });
+
+        installSigningController(binder);
+        installRemoteS3Facade(binder);
+        installS3SecurityController(binder);
 
         installPlugins();
-
-        moduleSpecificBinding(binder);
+        install(new TrinoAwsProxyPluginValidatorModule());
     }
 
     @Provides
@@ -111,12 +132,23 @@ public class TrinoAwsProxyServerModule
         return xmlMapper;
     }
 
-    protected void moduleSpecificBinding(Binder binder)
+    @VisibleForTesting
+    protected void installRemoteS3Facade(Binder binder)
+    {
+        install(new RemoteS3Module());
+    }
+
+    @VisibleForTesting
+    protected void installS3SecurityController(Binder binder)
     {
         binder.bind(S3PresignController.class).in(Scopes.SINGLETON);
         binder.bind(S3SecurityController.class).in(Scopes.SINGLETON);
-        newOptionalBinder(binder, S3SecurityFacadeProvider.class).setDefault().toInstance(_ -> _ -> SUCCESS);
-        install(new RemoteS3Module());
+    }
+
+    @VisibleForTesting
+    protected void installSigningController(Binder binder)
+    {
+        install(new SigningModule());
     }
 
     private void installPlugins()
