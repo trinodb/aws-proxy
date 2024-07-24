@@ -33,7 +33,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import static io.trino.aws.proxy.server.TestPySparkSql.createDatabaseAndTable;
 import static io.trino.aws.proxy.server.testing.containers.DockerAttachUtil.clearInputStreamAndClose;
 import static io.trino.aws.proxy.server.testing.containers.DockerAttachUtil.inputToContainerStdin;
-import static io.trino.aws.proxy.spi.TrinoAwsProxyBinder.trinoAwsProxyBinder;
+import static io.trino.aws.proxy.spi.plugin.TrinoAwsProxyServerPlugin.s3DatabaseSecurityFacadeProviderModule;
 import static io.trino.aws.proxy.spi.security.SecurityResponse.FAILURE;
 import static java.util.Objects.requireNonNull;
 
@@ -49,10 +49,13 @@ public class TestDatabaseSecurity
         @Override
         public TestingTrinoAwsProxyServer.Builder filter(TestingTrinoAwsProxyServer.Builder builder)
         {
-            return super.filter(builder).addModule(binder -> {
-                trinoAwsProxyBinder(binder).bindS3DatabaseSecurity(binding -> binding.to(FacadeProvider.class).in(Scopes.SINGLETON));
-                binder.bind(FacadeProvider.class).in(Scopes.SINGLETON);
-            });
+            return super
+                    .filter(builder)
+                    .addModule(s3DatabaseSecurityFacadeProviderModule(
+                            "testing",
+                            FacadeProvider.class,
+                            binder -> binder.bind(FacadeProvider.class).in(Scopes.SINGLETON)))
+                    .withProperty("s3-database-security.type", "testing");
         }
     }
 

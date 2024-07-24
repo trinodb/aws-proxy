@@ -15,6 +15,7 @@ package io.trino.aws.proxy.server.credentials.file;
 
 import io.airlift.configuration.Config;
 import io.airlift.configuration.validation.FileExists;
+import jakarta.validation.constraints.NotNull;
 
 import java.io.File;
 
@@ -22,6 +23,7 @@ public class FileBasedCredentialsProviderConfig
 {
     private File credentialsFile;
 
+    @NotNull
     @FileExists
     public File getCredentialsFile()
     {

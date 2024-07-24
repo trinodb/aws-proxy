@@ -17,6 +17,8 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Splitter;
 import com.google.inject.Inject;
 import io.trino.aws.proxy.server.rest.RequestLoggerController;
+import io.trino.aws.proxy.spi.plugin.config.S3DatabaseSecurityFacadeProviderConfig;
+import io.trino.aws.proxy.spi.plugin.config.S3SecurityFacadeProviderConfig;
 import io.trino.aws.proxy.spi.rest.ParsedS3Request;
 import io.trino.aws.proxy.spi.security.S3DatabaseSecurityFacadeProvider;
 import io.trino.aws.proxy.spi.security.S3SecurityFacade;
@@ -37,16 +39,42 @@ public class S3SecurityController
     private final S3SecurityFacadeProvider s3SecurityFacadeProvider;
 
     @Inject
-    public S3SecurityController(Optional<S3SecurityFacadeProvider> s3SecurityFacadeProvider, Optional<S3DatabaseSecurityFacadeProvider> s3DatabaseSecurityFacadeProvider, RequestLoggerController requestLoggerController)
+    public S3SecurityController(
+            Optional<S3SecurityFacadeProvider> s3SecurityFacadeProvider,
+            S3SecurityFacadeProviderConfig s3SecurityFacadeProviderConfig,
+            Optional<S3DatabaseSecurityFacadeProvider> s3DatabaseSecurityFacadeProvider,
+            S3DatabaseSecurityFacadeProviderConfig s3DatabaseSecurityFacadeProviderConfig,
+            RequestLoggerController requestLoggerController)
     {
         boolean hasDatabaseSecurity = s3DatabaseSecurityFacadeProvider.isPresent();
         boolean hasNonDefaultSecurity = s3SecurityFacadeProvider.isPresent();
 
-        checkArgument(!hasDatabaseSecurity || !hasNonDefaultSecurity, "Both database security and non-default security have been bound. This is not supported.");
+        checkArgument(!hasDatabaseSecurity || !hasNonDefaultSecurity, "Both s3 database security and non-default s3 security have been bound. This is not supported.");
+
+        boolean securityIsNotConfigured = s3SecurityFacadeProviderConfig.getOptionalPluginIdentifier().isEmpty();
+        checkArgument(securityIsNotConfigured || !hasNonDefaultSecurity,
+                "%s of type \"%s\" is not registered",
+                S3SecurityFacadeProvider.class.getSimpleName(),
+                s3SecurityFacadeProviderConfig.getOptionalPluginIdentifier().orElse("<empty>"));
+
+        boolean databaseSecurityIsNotConfigured = s3DatabaseSecurityFacadeProviderConfig.getOptionalPluginIdentifier().isEmpty();
+        checkArgument(databaseSecurityIsNotConfigured || !hasDatabaseSecurity,
+                "%s of type \"%s\" is not registered",
+                S3DatabaseSecurityFacadeProvider.class.getSimpleName(),
+                s3DatabaseSecurityFacadeProviderConfig.getOptionalPluginIdentifier().orElse("<empty>"));
 
         this.s3SecurityFacadeProvider = requireNonNull(s3SecurityFacadeProvider, "securityFacadeProvider is null")
                 .orElseGet(() -> s3DatabaseSecurityFacadeProvider.map(databaseSecurity -> (S3SecurityFacadeProvider) new S3DatabaseSecurityController(databaseSecurity, requestLoggerController))
                         .orElse(DEFAULT_SECURITY_FACADE_PROVIDER));
+    }
+
+    @VisibleForTesting
+    protected S3SecurityController(
+            Optional<S3SecurityFacadeProvider> s3SecurityFacadeProvider,
+            Optional<S3DatabaseSecurityFacadeProvider> s3DatabaseSecurityFacadeProvider,
+            RequestLoggerController requestLoggerController)
+    {
+        this(s3SecurityFacadeProvider, new S3SecurityFacadeProviderConfig(), s3DatabaseSecurityFacadeProvider, new S3DatabaseSecurityFacadeProviderConfig(), requestLoggerController);
     }
 
     public SecurityResponse apply(ParsedS3Request request)
