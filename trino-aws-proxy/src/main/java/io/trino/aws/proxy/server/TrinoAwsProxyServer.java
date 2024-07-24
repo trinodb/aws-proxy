@@ -14,8 +14,10 @@
 package io.trino.aws.proxy.server;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableSet;
 import com.google.inject.Injector;
 import com.google.inject.Module;
+import io.airlift.bootstrap.ApplicationConfigurationException;
 import io.airlift.bootstrap.Bootstrap;
 import io.airlift.event.client.EventModule;
 import io.airlift.http.server.HttpServerModule;
@@ -24,13 +26,54 @@ import io.airlift.json.JsonModule;
 import io.airlift.log.Logger;
 import io.airlift.node.NodeModule;
 
+import java.util.Collection;
+
+import static java.util.Objects.requireNonNull;
+
 public final class TrinoAwsProxyServer
 {
     private static final Logger log = Logger.get(TrinoAwsProxyServer.class);
+    private final Injector injector;
 
-    private TrinoAwsProxyServer() {}
+    private TrinoAwsProxyServer(Injector injector)
+    {
+        this.injector = requireNonNull(injector, "injector is null");
+    }
+
+    public Injector injector()
+    {
+        return injector;
+    }
+
+    public static Builder builder()
+    {
+        return new Builder();
+    }
+
+    public static class Builder
+    {
+        private Builder() {}
+
+        private final ImmutableSet.Builder<Module> modules = ImmutableSet.builder();
+
+        public Builder addModule(Module module)
+        {
+            modules.add(module);
+            return this;
+        }
+
+        public TrinoAwsProxyServer buildAndStart()
+        {
+            return start(modules.build());
+        }
+    }
 
     public static void main(String[] args)
+    {
+        TrinoAwsProxyServer.builder().buildAndStart();
+    }
+
+    private static TrinoAwsProxyServer start(Collection<Module> extraModules)
     {
         ImmutableList.Builder<Module> modules = ImmutableList.<Module>builder()
                 .add(new TrinoAwsProxyServerModule())
@@ -40,9 +83,26 @@ public final class TrinoAwsProxyServer
                 .add(new JsonModule())
                 .add(new JaxrsModule());
 
-        Bootstrap app = new Bootstrap(modules.build());
-        Injector injector = app.initialize();
+        extraModules.forEach(modules::add);
 
-        log.info("======== SERVER STARTED ========");
+        try {
+            Bootstrap app = new Bootstrap(modules.build());
+            Injector injector = app.initialize();
+
+            log.info("======== SERVER STARTED ========");
+
+            return new TrinoAwsProxyServer(injector);
+        }
+        catch (ApplicationConfigurationException e) {
+            log.error(e.getMessage());
+            System.exit(1);
+        }
+        catch (Throwable e) {
+            log.error(e);
+            System.exit(1);
+        }
+
+        // will never get here
+        return null;
     }
 }
