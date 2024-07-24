@@ -17,12 +17,32 @@ import java.util.Optional;
 
 import static java.util.Objects.requireNonNull;
 
-public record SecurityResponse(boolean canProceed, Optional<String> error)
+public sealed interface SecurityResponse
 {
-    public static final SecurityResponse DEFAULT = new SecurityResponse(true, Optional.empty());
+    SecurityResponse SUCCESS = new Success();
+    SecurityResponse FAILURE = new Failure();
 
-    public SecurityResponse
+    record Success()
+            implements SecurityResponse
     {
-        requireNonNull(error, "error is null");
+    }
+
+    record Failure(Optional<String> error)
+            implements SecurityResponse
+    {
+        public Failure
+        {
+            requireNonNull(error, "error is null");
+        }
+
+        public Failure()
+        {
+            this(Optional.empty());
+        }
+
+        public Failure(String error)
+        {
+            this(Optional.of(error));
+        }
     }
 }

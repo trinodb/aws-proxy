@@ -17,7 +17,6 @@ import com.google.inject.Inject;
 import io.trino.aws.proxy.server.testing.TestingS3SecurityController;
 import io.trino.aws.proxy.server.testing.harness.TrinoAwsProxyTest;
 import io.trino.aws.proxy.server.testing.harness.TrinoAwsProxyTestCommonModules.WithConfiguredBuckets;
-import io.trino.aws.proxy.spi.security.SecurityResponse;
 import org.assertj.core.api.InstanceOfAssertFactories;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -27,8 +26,8 @@ import software.amazon.awssdk.services.s3.model.ListBucketsResponse;
 import software.amazon.awssdk.services.s3.model.ListObjectsResponse;
 import software.amazon.awssdk.services.s3.model.S3Exception;
 
-import java.util.Optional;
-
+import static io.trino.aws.proxy.spi.security.SecurityResponse.FAILURE;
+import static io.trino.aws.proxy.spi.security.SecurityResponse.SUCCESS;
 import static java.util.Objects.requireNonNull;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -66,9 +65,9 @@ public class TestS3SecurityController
         // set facade that disallows list objects on bucket "one"
         securityController.setDelegate(request -> _ -> {
             if ("one".equals(request.bucketName()) && request.httpVerb().equalsIgnoreCase("get")) {
-                return new SecurityResponse(false, Optional.empty());
+                return FAILURE;
             }
-            return SecurityResponse.DEFAULT;
+            return SUCCESS;
         });
 
         // list objects on "one" now disallowed

@@ -27,11 +27,12 @@ import java.util.Locale;
 import java.util.Optional;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static io.trino.aws.proxy.spi.security.SecurityResponse.SUCCESS;
 import static java.util.Objects.requireNonNull;
 
 public class S3SecurityController
 {
-    private static final S3SecurityFacadeProvider DEFAULT_SECURITY_FACADE_PROVIDER = _ -> _ -> SecurityResponse.DEFAULT;
+    private static final S3SecurityFacadeProvider DEFAULT_SECURITY_FACADE_PROVIDER = _ -> _ -> SUCCESS;
 
     private final S3SecurityFacadeProvider s3SecurityFacadeProvider;
 
