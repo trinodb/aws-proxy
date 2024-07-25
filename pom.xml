@@ -29,6 +29,7 @@
         <module>000-temp-trino-aws-proxy</module>
         <module>trino-aws-proxy</module>
         <module>trino-aws-proxy-spark3</module>
+        <module>trino-aws-proxy-spark4</module>
         <module>trino-aws-proxy-spi</module>
     </modules>
 
@@ -92,6 +93,12 @@
             <dependency>
                 <groupId>${project.groupId}</groupId>
                 <artifactId>trino-aws-proxy-spark3</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>${project.groupId}</groupId>
+                <artifactId>trino-aws-proxy-spark4</artifactId>
                 <version>${project.version}</version>
             </dependency>
 

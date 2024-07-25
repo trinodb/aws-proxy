@@ -35,6 +35,8 @@ import io.trino.aws.proxy.server.testing.TestingUtil.ForTesting;
 import io.trino.aws.proxy.server.testing.containers.MetastoreContainer;
 import io.trino.aws.proxy.server.testing.containers.PostgresContainer;
 import io.trino.aws.proxy.server.testing.containers.PySparkContainer;
+import io.trino.aws.proxy.server.testing.containers.PySparkContainer.PySparkV3Container;
+import io.trino.aws.proxy.server.testing.containers.PySparkContainer.PySparkV4Container;
 import io.trino.aws.proxy.server.testing.containers.S3Container;
 import io.trino.aws.proxy.server.testing.containers.S3Container.ForS3Container;
 import io.trino.aws.proxy.spi.credentials.Credentials;
@@ -85,7 +87,8 @@ public final class TestingTrinoAwsProxyServer
         private boolean mockS3ContainerAdded;
         private boolean postgresContainerAdded;
         private boolean metastoreContainerAdded;
-        private boolean pySparkContainerAdded;
+        private boolean v3PySparkContainerAdded;
+        private boolean v4PySparkContainerAdded;
 
         public Builder addModule(Module module)
         {
@@ -147,18 +150,33 @@ public final class TestingTrinoAwsProxyServer
             return this;
         }
 
-        public Builder withPySparkContainer()
+        public Builder withV3PySparkContainer()
         {
             // pyspark requires metastore and S3
             withMetastoreContainer();
             withS3Container();
 
-            if (pySparkContainerAdded) {
+            if (v3PySparkContainerAdded) {
                 return this;
             }
-            pySparkContainerAdded = true;
+            v3PySparkContainerAdded = true;
 
-            modules.add(binder -> binder.bind(PySparkContainer.class).asEagerSingleton());
+            modules.add(binder -> binder.bind(PySparkContainer.class).to(PySparkV3Container.class).asEagerSingleton());
+            return this;
+        }
+
+        public Builder withV4PySparkContainer()
+        {
+            // pyspark requires metastore and S3
+            withMetastoreContainer();
+            withS3Container();
+
+            if (v4PySparkContainerAdded) {
+                return this;
+            }
+            v4PySparkContainerAdded = true;
+
+            modules.add(binder -> binder.bind(PySparkContainer.class).to(PySparkV4Container.class).asEagerSingleton());
             return this;
         }
 
