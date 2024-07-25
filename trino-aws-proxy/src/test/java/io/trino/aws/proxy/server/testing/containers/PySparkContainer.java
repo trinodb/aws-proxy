@@ -19,6 +19,7 @@ import io.airlift.log.Logger;
 import io.trino.aws.proxy.server.TrinoAwsProxyConfig;
 import io.trino.aws.proxy.server.testing.TestingUtil.ForTesting;
 import io.trino.aws.proxy.spark3.TrinoAwsProxyS3ClientSigil;
+import io.trino.aws.proxy.spark4.TrinoAwsProxyS4ClientSigil;
 import io.trino.aws.proxy.spi.credentials.Credentials;
 import jakarta.annotation.PreDestroy;
 import org.testcontainers.containers.BindMode;
@@ -34,24 +35,79 @@ import static io.trino.aws.proxy.server.testing.containers.DockerAttachUtil.inpu
 import static io.trino.aws.proxy.server.testing.containers.TestContainerUtil.asHostUrl;
 import static io.trino.aws.proxy.server.testing.containers.TestContainerUtil.exposeHostPort;
 
-public class PySparkContainer
+public abstract class PySparkContainer
 {
     private static final Logger log = Logger.get(PySparkContainer.class);
 
-    private static final String IMAGE_NAME = "spark";
-    private static final String IMAGE_TAG = "3.5.1-scala2.12-java17-python3-ubuntu";
+    private static final String V3_IMAGE_NAME = "spark";
+    private static final String V3_IMAGE_TAG = "3.5.1-scala2.12-java17-python3-ubuntu";
+
+    private static final String V4_IMAGE_NAME = "apache/spark";
+    private static final String V4_IMAGE_TAG = "4.0.0-preview1-scala2.13-java17-python3-ubuntu";
 
     private final GenericContainer<?> container;
 
-    @SuppressWarnings("resource")
-    @Inject
-    public PySparkContainer(MetastoreContainer metastoreContainer, S3Container s3Container, TestingHttpServer httpServer, @ForTesting Credentials testingCredentials, TrinoAwsProxyConfig trinoS3ProxyConfig)
+    public static class PySparkV3Container
+            extends PySparkContainer
     {
-        File hadoopJar = findTestJar("hadoop");
-        File awsSdkJar = findTestJar("aws");
-        File trinoClientDirectory = findProjectClassDirectory(TrinoAwsProxyS3ClientSigil.class);
+        @Inject
+        public PySparkV3Container(MetastoreContainer metastoreContainer, S3Container s3Container, TestingHttpServer httpServer, @ForTesting Credentials testingCredentials, TrinoAwsProxyConfig trinoS3ProxyConfig)
+        {
+            super(metastoreContainer, s3Container, httpServer, testingCredentials, trinoS3ProxyConfig, Version.VERSION_3);
+        }
+    }
 
-        container = new GenericContainer<>(DockerImageName.parse(IMAGE_NAME).withTag(IMAGE_TAG))
+    public static class PySparkV4Container
+            extends PySparkContainer
+    {
+        @Inject
+        public PySparkV4Container(MetastoreContainer metastoreContainer, S3Container s3Container, TestingHttpServer httpServer, @ForTesting Credentials testingCredentials, TrinoAwsProxyConfig trinoS3ProxyConfig)
+        {
+            super(metastoreContainer, s3Container, httpServer, testingCredentials, trinoS3ProxyConfig, Version.VERSION_4);
+        }
+    }
+
+    private enum Version
+    {
+        VERSION_3,
+        VERSION_4,
+    }
+
+    @SuppressWarnings("resource")
+    private PySparkContainer(
+            MetastoreContainer metastoreContainer,
+            S3Container s3Container,
+            TestingHttpServer httpServer,
+            Credentials testingCredentials,
+            TrinoAwsProxyConfig trinoS3ProxyConfig,
+            Version version)
+    {
+        File trinoClientDirectory = switch (version) {
+            case VERSION_3 -> findProjectClassDirectory(TrinoAwsProxyS3ClientSigil.class);
+            case VERSION_4 -> findProjectClassDirectory(TrinoAwsProxyS4ClientSigil.class);
+        };
+
+        File awsSdkJar = switch (version) {
+            case VERSION_3 -> findTestJar("aws");
+            case VERSION_4 -> findTestJar("bundle");
+        };
+
+        File hadoopJar = switch (version) {
+            case VERSION_3 -> findTestJar("hadoop-aws-3.3.4");
+            case VERSION_4 -> findTestJar("hadoop-aws-3.4.0");
+        };
+
+        DockerImageName dockerImageName = switch (version) {
+            case VERSION_3 -> DockerImageName.parse(V3_IMAGE_NAME).withTag(V3_IMAGE_TAG);
+            case VERSION_4 -> DockerImageName.parse(V4_IMAGE_NAME).withTag(V4_IMAGE_TAG);
+        };
+
+        String clientFactoryClassName = switch (version) {
+            case VERSION_3 -> "io.trino.aws.proxy.spark3.TrinoAwsProxyS3ClientFactory";
+            case VERSION_4 -> "io.trino.aws.proxy.spark4.TrinoAwsProxyS4ClientFactory";
+        };
+
+        container = new GenericContainer<>(dockerImageName)
                 .withFileSystemBind(hadoopJar.getAbsolutePath(), "/opt/spark/jars/hadoop.jar", BindMode.READ_ONLY)
                 .withFileSystemBind(awsSdkJar.getAbsolutePath(), "/opt/spark/jars/aws.jar", BindMode.READ_ONLY)
                 .withFileSystemBind(trinoClientDirectory.getAbsolutePath(), "/opt/spark/conf", BindMode.READ_ONLY)
@@ -81,9 +137,9 @@ public class PySparkContainer
                     .config("spark.hadoop.fs.s3a.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem")\\
                     .config("spark.hadoop.fs.s3a.aws.credentials.provider", "org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider")\\
                     .config("spark.hadoop.fs.s3a.connection.ssl.enabled", False)\\
-                    .config("spark.hadoop.fs.s3a.s3.client.factory.impl", "io.trino.aws.proxy.spark3.TrinoAwsProxyS3ClientFactory")\\
+                    .config("spark.hadoop.fs.s3a.s3.client.factory.impl", "%s")\\
                     .getOrCreate()
-                """.formatted(metastoreEndpoint, s3Endpoint, testingCredentials.emulated().accessKey(), testingCredentials.emulated().secretKey())));
+                """.formatted(metastoreEndpoint, s3Endpoint, testingCredentials.emulated().accessKey(), testingCredentials.emulated().secretKey(), clientFactoryClassName)));
 
         log.info("PySpark container started");
     }

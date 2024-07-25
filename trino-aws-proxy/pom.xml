@@ -182,6 +182,12 @@
         </dependency>
 
         <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>trino-aws-proxy-spark4</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
             <groupId>com.github.docker-java</groupId>
             <artifactId>docker-java-api</artifactId>
             <scope>test</scope>
@@ -286,9 +292,19 @@
                                     <version>1.12.262</version>
                                 </artifactItem>
                                 <artifactItem>
+                                    <groupId>software.amazon.awssdk</groupId>
+                                    <artifactId>bundle</artifactId>
+                                    <version>2.24.6</version>
+                                </artifactItem>
+                                <artifactItem>
                                     <groupId>org.apache.hadoop</groupId>
                                     <artifactId>hadoop-aws</artifactId>
                                     <version>3.3.4</version>
+                                </artifactItem>
+                                <artifactItem>
+                                    <groupId>org.apache.hadoop</groupId>
+                                    <artifactId>hadoop-aws</artifactId>
+                                    <version>3.4.0</version>
                                 </artifactItem>
                                 <artifactItem>
                                     <groupId>org.postgresql</groupId>
