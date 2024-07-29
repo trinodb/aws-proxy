@@ -141,10 +141,8 @@ public class InternalSigningController
     {
         Credential credential = credentialsSupplier.apply(metadata.credentials());
 
-        Optional<byte[]> entity = metadata.signingServiceType().contentIsSigned() ? requestContent.standardBytes() : Optional.empty();
-
         return signatureExpiry.map(expiry -> Signer.presign(
-                metadata.signingServiceType().serviceName(),
+                metadata.signingServiceType(),
                 requestURI,
                 signingHeaders,
                 queryParameters,
@@ -154,9 +152,9 @@ public class InternalSigningController
                 httpMethod,
                 credential,
                 maxClockDrift,
-                entity)
+                requestContent)
         ).orElseGet(() -> Signer.sign(
-                metadata.signingServiceType().serviceName(),
+                metadata.signingServiceType(),
                 requestURI,
                 signingHeaders,
                 queryParameters,
@@ -165,7 +163,7 @@ public class InternalSigningController
                 httpMethod,
                 credential,
                 maxClockDrift,
-                entity));
+                requestContent));
     }
 
     @SuppressWarnings("resource")

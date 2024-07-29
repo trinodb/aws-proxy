@@ -22,6 +22,8 @@ import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.S3ClientBuilder;
 import software.amazon.awssdk.services.s3.model.Delete;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
+import software.amazon.awssdk.services.s3.model.HeadObjectRequest;
+import software.amazon.awssdk.services.s3.model.HeadObjectResponse;
 import software.amazon.awssdk.services.s3.model.ObjectIdentifier;
 import software.amazon.awssdk.services.s3.model.S3Exception;
 
@@ -100,6 +102,11 @@ public final class TestingUtil
         ByteArrayOutputStream readContents = new ByteArrayOutputStream();
         storageClient.getObject(getObjectRequest).transferTo(readContents);
         return readContents.toString();
+    }
+
+    public static HeadObjectResponse headObjectInStorage(S3Client storageClient, String bucketName, String key)
+    {
+        return storageClient.headObject(HeadObjectRequest.builder().bucket(bucketName).key(key).build());
     }
 
     public static void cleanupBuckets(S3Client storageClient)

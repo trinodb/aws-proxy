@@ -16,9 +16,11 @@ package io.trino.aws.proxy.server.signing;
 import com.google.common.annotations.VisibleForTesting;
 import io.airlift.log.Logger;
 import io.trino.aws.proxy.spi.credentials.Credential;
+import io.trino.aws.proxy.spi.rest.RequestContent;
 import io.trino.aws.proxy.spi.signing.ChunkSigningSession;
 import io.trino.aws.proxy.spi.signing.RequestAuthorization;
 import io.trino.aws.proxy.spi.signing.SigningContext;
+import io.trino.aws.proxy.spi.signing.SigningServiceType;
 import io.trino.aws.proxy.spi.util.AwsTimestamp;
 import io.trino.aws.proxy.spi.util.ImmutableMultiMap;
 import io.trino.aws.proxy.spi.util.MultiMap;
@@ -46,6 +48,7 @@ import java.util.function.BiFunction;
 import static io.trino.aws.proxy.server.signing.Signers.OVERRIDE_CONTENT_HASH;
 import static io.trino.aws.proxy.server.signing.Signers.aws4Signer;
 import static io.trino.aws.proxy.server.signing.Signers.legacyAws4Signer;
+import static io.trino.aws.proxy.spi.rest.RequestContent.ContentType.AWS_CHUNKED;
 import static jakarta.ws.rs.core.Response.Status.BAD_REQUEST;
 import static jakarta.ws.rs.core.Response.Status.UNAUTHORIZED;
 import static java.util.Objects.requireNonNull;
@@ -68,7 +71,7 @@ final class Signer
     }
 
     static SigningContext presign(
-            String serviceName,
+            SigningServiceType serviceType,
             URI requestURI,
             SigningHeaders signingHeaders,
             MultiMap queryParameters,
@@ -78,7 +81,7 @@ final class Signer
             String httpMethod,
             Credential credential,
             Duration maxClockDrift,
-            Optional<byte[]> entity)
+            RequestContent requestContent)
     {
         Duration requestToExpiry = Duration.between(requestDate, requestExpiry);
         if (requestToExpiry.isNegative() || requestToExpiry.compareTo(MAX_PRESIGNED_REQUEST_AGE) > 0) {
@@ -101,7 +104,7 @@ final class Signer
                 },
                 SdkHttpFullRequest.builder(),
                 presignerParamsBuilder,
-                serviceName,
+                serviceType,
                 requestURI,
                 signingHeaders,
                 queryParameters,
@@ -109,11 +112,11 @@ final class Signer
                 requestDate,
                 httpMethod,
                 credential,
-                entity);
+                requestContent);
     }
 
     static SigningContext sign(
-            String serviceName,
+            SigningServiceType serviceType,
             URI requestURI,
             SigningHeaders signingHeaders,
             MultiMap queryParameters,
@@ -122,16 +125,14 @@ final class Signer
             String httpMethod,
             Credential credential,
             Duration maxClockDrift,
-            Optional<byte[]> entity)
+            RequestContent requestContent)
     {
         enforceMaxDrift(requestDate, maxClockDrift, maxClockDrift);
         Optional<String> maybeAmazonContentHash = signingHeaders.getFirst("x-amz-content-sha256");
         boolean enablePayloadSigning = maybeAmazonContentHash
                 .map(contentHashHeader -> !contentHashHeader.equals("UNSIGNED-PAYLOAD"))
                 .orElse(true);
-        boolean enableChunkedEncoding = signingHeaders.getFirst("content-encoding")
-                .map(contentHashHeader -> contentHashHeader.equals("aws-chunked"))
-                .orElse(false);
+        boolean enableChunkedEncoding = requestContent.contentType() == AWS_CHUNKED;
         AwsS3V4SignerParams.Builder signerParamsBuilder = AwsS3V4SignerParams.builder()
                 .enablePayloadSigning(enablePayloadSigning)
                 .enableChunkedEncoding(enableChunkedEncoding);
@@ -156,7 +157,7 @@ final class Signer
                 },
                 requestBuilder,
                 signerParamsBuilder,
-                serviceName,
+                serviceType,
                 requestURI,
                 signingHeaders,
                 queryParameters,
@@ -164,7 +165,7 @@ final class Signer
                 requestDate,
                 httpMethod,
                 credential,
-                entity);
+                requestContent);
     }
 
     private record InternalRequestAuthorization(RequestAuthorization requestAuthorization, URI signingUri)
@@ -180,7 +181,7 @@ final class Signer
             BiFunction<Signers.SigningApi, SdkHttpFullRequest, InternalRequestAuthorization> authorizationBuilder,
             SdkHttpFullRequest.Builder requestBuilder,
             R paramsBuilder,
-            String serviceName,
+            SigningServiceType serviceType,
             URI requestURI,
             SigningHeaders signingHeaders,
             MultiMap queryParameters,
@@ -188,10 +189,11 @@ final class Signer
             Instant requestDate,
             String httpMethod,
             Credential credential,
-            Optional<byte[]> entity)
+            RequestContent requestContent)
     {
         requestBuilder.uri(UriBuilder.fromUri(requestURI).replaceQuery("").build()).method(SdkHttpMethod.fromValue(httpMethod));
 
+        Optional<byte[]> entity = serviceType.contentIsSigned() ? requestContent.standardBytes() : Optional.empty();
         entity.ifPresent(entityBytes -> requestBuilder.contentStreamProvider(() -> new ByteArrayInputStream(entityBytes)));
 
         signingHeaders.lowercaseHeadersToSign().forEach(entry -> entry.getValue().forEach(value -> requestBuilder.appendHeader(entry.getKey(), value)));
@@ -201,7 +203,7 @@ final class Signer
         AwsCredentials credentials = credential.session()
                 .map(session -> (AwsCredentials) AwsSessionCredentials.create(credential.accessKey(), credential.secretKey(), session))
                 .orElseGet(() -> AwsBasicCredentials.create(credential.accessKey(), credential.secretKey()));
-        paramsBuilder.signingName(serviceName)
+        paramsBuilder.signingName(serviceType.serviceName())
                 .signingRegion(Region.of(region))
                 .doubleUrlEncode(false)
                 .awsCredentials(credentials);
