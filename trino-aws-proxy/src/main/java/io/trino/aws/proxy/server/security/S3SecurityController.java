@@ -51,17 +51,17 @@ public class S3SecurityController
 
         checkArgument(!hasDatabaseSecurity || !hasNonDefaultSecurity, "Both s3 database security and non-default s3 security have been bound. This is not supported.");
 
-        boolean securityIsNotConfigured = s3SecurityFacadeProviderConfig.getOptionalPluginIdentifier().isEmpty();
+        boolean securityIsNotConfigured = s3SecurityFacadeProviderConfig.getPluginIdentifier().isEmpty();
         checkArgument(securityIsNotConfigured || !hasNonDefaultSecurity,
                 "%s of type \"%s\" is not registered",
                 S3SecurityFacadeProvider.class.getSimpleName(),
-                s3SecurityFacadeProviderConfig.getOptionalPluginIdentifier().orElse("<empty>"));
+                s3SecurityFacadeProviderConfig.getPluginIdentifier().orElse("<empty>"));
 
-        boolean databaseSecurityIsNotConfigured = s3DatabaseSecurityFacadeProviderConfig.getOptionalPluginIdentifier().isEmpty();
+        boolean databaseSecurityIsNotConfigured = s3DatabaseSecurityFacadeProviderConfig.getPluginIdentifier().isEmpty();
         checkArgument(databaseSecurityIsNotConfigured || !hasDatabaseSecurity,
                 "%s of type \"%s\" is not registered",
                 S3DatabaseSecurityFacadeProvider.class.getSimpleName(),
-                s3DatabaseSecurityFacadeProviderConfig.getOptionalPluginIdentifier().orElse("<empty>"));
+                s3DatabaseSecurityFacadeProviderConfig.getPluginIdentifier().orElse("<empty>"));
 
         this.s3SecurityFacadeProvider = requireNonNull(s3SecurityFacadeProvider, "securityFacadeProvider is null")
                 .orElseGet(() -> s3DatabaseSecurityFacadeProvider.map(databaseSecurity -> (S3SecurityFacadeProvider) new S3DatabaseSecurityController(databaseSecurity, requestLoggerController))

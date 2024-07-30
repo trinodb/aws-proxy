@@ -71,7 +71,7 @@ public interface TrinoAwsProxyServerPlugin
         return conditionalModule(configClass,
                 (config) -> {
                     log.info("Registered %s plugin implementation %s with conditional identifier \"%s\"", interfaceClass.getSimpleName(), implementationClass.getSimpleName(), identifier);
-                    return config.getOptionalPluginIdentifier().map(identifier::equals).orElse(false);
+                    return config.getPluginIdentifier().map(identifier::equals).orElse(false);
                 },
                 combine(
                         binder -> {
