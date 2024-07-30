@@ -13,36 +13,51 @@
  */
 package io.trino.aws.proxy.server.credentials.file;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableSet;
 import com.google.common.io.Resources;
-import io.airlift.json.ObjectMapperProvider;
+import com.google.inject.Inject;
 import io.trino.aws.proxy.server.testing.TestingIdentity;
+import io.trino.aws.proxy.server.testing.TestingTrinoAwsProxyServer;
+import io.trino.aws.proxy.server.testing.harness.BuilderFilter;
+import io.trino.aws.proxy.server.testing.harness.TrinoAwsProxyTest;
 import io.trino.aws.proxy.spi.credentials.Credential;
 import io.trino.aws.proxy.spi.credentials.Credentials;
-import io.trino.aws.proxy.spi.credentials.Identity;
-import org.junit.jupiter.api.BeforeAll;
+import io.trino.aws.proxy.spi.credentials.CredentialsProvider;
 import org.junit.jupiter.api.Test;
 
 import java.io.File;
 import java.util.Optional;
 
+import static io.trino.aws.proxy.server.credentials.file.FileBasedCredentialsModule.FILE_BASED_CREDENTIALS_IDENTIFIER;
+import static io.trino.aws.proxy.spi.plugin.TrinoAwsProxyServerBinding.bindIdentityType;
+import static java.util.Objects.requireNonNull;
 import static org.assertj.core.api.Assertions.assertThat;
 
+@TrinoAwsProxyTest(filters = TestFileBasedCredentialsProvider.Filter.class)
 public class TestFileBasedCredentialsProvider
 {
-    private static FileBasedCredentialsProvider credentialsProvider;
+    private final CredentialsProvider credentialsProvider;
 
-    @BeforeAll
-    public static void setUpClass()
+    public static class Filter
+            implements BuilderFilter
     {
-        File configFile = new File(Resources.getResource("credentials.json").getFile());
-        FileBasedCredentialsProviderConfig config = new FileBasedCredentialsProviderConfig().setCredentialsFile(configFile);
-        ObjectMapper objectMapper = new ObjectMapperProvider()
-                .withModules(ImmutableSet.of(new SimpleModule().addAbstractTypeMapping(Identity.class, TestingIdentity.class))).get();
-        credentialsProvider = new FileBasedCredentialsProvider(config, objectMapper);
+        @Override
+        public TestingTrinoAwsProxyServer.Builder filter(TestingTrinoAwsProxyServer.Builder builder)
+        {
+            File configFile = new File(Resources.getResource("credentials.json").getFile());
+
+            return builder.withoutTestingCredentialsRoleProviders()
+                    .addModule(new FileBasedCredentialsModule())
+                    .addModule(binder -> bindIdentityType(binder, TestingIdentity.class))
+                    .withProperty("credentials-provider.type", FILE_BASED_CREDENTIALS_IDENTIFIER)
+                    .withProperty("credentials-provider.credentials-file-path", configFile.getAbsolutePath());
+        }
+    }
+
+    @Inject
+    public TestFileBasedCredentialsProvider(CredentialsProvider credentialsProvider)
+    {
+        this.credentialsProvider = requireNonNull(credentialsProvider, "credentialsProvider is null");
     }
 
     @Test
@@ -50,7 +65,7 @@ public class TestFileBasedCredentialsProvider
     {
         Credential emulated = new Credential("test-emulated-access-key", "test-emulated-secret");
         Credential remote = new Credential("test-remote-access-key", "test-remote-secret");
-        Credentials expected = new Credentials(emulated, Optional.of(remote), Optional.empty(), Optional.of(new TestingIdentity("test-username", ImmutableList.of())));
+        Credentials expected = new Credentials(emulated, Optional.of(remote), Optional.empty(), Optional.of(new TestingIdentity("test-username", ImmutableList.of(), "xyzpdq")));
         Optional<Credentials> actual = credentialsProvider.credentials("test-emulated-access-key", Optional.empty());
         assertThat(actual).contains(expected);
     }

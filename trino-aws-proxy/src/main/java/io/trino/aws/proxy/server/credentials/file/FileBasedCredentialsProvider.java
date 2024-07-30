@@ -15,9 +15,11 @@ package io.trino.aws.proxy.server.credentials.file;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.google.inject.Inject;
 import io.trino.aws.proxy.spi.credentials.Credentials;
 import io.trino.aws.proxy.spi.credentials.CredentialsProvider;
+import io.trino.aws.proxy.spi.credentials.Identity;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -38,9 +40,10 @@ public class FileBasedCredentialsProvider
     private final Map<String, Credentials> credentialsStore;
 
     @Inject
-    public FileBasedCredentialsProvider(FileBasedCredentialsProviderConfig config, ObjectMapper objectMapper)
+    public FileBasedCredentialsProvider(FileBasedCredentialsProviderConfig config, ObjectMapper objectMapper, Class<? extends Identity> identityClass)
     {
         requireNonNull(config, "Config is null");
+        objectMapper = objectMapper.registerModule(new SimpleModule().addAbstractTypeMapping(Identity.class, identityClass));
         this.credentialsStore = buildCredentialsMap(config.getCredentialsFile(), objectMapper);
     }
 

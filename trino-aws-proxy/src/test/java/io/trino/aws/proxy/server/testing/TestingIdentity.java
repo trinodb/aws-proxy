@@ -19,18 +19,13 @@ import java.util.List;
 
 import static java.util.Objects.requireNonNull;
 
-public record TestingIdentity(String user, List<String> groups)
+public record TestingIdentity(String user, List<String> groups, String id)
         implements Identity
 {
     public TestingIdentity
     {
         requireNonNull(user, "username is null");
         requireNonNull(groups, "groups is null");
-    }
-
-    @Override
-    public String user()
-    {
-        return user;
+        requireNonNull(id, "id is null");
     }
 }
