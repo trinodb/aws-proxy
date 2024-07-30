@@ -18,6 +18,9 @@ import jakarta.ws.rs.WebApplicationException;
 
 public interface S3DatabaseSecurityFacadeProvider
 {
+    // set as config value for "s3-security.type". Then bind a S3DatabaseSecurityFacadeProvider
+    String S3_DATABASE_SECURITY_IDENTIFIER = "s3DatabaseSecurity";
+
     /**
      * Return a validated/authenticated facade for the given request or
      * throw {@link WebApplicationException}

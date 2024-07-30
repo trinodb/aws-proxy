@@ -18,6 +18,8 @@ import jakarta.ws.rs.WebApplicationException;
 
 public interface S3SecurityFacadeProvider
 {
+    S3SecurityFacadeProvider NOOP = _ -> S3SecurityFacade.NOOP;
+
     /**
      * Return a validated/authenticated facade for the given request or
      * throw {@link jakarta.ws.rs.WebApplicationException}

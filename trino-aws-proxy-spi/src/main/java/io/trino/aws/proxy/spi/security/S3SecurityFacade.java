@@ -17,6 +17,8 @@ import java.util.Optional;
 
 public interface S3SecurityFacade
 {
+    S3SecurityFacade NOOP = _ -> SecurityResponse.SUCCESS;
+
     String UPLOADS_ACTION = "uploads";
     String DELETE_ACTION = "delete";
 

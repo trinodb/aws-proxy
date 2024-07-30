@@ -21,9 +21,7 @@ import io.trino.aws.proxy.spi.credentials.CredentialsProvider;
 import io.trino.aws.proxy.spi.plugin.config.AssumedRoleProviderConfig;
 import io.trino.aws.proxy.spi.plugin.config.CredentialsProviderConfig;
 import io.trino.aws.proxy.spi.plugin.config.PluginIdentifierConfig;
-import io.trino.aws.proxy.spi.plugin.config.S3DatabaseSecurityFacadeProviderConfig;
 import io.trino.aws.proxy.spi.plugin.config.S3SecurityFacadeProviderConfig;
-import io.trino.aws.proxy.spi.security.S3DatabaseSecurityFacadeProvider;
 import io.trino.aws.proxy.spi.security.S3SecurityFacadeProvider;
 
 import static com.google.inject.multibindings.OptionalBinder.newOptionalBinder;
@@ -56,12 +54,7 @@ public interface TrinoAwsProxyServerPlugin
         return optionalPluginModule(S3SecurityFacadeProviderConfig.class, identifier, S3SecurityFacadeProvider.class, implementationClass, module);
     }
 
-    static Module s3DatabaseSecurityFacadeProviderModule(String identifier, Class<? extends S3DatabaseSecurityFacadeProvider> implementationClass, Module module)
-    {
-        return optionalPluginModule(S3DatabaseSecurityFacadeProviderConfig.class, identifier, S3DatabaseSecurityFacadeProvider.class, implementationClass, module);
-    }
-
-    private static <Implementation> Module optionalPluginModule(
+    static <Implementation> Module optionalPluginModule(
             Class<? extends PluginIdentifierConfig> configClass,
             String identifier,
             Class<Implementation> interfaceClass,
@@ -69,7 +62,7 @@ public interface TrinoAwsProxyServerPlugin
             Module module)
     {
         return conditionalModule(configClass,
-                (config) -> {
+                config -> {
                     log.info("Registered %s plugin implementation %s with conditional identifier \"%s\"", interfaceClass.getSimpleName(), implementationClass.getSimpleName(), identifier);
                     return config.getPluginIdentifier().map(identifier::equals).orElse(false);
                 },
