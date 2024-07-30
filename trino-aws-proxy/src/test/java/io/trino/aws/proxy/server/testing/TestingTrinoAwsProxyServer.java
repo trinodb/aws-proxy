@@ -20,6 +20,7 @@ import com.google.inject.Inject;
 import com.google.inject.Injector;
 import com.google.inject.Key;
 import com.google.inject.Module;
+import com.google.inject.Scopes;
 import com.google.inject.TypeLiteral;
 import io.airlift.bootstrap.Bootstrap;
 import io.airlift.bootstrap.LifeCycleManager;
@@ -31,6 +32,7 @@ import io.airlift.log.Level;
 import io.airlift.log.Logging;
 import io.airlift.node.testing.TestingNodeModule;
 import io.trino.aws.proxy.server.remote.RemoteS3Facade;
+import io.trino.aws.proxy.server.testing.TestingTrinoAwsProxyServerModule.ForTestingRemoteCredentials;
 import io.trino.aws.proxy.server.testing.TestingUtil.ForTesting;
 import io.trino.aws.proxy.server.testing.containers.MetastoreContainer;
 import io.trino.aws.proxy.server.testing.containers.PostgresContainer;
@@ -48,6 +50,8 @@ import java.util.Map;
 
 import static com.google.inject.multibindings.OptionalBinder.newOptionalBinder;
 import static io.trino.aws.proxy.server.testing.TestingUtil.TESTING_CREDENTIALS;
+import static io.trino.aws.proxy.spi.plugin.TrinoAwsProxyServerPlugin.assumedRoleProviderModule;
+import static io.trino.aws.proxy.spi.plugin.TrinoAwsProxyServerPlugin.credentialsProviderModule;
 
 public final class TestingTrinoAwsProxyServer
         implements Closeable
@@ -89,6 +93,7 @@ public final class TestingTrinoAwsProxyServer
         private boolean metastoreContainerAdded;
         private boolean v3PySparkContainerAdded;
         private boolean v4PySparkContainerAdded;
+        private boolean addTestingCredentialsRoleProviders = true;
 
         public Builder addModule(Module module)
         {
@@ -186,8 +191,23 @@ public final class TestingTrinoAwsProxyServer
             return this;
         }
 
+        public Builder withoutTestingCredentialsRoleProviders()
+        {
+            addTestingCredentialsRoleProviders = false;
+            return this;
+        }
+
         public TestingTrinoAwsProxyServer buildAndStart()
         {
+            if (addTestingCredentialsRoleProviders) {
+                addModule(credentialsProviderModule("testing", TestingCredentialsRolesProvider.class, (binder) -> binder.bind(TestingCredentialsRolesProvider.class).in(Scopes.SINGLETON)));
+                withProperty("credentials-provider.type", "testing");
+                addModule(assumedRoleProviderModule("testing", TestingCredentialsRolesProvider.class, (binder) -> binder.bind(TestingCredentialsRolesProvider.class).in(Scopes.SINGLETON)));
+                withProperty("assumed-role-provider.type", "testing");
+
+                modules.add(binder -> binder.bind(Credentials.class).annotatedWith(ForTestingRemoteCredentials.class).toProvider(TestingRemoteCredentialsProvider.class));
+            }
+
             return start(modules.build(), properties.buildKeepingLast());
         }
     }

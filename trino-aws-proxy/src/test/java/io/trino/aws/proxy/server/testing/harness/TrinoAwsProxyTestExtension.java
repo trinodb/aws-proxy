@@ -18,7 +18,6 @@ import com.google.inject.Key;
 import com.google.inject.Scopes;
 import io.trino.aws.proxy.server.remote.RemoteS3Facade;
 import io.trino.aws.proxy.server.testing.ContainerS3Facade;
-import io.trino.aws.proxy.server.testing.TestingCredentialsRolesProvider;
 import io.trino.aws.proxy.server.testing.TestingS3ClientProvider;
 import io.trino.aws.proxy.server.testing.TestingTrinoAwsProxyServer;
 import io.trino.aws.proxy.server.testing.TestingUtil.ForTesting;
@@ -38,8 +37,6 @@ import java.util.stream.Stream;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.inject.multibindings.OptionalBinder.newOptionalBinder;
-import static io.trino.aws.proxy.spi.plugin.TrinoAwsProxyServerPlugin.assumedRoleProviderModule;
-import static io.trino.aws.proxy.spi.plugin.TrinoAwsProxyServerPlugin.credentialsProviderModule;
 
 public class TrinoAwsProxyTestExtension
         implements TestInstanceFactory, TestInstancePreDestroyCallback
@@ -62,10 +59,6 @@ public class TrinoAwsProxyTestExtension
         }
 
         TestingTrinoAwsProxyServer trinoS3ProxyServer = builder
-                .addModule(credentialsProviderModule("testing", TestingCredentialsRolesProvider.class, (binder) -> binder.bind(TestingCredentialsRolesProvider.class).in(Scopes.SINGLETON)))
-                .withProperty("credentials-provider.type", "testing")
-                .addModule(assumedRoleProviderModule("testing", TestingCredentialsRolesProvider.class, (binder) -> binder.bind(TestingCredentialsRolesProvider.class).in(Scopes.SINGLETON)))
-                .withProperty("assumed-role-provider.type", "testing")
                 .withS3Container()
                 .addModule(binder -> {
                     binder.bind(S3Client.class).annotatedWith(ForS3Container.class).toProvider(S3Container.class);
