@@ -215,7 +215,7 @@ public class TestGenericRestRequests
         storageClient.createBucket(r -> r.bucket("foo").build());
 
         Credential credential = new Credential("df4899b1-9026-4c51-a3f3-38fffa236748", "2a142f69-d384-4739-8733-2977f73e2d2c");
-        Credentials credentials = new Credentials(credential, testingCredentials.remote(), Optional.empty());
+        Credentials credentials = new Credentials(credential, testingCredentials.remote(), Optional.empty(), Optional.empty());
         credentialsRolesProvider.addCredentials(credentials);
 
         assertThat(doPutObject(goodContent, goodSha256).getStatusCode()).isEqualTo(200);

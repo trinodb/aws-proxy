@@ -19,13 +19,14 @@ import java.util.Optional;
 
 import static java.util.Objects.requireNonNull;
 
-public record Credentials(Credential emulated, Optional<Credential> remote, Optional<RemoteSessionRole> remoteSessionRole)
+public record Credentials(Credential emulated, Optional<Credential> remote, Optional<RemoteSessionRole> remoteSessionRole, Optional<Identity> identity)
 {
     public Credentials
     {
         requireNonNull(emulated, "emulated is null");
         requireNonNull(remote, "remote is null");
         requireNonNull(remoteSessionRole, "remoteSessionRole is null");
+        requireNonNull(identity, "identity is null");
     }
 
     public Credential requiredRemoteCredential()
@@ -35,21 +36,21 @@ public record Credentials(Credential emulated, Optional<Credential> remote, Opti
 
     public static Credentials build(Credential emulated)
     {
-        return new Credentials(emulated, Optional.empty(), Optional.empty());
+        return new Credentials(emulated, Optional.empty(), Optional.empty(), Optional.empty());
     }
 
     public static Credentials build(Credential emulated, Credential remote)
     {
-        return new Credentials(emulated, Optional.of(remote), Optional.empty());
+        return new Credentials(emulated, Optional.of(remote), Optional.empty(), Optional.empty());
     }
 
     public static Credentials build(Credential emulated, Optional<Credential> remote)
     {
-        return new Credentials(emulated, remote, Optional.empty());
+        return new Credentials(emulated, remote, Optional.empty(), Optional.empty());
     }
 
     public static Credentials build(Credential emulated, Credential remote, RemoteSessionRole remoteSessionRole)
     {
-        return new Credentials(emulated, Optional.of(remote), Optional.of(remoteSessionRole));
+        return new Credentials(emulated, Optional.of(remote), Optional.of(remoteSessionRole), Optional.empty());
     }
 }
