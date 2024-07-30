@@ -13,34 +13,27 @@
  */
 package io.trino.aws.proxy.server.credentials.file;
 
-import com.fasterxml.jackson.databind.Module;
-import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.google.inject.Binder;
 import io.airlift.configuration.AbstractConfigurationAwareModule;
-import io.trino.aws.proxy.spi.credentials.Identity;
 
-import static com.google.inject.multibindings.Multibinder.newSetBinder;
 import static io.airlift.configuration.ConfigBinder.configBinder;
 import static io.trino.aws.proxy.spi.plugin.TrinoAwsProxyServerBinding.credentialsProviderModule;
 
 public class FileBasedCredentialsModule
         extends AbstractConfigurationAwareModule
 {
+    // set as config value for "credentials-provider.type"
+    public static final String FILE_BASED_CREDENTIALS_IDENTIFIER = "file";
+
     @Override
     protected void setup(Binder binder)
     {
         install(credentialsProviderModule(
-                "file",
+                FILE_BASED_CREDENTIALS_IDENTIFIER,
                 FileBasedCredentialsProvider.class,
                 innerBinder -> {
                     configBinder(innerBinder).bindConfig(FileBasedCredentialsProviderConfig.class);
                     innerBinder.bind(FileBasedCredentialsProvider.class);
                 }));
-    }
-
-    public static void bindFileBasedCredentialsIdentity(Binder binder, Class<? extends Identity> type)
-    {
-        newSetBinder(binder, Module.class).addBinding()
-                .toInstance(new SimpleModule().addAbstractTypeMapping(Identity.class, type));
     }
 }

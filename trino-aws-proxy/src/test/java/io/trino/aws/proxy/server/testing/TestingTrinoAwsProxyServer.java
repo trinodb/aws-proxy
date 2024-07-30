@@ -109,8 +109,6 @@ public final class TestingTrinoAwsProxyServer
             mockS3ContainerAdded = true;
 
             modules.add(binder -> {
-                binder.bind(TestingCredentialsInitializer.class).asEagerSingleton();
-
                 binder.bind(S3Container.class).asEagerSingleton();
                 binder.bind(Credentials.class).annotatedWith(ForTesting.class).toInstance(TESTING_CREDENTIALS);
                 newOptionalBinder(binder, Key.get(new TypeLiteral<List<String>>() {}, ForS3Container.class)).setDefault().toInstance(ImmutableList.of());
@@ -200,6 +198,10 @@ public final class TestingTrinoAwsProxyServer
         public TestingTrinoAwsProxyServer buildAndStart()
         {
             if (addTestingCredentialsRoleProviders) {
+                if (mockS3ContainerAdded) {
+                    modules.add(binder -> binder.bind(TestingCredentialsInitializer.class).asEagerSingleton());
+                }
+
                 addModule(credentialsProviderModule("testing", TestingCredentialsRolesProvider.class, (binder) -> binder.bind(TestingCredentialsRolesProvider.class).in(Scopes.SINGLETON)));
                 withProperty("credentials-provider.type", "testing");
                 addModule(assumedRoleProviderModule("testing", TestingCredentialsRolesProvider.class, (binder) -> binder.bind(TestingCredentialsRolesProvider.class).in(Scopes.SINGLETON)));
