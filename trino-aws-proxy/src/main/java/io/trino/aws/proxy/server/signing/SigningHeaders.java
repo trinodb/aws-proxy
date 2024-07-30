@@ -17,7 +17,6 @@ import com.google.common.collect.ImmutableSet;
 import io.trino.aws.proxy.spi.util.ImmutableMultiMap;
 import io.trino.aws.proxy.spi.util.MultiMap;
 
-import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -25,17 +24,12 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Stream;
 
+/**
+ * Utility class to record what headers should be used to sign a request
+ */
 final class SigningHeaders
 {
     static final SigningHeaders EMPTY = new SigningHeaders(ImmutableMultiMap.empty(), ImmutableSet.of());
-
-    private static final Set<String> IGNORED_HEADERS = ImmutableSet.of(
-            "x-amzn-trace-id",
-            "expect",
-            "accept-encoding",
-            "authorization",
-            "user-agent",
-            "connection");
 
     private final MultiMap headers;
     private final Set<String> lowercaseHeadersToSign;
@@ -46,14 +40,25 @@ final class SigningHeaders
         this.lowercaseHeadersToSign = ImmutableSet.copyOf(lowercaseHeadersToSign);
     }
 
+    /**
+     * Construct a SigningHeaders instance without any filtering, all headers provided
+     * will be considered for signing
+     *
+     * @param requestHeaders Headers to sign
+     * @return SigningHeaders with all headers set as signing headers
+     */
     static SigningHeaders build(MultiMap requestHeaders)
     {
-        Set<String> lowercaseHeadersToSign = new HashSet<>(requestHeaders.keySet());
-        lowercaseHeadersToSign.removeAll(IGNORED_HEADERS);
-
-        return new SigningHeaders(requestHeaders, ImmutableSet.copyOf(lowercaseHeadersToSign));
+        return new SigningHeaders(requestHeaders, ImmutableSet.copyOf(requestHeaders.keySet()));
     }
 
+    /**
+     * Construct a SigningHeaders instance that only signs the specified headers
+     *
+     * @param requestHeaders Headers to be considered
+     * @param lowercaseHeadersToSign Names of the headers to sign
+     * @return SigningHeaders with only those headers specified set as signing headers
+     */
     static SigningHeaders build(MultiMap requestHeaders, Set<String> lowercaseHeadersToSign)
     {
         return new SigningHeaders(requestHeaders, lowercaseHeadersToSign);
