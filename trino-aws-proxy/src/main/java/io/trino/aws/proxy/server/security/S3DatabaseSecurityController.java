@@ -13,6 +13,7 @@
  */
 package io.trino.aws.proxy.server.security;
 
+import com.google.inject.Inject;
 import io.airlift.log.Logger;
 import io.trino.aws.proxy.server.rest.RequestLoggerController;
 import io.trino.aws.proxy.server.rest.RequestLoggingSession;
@@ -30,7 +31,7 @@ import java.util.Optional;
 
 import static java.util.Objects.requireNonNull;
 
-class S3DatabaseSecurityController
+public class S3DatabaseSecurityController
         implements S3SecurityFacadeProvider
 {
     private static final Logger log = Logger.get(S3DatabaseSecurityController.class);
@@ -38,7 +39,8 @@ class S3DatabaseSecurityController
     private final S3DatabaseSecurityFacadeProvider facadeProvider;
     private final RequestLoggerController requestLoggerController;
 
-    S3DatabaseSecurityController(S3DatabaseSecurityFacadeProvider facadeProvider, RequestLoggerController requestLoggerController)
+    @Inject
+    public S3DatabaseSecurityController(S3DatabaseSecurityFacadeProvider facadeProvider, RequestLoggerController requestLoggerController)
     {
         this.facadeProvider = requireNonNull(facadeProvider, "facadeProvider is null");
         this.requestLoggerController = requireNonNull(requestLoggerController, "requestLoggerController is null");

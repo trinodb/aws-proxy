@@ -14,9 +14,7 @@
 package io.trino.aws.proxy.server.testing;
 
 import com.google.inject.Inject;
-import io.trino.aws.proxy.server.rest.RequestLoggerController;
 import io.trino.aws.proxy.server.security.S3SecurityController;
-import io.trino.aws.proxy.spi.security.S3DatabaseSecurityFacadeProvider;
 import io.trino.aws.proxy.spi.security.S3SecurityFacadeProvider;
 
 import java.util.Optional;
@@ -28,9 +26,9 @@ public class TestingS3SecurityController
     private final AtomicReference<Optional<S3SecurityFacadeProvider>> delegate = new AtomicReference<>(Optional.empty());
 
     @Inject
-    public TestingS3SecurityController(Optional<S3SecurityFacadeProvider> s3SecurityFacadeProvider, Optional<S3DatabaseSecurityFacadeProvider> s3DatabaseSecurityFacadeProvider, RequestLoggerController requestLoggerController)
+    public TestingS3SecurityController(S3SecurityFacadeProvider s3SecurityFacadeProvider)
     {
-        super(s3SecurityFacadeProvider, s3DatabaseSecurityFacadeProvider, requestLoggerController);
+        super(s3SecurityFacadeProvider);
     }
 
     @Override

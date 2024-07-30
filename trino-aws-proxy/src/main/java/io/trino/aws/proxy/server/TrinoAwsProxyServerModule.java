@@ -35,6 +35,7 @@ import io.trino.aws.proxy.server.rest.TrinoS3ProxyClient;
 import io.trino.aws.proxy.server.rest.TrinoS3ProxyClient.ForProxyClient;
 import io.trino.aws.proxy.server.rest.TrinoS3Resource;
 import io.trino.aws.proxy.server.rest.TrinoStsResource;
+import io.trino.aws.proxy.server.security.S3DatabaseSecurityController;
 import io.trino.aws.proxy.server.security.S3SecurityController;
 import io.trino.aws.proxy.server.signing.SigningControllerConfig;
 import io.trino.aws.proxy.server.signing.SigningModule;
@@ -43,9 +44,7 @@ import io.trino.aws.proxy.spi.credentials.CredentialsProvider;
 import io.trino.aws.proxy.spi.plugin.TrinoAwsProxyServerPlugin;
 import io.trino.aws.proxy.spi.plugin.config.AssumedRoleProviderConfig;
 import io.trino.aws.proxy.spi.plugin.config.CredentialsProviderConfig;
-import io.trino.aws.proxy.spi.plugin.config.S3DatabaseSecurityFacadeProviderConfig;
 import io.trino.aws.proxy.spi.plugin.config.S3SecurityFacadeProviderConfig;
-import io.trino.aws.proxy.spi.security.S3DatabaseSecurityFacadeProvider;
 import io.trino.aws.proxy.spi.security.S3SecurityFacadeProvider;
 import io.trino.aws.proxy.spi.signing.SigningServiceType;
 import org.glassfish.jersey.server.model.Resource;
@@ -58,6 +57,8 @@ import static io.airlift.configuration.ConfigBinder.configBinder;
 import static io.airlift.http.client.HttpClientBinder.httpClientBinder;
 import static io.airlift.http.server.HttpServerBinder.httpServerBinder;
 import static io.airlift.jaxrs.JaxrsBinder.jaxrsBinder;
+import static io.trino.aws.proxy.spi.plugin.TrinoAwsProxyServerPlugin.optionalPluginModule;
+import static io.trino.aws.proxy.spi.security.S3DatabaseSecurityFacadeProvider.S3_DATABASE_SECURITY_IDENTIFIER;
 
 public class TrinoAwsProxyServerModule
         extends AbstractConfigurationAwareModule
@@ -89,14 +90,13 @@ public class TrinoAwsProxyServerModule
         httpServerBinder.enableLegacyUriCompliance();
         httpServerBinder.enableCaseSensitiveHeaderCache();
 
-        // no default for S3SecurityFacadeProvider/S3DatabaseSecurityFacadeProvider - it's handled internally by S3SecurityController
         // S3SecurityFacadeProvider binder
         configBinder(binder).bindConfig(S3SecurityFacadeProviderConfig.class);
-        newOptionalBinder(binder, S3SecurityFacadeProvider.class);
-
-        // S3DatabaseSecurityFacadeProvider binder
-        configBinder(binder).bindConfig(S3DatabaseSecurityFacadeProviderConfig.class);
-        newOptionalBinder(binder, S3DatabaseSecurityFacadeProvider.class);
+        newOptionalBinder(binder, S3SecurityFacadeProvider.class).setDefault().toProvider(() -> {
+            log.info("Using default %s NOOP implementation", S3SecurityFacadeProvider.class.getSimpleName());
+            return S3SecurityFacadeProvider.NOOP;
+        });
+        install(optionalPluginModule(S3SecurityFacadeProviderConfig.class, S3_DATABASE_SECURITY_IDENTIFIER, S3SecurityFacadeProvider.class, S3DatabaseSecurityController.class, _ -> {}));
 
         // CredentialsProvider binder
         configBinder(binder).bindConfig(CredentialsProviderConfig.class);
