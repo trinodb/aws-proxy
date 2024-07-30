@@ -17,5 +17,5 @@ import java.util.Optional;
 
 public interface PluginIdentifierConfig
 {
-    Optional<String> getOptionalPluginIdentifier();
+    Optional<String> getPluginIdentifier();
 }

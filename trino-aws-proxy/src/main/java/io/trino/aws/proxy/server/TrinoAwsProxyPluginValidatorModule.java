@@ -35,18 +35,18 @@ public class TrinoAwsProxyPluginValidatorModule
                 AssumedRoleProvider assumedRoleProvider)
         {
             boolean credentialsProviderIsNoop = credentialsProvider.equals(CredentialsProvider.NOOP);
-            boolean credentialsProviderIsConfigured = credentialsProviderConfig.getOptionalPluginIdentifier().isPresent();
+            boolean credentialsProviderIsConfigured = credentialsProviderConfig.getPluginIdentifier().isPresent();
             checkArgument(!(credentialsProviderIsNoop && credentialsProviderIsConfigured),
                     "%s of type \"%s\" is not registered",
                     CredentialsProvider.class.getSimpleName(),
-                    credentialsProviderConfig.getOptionalPluginIdentifier().orElse("<empty>"));
+                    credentialsProviderConfig.getPluginIdentifier().orElse("<empty>"));
 
             boolean assumedRoleProviderIsNoop = assumedRoleProvider.equals(AssumedRoleProvider.NOOP);
-            boolean assumedRoleProviderIsConfigured = assumedRoleProviderConfig.getOptionalPluginIdentifier().isPresent();
+            boolean assumedRoleProviderIsConfigured = assumedRoleProviderConfig.getPluginIdentifier().isPresent();
             checkArgument(!(assumedRoleProviderIsNoop && assumedRoleProviderIsConfigured),
                     "%s of type \"%s\" is not registered",
                     AssumedRoleProvider.class.getSimpleName(),
-                    assumedRoleProviderConfig.getOptionalPluginIdentifier().orElse("<empty>"));
+                    assumedRoleProviderConfig.getPluginIdentifier().orElse("<empty>"));
         }
     }
 

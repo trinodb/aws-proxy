@@ -25,13 +25,13 @@ public class AssumedRoleProviderConfig
 
     @NotNull
     @Override
-    public Optional<String> getOptionalPluginIdentifier()
+    public Optional<String> getPluginIdentifier()
     {
         return identifier;
     }
 
     @Config("assumed-role-provider.type")
-    public void setOptionalPluginIdentifier(String identifier)
+    public void setPluginIdentifier(String identifier)
     {
         this.identifier = Optional.ofNullable(identifier);
     }

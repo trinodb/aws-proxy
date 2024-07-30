@@ -25,13 +25,13 @@ public class S3DatabaseSecurityFacadeProviderConfig
 
     @NotNull
     @Override
-    public Optional<String> getOptionalPluginIdentifier()
+    public Optional<String> getPluginIdentifier()
     {
         return identifier;
     }
 
     @Config("s3-database-security.type")
-    public void setOptionalPluginIdentifier(String identifier)
+    public void setPluginIdentifier(String identifier)
     {
         this.identifier = Optional.ofNullable(identifier);
     }
