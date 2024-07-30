@@ -13,10 +13,15 @@
  */
 package io.trino.aws.proxy.server.credentials.file;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.module.SimpleModule;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.io.Resources;
 import io.airlift.json.ObjectMapperProvider;
+import io.trino.aws.proxy.server.testing.TestingIdentity;
 import io.trino.aws.proxy.spi.credentials.Credential;
 import io.trino.aws.proxy.spi.credentials.Credentials;
+import io.trino.aws.proxy.spi.credentials.Identity;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
@@ -34,7 +39,9 @@ public class TestFileBasedCredentialsProvider
     {
         File configFile = new File(Resources.getResource("credentials.json").getFile());
         FileBasedCredentialsProviderConfig config = new FileBasedCredentialsProviderConfig().setCredentialsFile(configFile);
-        credentialsProvider = new FileBasedCredentialsProvider(config, new ObjectMapperProvider().get());
+        ObjectMapper objectMapper = new ObjectMapperProvider()
+                .withModules(ImmutableSet.of(new SimpleModule().addAbstractTypeMapping(Identity.class, TestingIdentity.class))).get();
+        credentialsProvider = new FileBasedCredentialsProvider(config, objectMapper);
     }
 
     @Test
@@ -42,7 +49,7 @@ public class TestFileBasedCredentialsProvider
     {
         Credential emulated = new Credential("test-emulated-access-key", "test-emulated-secret");
         Credential remote = new Credential("test-remote-access-key", "test-remote-secret");
-        Credentials expected = new Credentials(emulated, Optional.of(remote), Optional.empty());
+        Credentials expected = new Credentials(emulated, Optional.of(remote), Optional.empty(), Optional.of(new TestingIdentity("test-username")));
         Optional<Credentials> actual = credentialsProvider.credentials("test-emulated-access-key", Optional.empty());
         assertThat(actual).contains(expected);
     }
