@@ -16,13 +16,14 @@ package io.trino.aws.proxy.server.rest;
 import com.google.common.base.Splitter;
 import com.google.common.base.Suppliers;
 import io.airlift.log.Logger;
+import io.trino.aws.proxy.server.rest.RequestHeadersBuilder.InternalRequestHeaders;
 import io.trino.aws.proxy.server.signing.SigningQueryParameters;
 import io.trino.aws.proxy.spi.rest.ParsedS3Request;
 import io.trino.aws.proxy.spi.rest.Request;
 import io.trino.aws.proxy.spi.rest.RequestContent;
 import io.trino.aws.proxy.spi.rest.RequestContent.ContentType;
+import io.trino.aws.proxy.spi.rest.RequestHeaders;
 import io.trino.aws.proxy.spi.signing.RequestAuthorization;
-import io.trino.aws.proxy.spi.util.AwsTimestamp;
 import io.trino.aws.proxy.spi.util.ImmutableMultiMap;
 import io.trino.aws.proxy.spi.util.MultiMap;
 import jakarta.ws.rs.WebApplicationException;
@@ -41,7 +42,6 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Supplier;
 
-import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.io.ByteStreams.toByteArray;
 import static io.trino.aws.proxy.server.signing.SigningQueryParameters.splitQueryParameters;
 import static jakarta.ws.rs.core.Response.Status.BAD_REQUEST;
@@ -54,17 +54,15 @@ class RequestBuilder
 
     static Request fromRequest(ContainerRequest request)
     {
-        MultiMap requestHeaders = ImmutableMultiMap.copyOfCaseInsensitive(request.getHeaders().entrySet());
+        InternalRequestHeaders requestHeaders = RequestHeadersBuilder.parseHeaders(ImmutableMultiMap.copyOfCaseInsensitive(request.getHeaders().entrySet()));
         Optional<Instant> requestTimestamp;
 
         RequestContent requestContent = request.hasEntity() ? buildRequestContent(request.getEntityStream(), requestHeaders) : RequestContent.EMPTY;
         SigningQueryParameters signingQueryParameters = splitQueryParameters(ImmutableMultiMap.copyOf(request.getUriInfo().getQueryParameters(true).entrySet()));
 
-        Optional<RequestAuthorization> requestAuthorization = requestHeaders.getFirst("authorization")
-                .map(authorizationHeader -> RequestAuthorization.parse(authorizationHeader, requestHeaders.getFirst("x-amz-security-token")));
+        Optional<RequestAuthorization> requestAuthorization = requestHeaders.requestAuthorization();
         if (requestAuthorization.isPresent()) {
-            requestTimestamp = requestHeaders.getFirst("x-amz-date")
-                    .map(AwsTimestamp::fromRequestTimestamp);
+            requestTimestamp = requestHeaders.requestDate();
         }
         else {
             requestAuthorization = signingQueryParameters.toRequestAuthorization();
@@ -81,7 +79,7 @@ class RequestBuilder
                     return new WebApplicationException(BAD_REQUEST);
                 }),
                 request.getRequestUri(),
-                requestHeaders,
+                requestHeaders.requestHeaders(),
                 signingQueryParameters.passthroughQueryParameters(),
                 request.getMethod(),
                 requestContent);
@@ -91,7 +89,7 @@ class RequestBuilder
     {
         String httpVerb = request.httpVerb();
         MultiMap queryParameters = request.requestQueryParameters();
-        MultiMap headers = request.requestHeaders();
+        RequestHeaders headers = request.requestHeaders();
         Optional<String> rawQuery = Optional.ofNullable(request.requestUri().getRawQuery());
         RequestContent requestContent = request.requestContent();
 
@@ -100,7 +98,7 @@ class RequestBuilder
         BucketAndKey bucketAndKey = serverHostName
                 .flatMap(serverHostNameValue -> {
                     String lowercaseServerHostName = serverHostNameValue.toLowerCase(Locale.ROOT);
-                    return headers.getFirst("host")
+                    return headers.unmodifiedHeaders().getFirst("host")
                             .map(value -> UriBuilder.fromUri("http://" + value.toLowerCase(Locale.ROOT)).build().getHost())
                             .filter(value -> value.endsWith(lowercaseServerHostName))
                             .map(value -> value.substring(0, value.length() - lowercaseServerHostName.length()))
@@ -135,9 +133,9 @@ class RequestBuilder
     }
 
     @SuppressWarnings("SwitchStatementWithTooFewBranches")
-    private static RequestContent buildRequestContent(InputStream requestEntityStream, MultiMap requestHeaders)
+    private static RequestContent buildRequestContent(InputStream requestEntityStream, InternalRequestHeaders requestHeaders)
     {
-        ContentType contentType = getRequestContentTypeFromHeaders(requestHeaders);
+        ContentType contentType = requestHeaders.requestPayloadContentType().orElse(ContentType.STANDARD);
 
         Supplier<Optional<byte[]>> bytesSupplier = switch (contentType) {
             case STANDARD -> Suppliers.memoize(() -> {
@@ -156,15 +154,7 @@ class RequestBuilder
             case STANDARD -> () -> bytesSupplier.get().map(bytes -> bytes.length);
 
             case AWS_CHUNKED -> () -> {
-                int contentLength = requestHeaders.getFirst("x-amz-decoded-content-length")
-                        .map(header -> {
-                            try {
-                                return Integer.parseInt(header);
-                            }
-                            catch (NumberFormatException e) {
-                                throw new WebApplicationException(e, BAD_REQUEST);
-                            }
-                        })
+                int contentLength = requestHeaders.decodedContentLength()
                         .orElseThrow(() -> new WebApplicationException(BAD_REQUEST));
                 return Optional.of(contentLength);
             };
@@ -199,35 +189,6 @@ class RequestBuilder
                         .map(bytes -> (InputStream) new ByteArrayInputStream(bytes))
                         .or(() -> Optional.of(requestEntityStream));
             }
-        };
-    }
-
-    private static Optional<ContentType> getChunkingType(String valueToParse)
-    {
-        return switch (valueToParse.toLowerCase(Locale.ROOT).trim()) {
-            case "aws-chunked" -> Optional.of(ContentType.AWS_CHUNKED);
-            case "chunked" -> Optional.of(ContentType.W3C_CHUNKED);
-            default -> Optional.empty();
-        };
-    }
-
-    private static ContentType getRequestContentTypeFromHeaders(MultiMap requestHeaders)
-    {
-        List<String> requestContentEncoding = requestHeaders.get("content-encoding");
-        if (requestContentEncoding.isEmpty()) {
-            return getChunkingType(requestHeaders.getFirst("transfer-encoding").orElse("")).orElse(ContentType.STANDARD);
-        }
-        // As per RFC9110 Section 5.3.1:
-        // Multiple content encoding headers may be sent
-        // Or alternatively a single one may contain multiple comma-separated values
-        List<ContentType> allContentEncodings = requestContentEncoding.stream()
-                .flatMap(item -> Splitter.on(",").splitToStream(item))
-                .flatMap(valueToParse -> getChunkingType(valueToParse).stream())
-                .collect(toImmutableList());
-        return switch (allContentEncodings.size()) {
-            case 0 -> ContentType.STANDARD;
-            case 1 -> allContentEncodings.getFirst();
-            default -> throw new WebApplicationException(BAD_REQUEST);
         };
     }
 }

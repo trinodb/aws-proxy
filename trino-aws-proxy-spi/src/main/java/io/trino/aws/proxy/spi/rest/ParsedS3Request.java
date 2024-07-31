@@ -29,7 +29,7 @@ public record ParsedS3Request(
         Instant requestDate,
         String bucketName,
         String keyInBucket,
-        MultiMap requestHeaders,
+        RequestHeaders requestHeaders,
         MultiMap queryParameters,
         String httpVerb,
         String rawPath,
@@ -43,7 +43,7 @@ public record ParsedS3Request(
         requireNonNull(requestDate, "requestDate is null");
         requireNonNull(bucketName, "bucketName is null");
         requireNonNull(keyInBucket, "keyInBucket is null");
-        requestHeaders = ImmutableMultiMap.copyOfCaseInsensitive(requestHeaders);
+        requireNonNull(requestHeaders, "requestHeaders is null");
         queryParameters = ImmutableMultiMap.copyOf(queryParameters);
         requireNonNull(httpVerb, "httpVerb is null");
         requireNonNull(rawPath, "rawPath is null");

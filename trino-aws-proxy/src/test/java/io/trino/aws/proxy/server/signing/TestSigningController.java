@@ -22,6 +22,7 @@ import io.trino.aws.proxy.spi.credentials.Credentials;
 import io.trino.aws.proxy.spi.credentials.CredentialsProvider;
 import io.trino.aws.proxy.spi.rest.Request;
 import io.trino.aws.proxy.spi.rest.RequestContent;
+import io.trino.aws.proxy.spi.rest.RequestHeaders;
 import io.trino.aws.proxy.spi.signing.RequestAuthorization;
 import io.trino.aws.proxy.spi.signing.SigningController;
 import io.trino.aws.proxy.spi.signing.SigningMetadata;
@@ -59,8 +60,6 @@ public class TestSigningController
         requestHeadersBuilder.putOrReplaceSingle("X-Amz-Content-SHA256", "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855");
         requestHeadersBuilder.putOrReplaceSingle("X-Amz-Security-Token", "FwoGZXIvYXdzEP3//////////wEaDG79rlcAjsgKPP9N3SKIAu7/Zvngne5Ov6kGrDcIIPUZYkGpwNbj8zNnbWgOhiqmOCM3hrk4NuH17mP5n3nC7urlXZxaTCywKpAHpO3YsvLXcwjlfaYFA0Au4oejwSbU9ybIlzPzrqz7lVesgCfJOV+rj5F5UAh19d7RpRpA6Vy4nxGBTTlCNIVbkW9fp2Esql2/vsdh77rAG+j+BQegtegDCKBfen4gHMdvEOF6hyc4ne43eLXjpvUKxBgpI9MjOHtNHrDbOOBFXDDyknoESgE9Hsm12nDuVQhwrI/hhA4YB/MSIpl4FTgVs2sQP3K+v65tmyvIlpL6O78S6spMM9Tv/F4JLtksTzb90w46uZk9sxKC/RBkRijisM6tBjIrr/0znxnW3i5ggGAX4H/Z3aWlxSdzNs2UGWtqig9Plp3Xa9gG+zCKcXmDAA==");
         requestHeadersBuilder.putOrReplaceSingle("Host", "localhost:10064");
-        requestHeadersBuilder.putOrReplaceSingle("User-Agent", "aws-cli/2.15.16 Python/3.11.7 Darwin/22.6.0 source/x86_64 prompt/off command/s3.ls");
-        requestHeadersBuilder.putOrReplaceSingle("Accept-Encoding", "identity");
 
         String signature = LARGE_DRIFT_SIGNING_CONTROLLER.signRequest(
                 new SigningMetadata(SigningServiceType.S3, CREDENTIALS, Optional.empty()),
@@ -87,8 +86,6 @@ public class TestSigningController
         requestHeadersBuilder.putOrReplaceSingle("X-Amz-Content-SHA256", "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855");
         requestHeadersBuilder.putOrReplaceSingle("X-Amz-Security-Token", "FwoGZXIvYXdzEP3//////////wEaDG79rlcAjsgKPP9N3SKIAu7/Zvngne5Ov6kGrDcIIPUZYkGpwNbj8zNnbWgOhiqmOCM3hrk4NuH17mP5n3nC7urlXZxaTCywKpAHpO3YsvLXcwjlfaYFA0Au4oejwSbU9ybIlzPzrqz7lVesgCfJOV+rj5F5UAh19d7RpRpA6Vy4nxGBTTlCNIVbkW9fp2Esql2/vsdh77rAG+j+BQegtegDCKBfen4gHMdvEOF6hyc4ne43eLXjpvUKxBgpI9MjOHtNHrDbOOBFXDDyknoESgE9Hsm12nDuVQhwrI/hhA4YB/MSIpl4FTgVs2sQP3K+v65tmyvIlpL6O78S6spMM9Tv/F4JLtksTzb90w46uZk9sxKC/RBkRijisM6tBjIrr/0znxnW3i5ggGAX4H/Z3aWlxSdzNs2UGWtqig9Plp3Xa9gG+zCKcXmDAA==");
         requestHeadersBuilder.putOrReplaceSingle("Host", "localhost:10064");
-        requestHeadersBuilder.putOrReplaceSingle("User-Agent", "aws-cli/2.15.16 Python/3.11.7 Darwin/22.6.0 source/x86_64 prompt/off command/s3.ls");
-        requestHeadersBuilder.putOrReplaceSingle("Accept-Encoding", "identity");
 
         ImmutableMultiMap.Builder queryParametersBuilder = ImmutableMultiMap.builder(true);
         queryParametersBuilder.putOrReplaceSingle("list-type", "2");
@@ -183,7 +180,8 @@ public class TestSigningController
         SigningController requestSigningController = new InternalSigningController(CREDENTIALS_CONTROLLER, new SigningControllerConfig().setMaxClockDrift(maxClockDrift), requestLoggerController);
 
         URI requestUri = URI.create("http://dummy-url");
-        MultiMap requestHeaders = ImmutableMultiMap.builder(false).putOrReplaceSingle("Host", "http://127.0.0.1:8888").build();
+        MultiMap requestHeaderValues = ImmutableMultiMap.builder(false).putOrReplaceSingle("Host", "http://127.0.0.1:8888").build();
+        RequestHeaders requestHeaders = new RequestHeaders(requestHeaderValues, requestHeaderValues);
         MultiMap requestQueryParams = ImmutableMultiMap.empty();
 
         RequestAuthorization authorization = requestSigningController.signRequest(
@@ -193,7 +191,7 @@ public class TestSigningController
                 requestExpiry,
                 Credentials::emulated,
                 requestUri,
-                requestHeaders,
+                requestHeaderValues,
                 requestQueryParams,
                 "POST").signingAuthorization();
         Request requestToValidate = new Request(UUID.randomUUID(), authorization, requestDate, requestUri, requestHeaders, requestQueryParams, "POST", RequestContent.EMPTY);

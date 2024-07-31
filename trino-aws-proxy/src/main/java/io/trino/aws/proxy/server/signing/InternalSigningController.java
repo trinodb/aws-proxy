@@ -34,7 +34,6 @@ import jakarta.ws.rs.core.Response;
 import java.net.URI;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.Locale;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
@@ -172,7 +171,7 @@ public class InternalSigningController
             Request request,
             Function<Credentials, Credential> credentialsSupplier)
     {
-        SigningHeaders signingHeaders = SigningHeaders.build(request.requestHeaders(), request.requestAuthorization().lowercaseSignedHeaders());
+        SigningHeaders signingHeaders = SigningHeaders.build(request.requestHeaders().unmodifiedHeaders(), request.requestAuthorization().lowercaseSignedHeaders());
         SigningContext signingContext = internalSignRequest(
                 metadata,
                 request.requestAuthorization().region(),
@@ -193,13 +192,5 @@ public class InternalSigningController
         requestLoggerController.currentRequestSession(request.requestId())
                 .logError("request.security.authorization.mismatch", ImmutableMap.of("request", request.requestAuthorization(), "generated", signingContext.signingAuthorization()));
         return Optional.empty();
-    }
-
-    private static String lowercaseHeader(String headerName, String headerValue)
-    {
-        if (!LOWERCASE_HEADERS.contains(headerName)) {
-            return headerValue;
-        }
-        return headerValue.toLowerCase(Locale.ROOT);
     }
 }

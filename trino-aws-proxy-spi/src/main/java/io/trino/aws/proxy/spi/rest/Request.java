@@ -28,7 +28,7 @@ public record Request(
         RequestAuthorization requestAuthorization,
         Instant requestDate,
         URI requestUri,
-        MultiMap requestHeaders,
+        RequestHeaders requestHeaders,
         MultiMap requestQueryParameters,
         String httpVerb,
         RequestContent requestContent)
@@ -39,7 +39,7 @@ public record Request(
         requireNonNull(requestAuthorization, "requestAuthorization is null");
         requireNonNull(requestDate, "requestDate is null");
         requireNonNull(requestUri, "requestUri is null");
-        requestHeaders = ImmutableMultiMap.copyOfCaseInsensitive(requestHeaders);
+        requireNonNull(requestHeaders, "requestHeaders is null");
         requestQueryParameters = ImmutableMultiMap.copyOf(requestQueryParameters);
         requireNonNull(httpVerb, "httpVerb is null");
         requireNonNull(requestContent, "requestContent is null");
