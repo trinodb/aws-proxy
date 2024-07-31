@@ -41,11 +41,14 @@ class AwsChunkedInputStream
     private State state = State.FIRST_CHUNK;
     private boolean delegateIsDone;
     private int bytesRemainingInChunk;
+    private int bytesAccountedFor;
+    private final int decodedContentLength;
 
-    AwsChunkedInputStream(InputStream delegate, ChunkSigningSession chunkSigningSession)
+    AwsChunkedInputStream(InputStream delegate, ChunkSigningSession chunkSigningSession, int decodedContentLength)
     {
         this.delegate = requireNonNull(delegate, "delegate is null");
         this.chunkSigningSession = requireNonNull(chunkSigningSession, "chunkSigningSession is null");
+        this.decodedContentLength = decodedContentLength;
     }
 
     @Override
@@ -185,6 +188,7 @@ class AwsChunkedInputStream
                 chunkSigningSession.complete();
                 state = State.LAST_CHUNK;
             }
+            bytesAccountedFor += chunkSize;
 
             success = true;
         }
@@ -192,6 +196,9 @@ class AwsChunkedInputStream
 
         if (!success) {
             throw new IOException("Invalid chunk header: " + header);
+        }
+        if (bytesAccountedFor > decodedContentLength) {
+            throw new IllegalStateException("chunked data headers report a larger size than originally declared in the request: declared %s sent %s".formatted(decodedContentLength, bytesAccountedFor));
         }
     }
 

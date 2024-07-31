@@ -103,9 +103,7 @@ public class TestingChunkSigningSession
             int thisLength = Math.min(chunkSize, content.length() - index);
             String thisChunk = content.substring(index, index + thisLength);
 
-            Hasher hasher = Hashing.sha256().newHasher();
-            hasher.putString(thisChunk, UTF_8);
-            String thisSignature = chunkSigner.signChunk(hasher.hash(), previousSignature);
+            String thisSignature = getChunkSignature(thisChunk, previousSignature);
             chunkedStream.append(Integer.toHexString(thisLength)).append(";chunk-signature=").append(thisSignature).append("\r\n");
             chunkedStream.append(thisChunk).append("\r\n");
             previousSignature = thisSignature;
@@ -117,6 +115,14 @@ public class TestingChunkSigningSession
         chunkedStream.append("0;chunk-signature=").append(thisSignature).append("\r\n\r\n");
 
         return chunkedStream.toString();
+    }
+
+    @SuppressWarnings("UnstableApiUsage")
+    public String getChunkSignature(String chunkContent, String previousSignature)
+    {
+        Hasher hasher = Hashing.sha256().newHasher();
+        hasher.putString(chunkContent, UTF_8);
+        return chunkSigner.signChunk(hasher.hash(), previousSignature);
     }
 
     private TestingChunkSigningSession(String seed, Instant instant, byte[] signingKey, String keyPath)
