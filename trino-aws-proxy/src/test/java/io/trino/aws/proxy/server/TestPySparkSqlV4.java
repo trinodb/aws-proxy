@@ -14,15 +14,26 @@
 package io.trino.aws.proxy.server;
 
 import com.google.inject.Inject;
+import io.trino.aws.proxy.server.testing.TestingTrinoAwsProxyServer;
 import io.trino.aws.proxy.server.testing.containers.PySparkContainer;
+import io.trino.aws.proxy.server.testing.harness.BuilderFilter;
 import io.trino.aws.proxy.server.testing.harness.TrinoAwsProxyTest;
-import io.trino.aws.proxy.server.testing.harness.TrinoAwsProxyTestCommonModules.WithAllV4Containers;
 import software.amazon.awssdk.services.s3.S3Client;
 
-@TrinoAwsProxyTest(filters = WithAllV4Containers.class)
+@TrinoAwsProxyTest(filters = TestPySparkSqlV4.Filter.class)
 public class TestPySparkSqlV4
         extends TestPySparkSql
 {
+    public static class Filter
+            implements BuilderFilter
+    {
+        @Override
+        public TestingTrinoAwsProxyServer.Builder filter(TestingTrinoAwsProxyServer.Builder builder)
+        {
+            return builder.withV4PySparkContainer();
+        }
+    }
+
     @Inject
     public TestPySparkSqlV4(S3Client s3Client, PySparkContainer pySparkContainer)
     {
