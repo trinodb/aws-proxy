@@ -13,11 +13,14 @@
  */
 package io.trino.aws.proxy.spi.plugin;
 
+import com.google.inject.Binder;
 import com.google.inject.Module;
 import com.google.inject.Scopes;
+import com.google.inject.TypeLiteral;
 import io.airlift.log.Logger;
 import io.trino.aws.proxy.spi.credentials.AssumedRoleProvider;
 import io.trino.aws.proxy.spi.credentials.CredentialsProvider;
+import io.trino.aws.proxy.spi.credentials.Identity;
 import io.trino.aws.proxy.spi.plugin.config.AssumedRoleProviderConfig;
 import io.trino.aws.proxy.spi.plugin.config.CredentialsProviderConfig;
 import io.trino.aws.proxy.spi.plugin.config.PluginIdentifierConfig;
@@ -45,6 +48,14 @@ public interface TrinoAwsProxyServerBinding
     static Module s3SecurityFacadeProviderModule(String identifier, Class<? extends S3SecurityFacadeProvider> implementationClass, Module module)
     {
         return optionalPluginModule(S3SecurityFacadeProviderConfig.class, identifier, S3SecurityFacadeProvider.class, implementationClass, module);
+    }
+
+    static <T extends Identity> void bindIdentityType(Binder binder, Class<T> type)
+    {
+        newOptionalBinder(binder, new TypeLiteral<Class<? extends Identity>>() {}).setBinding().toProvider(() -> {
+            log.info("Using %s identity type", type.getSimpleName());
+            return type;
+        });
     }
 
     static <Implementation> Module optionalPluginModule(
