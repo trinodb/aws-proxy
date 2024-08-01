@@ -26,6 +26,7 @@ import software.amazon.awssdk.services.s3.model.HeadObjectRequest;
 import software.amazon.awssdk.services.s3.model.HeadObjectResponse;
 import software.amazon.awssdk.services.s3.model.ObjectIdentifier;
 import software.amazon.awssdk.services.s3.model.S3Exception;
+import software.amazon.awssdk.services.s3.model.S3Object;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -129,5 +130,10 @@ public final class TestingUtil
                 .isThrownBy(() -> getFileFromStorage(storageClient, bucket, key))
                 .extracting(S3Exception::statusCode)
                 .isEqualTo(404);
+    }
+
+    public static List<String> listFilesInS3Bucket(S3Client storageClient, String bucket)
+    {
+        return storageClient.listObjects(request -> request.bucket(bucket)).contents().stream().map(S3Object::key).collect(toImmutableList());
     }
 }
