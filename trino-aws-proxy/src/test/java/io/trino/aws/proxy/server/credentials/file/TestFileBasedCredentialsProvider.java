@@ -15,6 +15,7 @@ package io.trino.aws.proxy.server.credentials.file;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.module.SimpleModule;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.io.Resources;
 import io.airlift.json.ObjectMapperProvider;
@@ -49,7 +50,7 @@ public class TestFileBasedCredentialsProvider
     {
         Credential emulated = new Credential("test-emulated-access-key", "test-emulated-secret");
         Credential remote = new Credential("test-remote-access-key", "test-remote-secret");
-        Credentials expected = new Credentials(emulated, Optional.of(remote), Optional.empty(), Optional.of(new TestingIdentity("test-username")));
+        Credentials expected = new Credentials(emulated, Optional.of(remote), Optional.empty(), Optional.of(new TestingIdentity("test-username", ImmutableList.of())));
         Optional<Credentials> actual = credentialsProvider.credentials("test-emulated-access-key", Optional.empty());
         assertThat(actual).contains(expected);
     }

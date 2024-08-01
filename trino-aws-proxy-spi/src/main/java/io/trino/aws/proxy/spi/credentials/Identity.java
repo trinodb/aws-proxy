@@ -13,7 +13,11 @@
  */
 package io.trino.aws.proxy.spi.credentials;
 
+import java.util.List;
+
 public interface Identity
 {
     String user();
+
+    List<String> groups();
 }

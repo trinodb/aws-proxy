@@ -13,7 +13,11 @@
  */
 package io.trino.aws.proxy.server;
 
+import com.fasterxml.jackson.annotation.JsonSetter;
+import com.fasterxml.jackson.annotation.Nulls;
+import com.fasterxml.jackson.databind.Module;
 import com.fasterxml.jackson.databind.PropertyNamingStrategies;
+import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.fasterxml.jackson.dataformat.xml.XmlMapper;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.inject.Binder;
@@ -40,6 +44,8 @@ import io.trino.aws.proxy.server.signing.SigningControllerConfig;
 import io.trino.aws.proxy.server.signing.SigningModule;
 import io.trino.aws.proxy.spi.credentials.AssumedRoleProvider;
 import io.trino.aws.proxy.spi.credentials.CredentialsProvider;
+import io.trino.aws.proxy.spi.credentials.Identity;
+import io.trino.aws.proxy.spi.credentials.StandardIdentity;
 import io.trino.aws.proxy.spi.plugin.TrinoAwsProxyServerPlugin;
 import io.trino.aws.proxy.spi.plugin.config.AssumedRoleProviderConfig;
 import io.trino.aws.proxy.spi.plugin.config.CredentialsProviderConfig;
@@ -48,9 +54,13 @@ import io.trino.aws.proxy.spi.security.S3SecurityFacadeProvider;
 import io.trino.aws.proxy.spi.signing.SigningServiceType;
 import org.glassfish.jersey.server.model.Resource;
 
+import java.util.List;
+import java.util.Map;
 import java.util.ServiceLoader;
+import java.util.Set;
 
 import static com.google.inject.multibindings.MapBinder.newMapBinder;
+import static com.google.inject.multibindings.Multibinder.newSetBinder;
 import static com.google.inject.multibindings.OptionalBinder.newOptionalBinder;
 import static io.airlift.configuration.ConfigBinder.configBinder;
 import static io.airlift.http.client.HttpClientBinder.httpClientBinder;
@@ -100,6 +110,10 @@ public class TrinoAwsProxyServerModule
             log.info("Using default %s NOOP implementation", CredentialsProvider.class.getSimpleName());
             return CredentialsProvider.NOOP;
         });
+        newOptionalBinder(binder, new TypeLiteral<Class<? extends Identity>>() {}).setDefault().toProvider(() -> {
+            log.info("Using %s identity type", StandardIdentity.class.getSimpleName());
+            return StandardIdentity.class;
+        });
         // CredentialsProvider provided implementations
         install(new FileBasedCredentialsModule());
 
@@ -117,6 +131,8 @@ public class TrinoAwsProxyServerModule
 
         installPlugins();
         install(new TrinoAwsProxyPluginValidatorModule());
+
+        addNullCollectionModule(binder);
     }
 
     @Provides
@@ -145,6 +161,21 @@ public class TrinoAwsProxyServerModule
     protected void installSigningController(Binder binder)
     {
         install(new SigningModule());
+    }
+
+    private void addNullCollectionModule(Binder binder)
+    {
+        Module module = new SimpleModule()
+        {
+            @Override
+            public void setupModule(SetupContext context)
+            {
+                context.configOverride(List.class).setSetterInfo(JsonSetter.Value.forValueNulls(Nulls.AS_EMPTY));
+                context.configOverride(Set.class).setSetterInfo(JsonSetter.Value.forValueNulls(Nulls.AS_EMPTY));
+                context.configOverride(Map.class).setSetterInfo(JsonSetter.Value.forValueNulls(Nulls.AS_EMPTY));
+            }
+        };
+        newSetBinder(binder, Module.class).addBinding().toInstance(module);
     }
 
     private void installPlugins()

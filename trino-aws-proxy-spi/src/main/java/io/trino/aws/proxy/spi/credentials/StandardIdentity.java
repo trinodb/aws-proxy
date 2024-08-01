@@ -11,26 +11,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.trino.aws.proxy.server.testing;
-
-import io.trino.aws.proxy.spi.credentials.Identity;
+package io.trino.aws.proxy.spi.credentials;
 
 import java.util.List;
 
 import static java.util.Objects.requireNonNull;
 
-public record TestingIdentity(String user, List<String> groups)
+public record StandardIdentity(String user, List<String> groups)
         implements Identity
 {
-    public TestingIdentity
+    public StandardIdentity
     {
-        requireNonNull(user, "username is null");
+        requireNonNull(user, "user is null");
         requireNonNull(groups, "groups is null");
-    }
-
-    @Override
-    public String user()
-    {
-        return user;
     }
 }
