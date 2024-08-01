@@ -35,7 +35,6 @@ import io.trino.aws.proxy.server.rest.TrinoS3ProxyClient;
 import io.trino.aws.proxy.server.rest.TrinoS3ProxyClient.ForProxyClient;
 import io.trino.aws.proxy.server.rest.TrinoS3Resource;
 import io.trino.aws.proxy.server.rest.TrinoStsResource;
-import io.trino.aws.proxy.server.security.S3DatabaseSecurityController;
 import io.trino.aws.proxy.server.security.S3SecurityController;
 import io.trino.aws.proxy.server.signing.SigningControllerConfig;
 import io.trino.aws.proxy.server.signing.SigningModule;
@@ -57,8 +56,6 @@ import static io.airlift.configuration.ConfigBinder.configBinder;
 import static io.airlift.http.client.HttpClientBinder.httpClientBinder;
 import static io.airlift.http.server.HttpServerBinder.httpServerBinder;
 import static io.airlift.jaxrs.JaxrsBinder.jaxrsBinder;
-import static io.trino.aws.proxy.spi.plugin.TrinoAwsProxyServerPlugin.optionalPluginModule;
-import static io.trino.aws.proxy.spi.security.S3DatabaseSecurityFacadeProvider.S3_DATABASE_SECURITY_IDENTIFIER;
 
 public class TrinoAwsProxyServerModule
         extends AbstractConfigurationAwareModule
@@ -96,7 +93,6 @@ public class TrinoAwsProxyServerModule
             log.info("Using default %s NOOP implementation", S3SecurityFacadeProvider.class.getSimpleName());
             return S3SecurityFacadeProvider.NOOP;
         });
-        install(optionalPluginModule(S3SecurityFacadeProviderConfig.class, S3_DATABASE_SECURITY_IDENTIFIER, S3SecurityFacadeProvider.class, S3DatabaseSecurityController.class, _ -> {}));
 
         // CredentialsProvider binder
         configBinder(binder).bindConfig(CredentialsProviderConfig.class);
