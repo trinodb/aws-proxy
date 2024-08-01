@@ -17,8 +17,8 @@ import com.google.inject.Inject;
 import com.google.inject.Scopes;
 import io.trino.aws.proxy.server.testing.TestingTrinoAwsProxyServer;
 import io.trino.aws.proxy.server.testing.containers.PySparkContainer;
+import io.trino.aws.proxy.server.testing.harness.BuilderFilter;
 import io.trino.aws.proxy.server.testing.harness.TrinoAwsProxyTest;
-import io.trino.aws.proxy.server.testing.harness.TrinoAwsProxyTestCommonModules.WithAllContainers;
 import io.trino.aws.proxy.spi.rest.ParsedS3Request;
 import io.trino.aws.proxy.spi.security.S3DatabaseSecurityDecorator;
 import io.trino.aws.proxy.spi.security.S3SecurityFacade;
@@ -46,15 +46,14 @@ public class TestDatabaseSecurity
     public static final String TABLE_NAME = "people";
 
     public static class Filter
-            extends WithAllContainers
+            implements BuilderFilter
     {
         @Override
         public TestingTrinoAwsProxyServer.Builder filter(TestingTrinoAwsProxyServer.Builder builder)
         {
-            return super
-                    .filter(builder)
-                    .addModule(s3SecurityFacadeProviderModule("db", FacadeProvider.class, binder -> binder.bind(FacadeProvider.class).in(Scopes.SINGLETON)))
-                    .withProperty("s3-security.type", "db");
+            return builder.addModule(s3SecurityFacadeProviderModule("db", FacadeProvider.class, binder -> binder.bind(FacadeProvider.class).in(Scopes.SINGLETON)))
+                    .withProperty("s3-security.type", "db")
+                    .withV3PySparkContainer();
         }
     }
 

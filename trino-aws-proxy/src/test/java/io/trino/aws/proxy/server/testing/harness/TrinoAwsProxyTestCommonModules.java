@@ -79,31 +79,5 @@ public final class TrinoAwsProxyTestCommonModules
         }
     }
 
-    public static class WithAllContainers
-            implements BuilderFilter
-    {
-        @Override
-        public TestingTrinoAwsProxyServer.Builder filter(TestingTrinoAwsProxyServer.Builder builder)
-        {
-            return builder.withV3PySparkContainer()
-                    .withS3Container()
-                    .withPostgresContainer()
-                    .withMetastoreContainer();
-        }
-    }
-
-    public static class WithAllV4Containers
-            implements BuilderFilter
-    {
-        @Override
-        public TestingTrinoAwsProxyServer.Builder filter(TestingTrinoAwsProxyServer.Builder builder)
-        {
-            return builder.withV4PySparkContainer()
-                    .withS3Container()
-                    .withPostgresContainer()
-                    .withMetastoreContainer();
-        }
-    }
-
     private TrinoAwsProxyTestCommonModules() {}
 }
