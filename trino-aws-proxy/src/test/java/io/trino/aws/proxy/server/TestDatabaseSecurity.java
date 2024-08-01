@@ -19,9 +19,11 @@ import io.trino.aws.proxy.server.testing.TestingTrinoAwsProxyServer;
 import io.trino.aws.proxy.server.testing.containers.PySparkContainer;
 import io.trino.aws.proxy.server.testing.harness.TrinoAwsProxyTest;
 import io.trino.aws.proxy.server.testing.harness.TrinoAwsProxyTestCommonModules.WithAllContainers;
+import io.trino.aws.proxy.spi.plugin.TrinoAwsProxyServerPlugin;
 import io.trino.aws.proxy.spi.rest.ParsedS3Request;
-import io.trino.aws.proxy.spi.security.S3DatabaseSecurityFacade;
-import io.trino.aws.proxy.spi.security.S3DatabaseSecurityFacadeProvider;
+import io.trino.aws.proxy.spi.security.S3DatabaseSecurityDecorator;
+import io.trino.aws.proxy.spi.security.S3SecurityFacade;
+import io.trino.aws.proxy.spi.security.S3SecurityFacadeProvider;
 import io.trino.aws.proxy.spi.security.SecurityResponse;
 import jakarta.ws.rs.WebApplicationException;
 import org.junit.jupiter.api.Test;
@@ -33,8 +35,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import static io.trino.aws.proxy.server.TestPySparkSql.createDatabaseAndTable;
 import static io.trino.aws.proxy.server.testing.containers.DockerAttachUtil.clearInputStreamAndClose;
 import static io.trino.aws.proxy.server.testing.containers.DockerAttachUtil.inputToContainerStdin;
-import static io.trino.aws.proxy.spi.security.S3DatabaseSecurityFacadeProvider.S3_DATABASE_SECURITY_IDENTIFIER;
 import static io.trino.aws.proxy.spi.security.SecurityResponse.FAILURE;
+import static io.trino.aws.proxy.spi.security.SecurityResponse.SUCCESS;
 import static java.util.Objects.requireNonNull;
 
 @TrinoAwsProxyTest(filters = TestDatabaseSecurity.Filter.class)
@@ -51,40 +53,37 @@ public class TestDatabaseSecurity
         {
             return super
                     .filter(builder)
-                    .addModule(binder -> {
-                        binder.bind(S3DatabaseSecurityFacadeProvider.class).to(FacadeProvider.class).in(Scopes.SINGLETON);
-                        binder.bind(FacadeProvider.class).in(Scopes.SINGLETON);
-                    })
-                    .withProperty("s3-security.type", S3_DATABASE_SECURITY_IDENTIFIER);
+                    .addModule(TrinoAwsProxyServerPlugin.s3SecurityFacadeProviderModule("db", FacadeProvider.class, binder -> binder.bind(FacadeProvider.class).in(Scopes.SINGLETON)))
+                    .withProperty("s3-security.type", "db");
         }
     }
 
     public static class FacadeProvider
-            implements S3DatabaseSecurityFacadeProvider
+            implements S3DatabaseSecurityDecorator, S3SecurityFacadeProvider
     {
         final AtomicBoolean disallowGets = new AtomicBoolean();
 
         @Override
-        public S3DatabaseSecurityFacade securityFacadeForRequest(ParsedS3Request request)
+        public S3SecurityFacade securityFacadeForRequest(ParsedS3Request request)
                 throws WebApplicationException
         {
-            return new S3DatabaseSecurityFacade()
-            {
-                @Override
-                public Optional<String> tableName(Optional<String> lowercaseAction)
-                {
-                    return Optional.of(TABLE_NAME);
-                }
+            S3SecurityFacade s3SecurityFacade = lowercaseAction -> SUCCESS;
+            return S3DatabaseSecurityDecorator.decorate(request, s3SecurityFacade, this);
+        }
 
-                @Override
-                public SecurityResponse tableOperation(String tableName, Optional<String> lowercaseAction)
-                {
-                    if (disallowGets.get() && request.httpVerb().equalsIgnoreCase("GET")) {
-                        return FAILURE;
-                    }
-                    return S3DatabaseSecurityFacade.super.tableOperation(tableName, lowercaseAction);
-                }
-            };
+        @Override
+        public Optional<String> tableName(ParsedS3Request request, Optional<String> lowercaseAction)
+        {
+            return Optional.of(TABLE_NAME);
+        }
+
+        @Override
+        public SecurityResponse tableOperation(ParsedS3Request request, String tableName, Optional<String> lowercaseAction)
+        {
+            if (disallowGets.get() && request.httpVerb().equalsIgnoreCase("GET")) {
+                return FAILURE;
+            }
+            return SUCCESS;
         }
     }
 
