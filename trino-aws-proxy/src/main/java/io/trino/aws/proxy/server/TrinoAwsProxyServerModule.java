@@ -40,6 +40,7 @@ import io.trino.aws.proxy.server.rest.TrinoS3ProxyClient.ForProxyClient;
 import io.trino.aws.proxy.server.rest.TrinoS3Resource;
 import io.trino.aws.proxy.server.rest.TrinoStsResource;
 import io.trino.aws.proxy.server.security.S3SecurityController;
+import io.trino.aws.proxy.server.security.opa.OpaS3SecurityModule;
 import io.trino.aws.proxy.server.signing.SigningControllerConfig;
 import io.trino.aws.proxy.server.signing.SigningModule;
 import io.trino.aws.proxy.spi.credentials.AssumedRoleProvider;
@@ -114,8 +115,10 @@ public class TrinoAwsProxyServerModule
             log.info("Using %s identity type", StandardIdentity.class.getSimpleName());
             return StandardIdentity.class;
         });
-        // CredentialsProvider provided implementations
+
+        // provided implementations
         install(new FileBasedCredentialsModule());
+        install(new OpaS3SecurityModule());
 
         // AssumedRoleProvider binder
         configBinder(binder).bindConfig(AssumedRoleProviderConfig.class);

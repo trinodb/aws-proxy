@@ -35,6 +35,7 @@ import io.trino.aws.proxy.server.remote.RemoteS3Facade;
 import io.trino.aws.proxy.server.testing.TestingTrinoAwsProxyServerModule.ForTestingRemoteCredentials;
 import io.trino.aws.proxy.server.testing.TestingUtil.ForTesting;
 import io.trino.aws.proxy.server.testing.containers.MetastoreContainer;
+import io.trino.aws.proxy.server.testing.containers.OpaContainer;
 import io.trino.aws.proxy.server.testing.containers.PostgresContainer;
 import io.trino.aws.proxy.server.testing.containers.PySparkContainer;
 import io.trino.aws.proxy.server.testing.containers.PySparkContainer.PySparkV3Container;
@@ -93,6 +94,7 @@ public final class TestingTrinoAwsProxyServer
         private boolean metastoreContainerAdded;
         private boolean v3PySparkContainerAdded;
         private boolean v4PySparkContainerAdded;
+        private boolean opaContainerAdded;
         private boolean addTestingCredentialsRoleProviders = true;
 
         public Builder addModule(Module module)
@@ -192,6 +194,17 @@ public final class TestingTrinoAwsProxyServer
         public Builder withoutTestingCredentialsRoleProviders()
         {
             addTestingCredentialsRoleProviders = false;
+            return this;
+        }
+
+        public Builder withOpaContainer()
+        {
+            if (opaContainerAdded) {
+                return this;
+            }
+            opaContainerAdded = true;
+
+            modules.add(binder -> binder.bind(OpaContainer.class).asEagerSingleton());
             return this;
         }
 
