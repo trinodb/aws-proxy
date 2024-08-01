@@ -50,8 +50,8 @@ import java.util.Map;
 
 import static com.google.inject.multibindings.OptionalBinder.newOptionalBinder;
 import static io.trino.aws.proxy.server.testing.TestingUtil.TESTING_CREDENTIALS;
-import static io.trino.aws.proxy.spi.plugin.TrinoAwsProxyServerPlugin.assumedRoleProviderModule;
-import static io.trino.aws.proxy.spi.plugin.TrinoAwsProxyServerPlugin.credentialsProviderModule;
+import static io.trino.aws.proxy.spi.plugin.TrinoAwsProxyServerBinding.assumedRoleProviderModule;
+import static io.trino.aws.proxy.spi.plugin.TrinoAwsProxyServerBinding.credentialsProviderModule;
 
 public final class TestingTrinoAwsProxyServer
         implements Closeable
