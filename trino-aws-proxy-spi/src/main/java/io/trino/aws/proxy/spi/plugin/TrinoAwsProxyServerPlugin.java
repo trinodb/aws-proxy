@@ -14,63 +14,13 @@
 package io.trino.aws.proxy.spi.plugin;
 
 import com.google.inject.Module;
-import com.google.inject.Scopes;
-import io.airlift.log.Logger;
-import io.trino.aws.proxy.spi.credentials.AssumedRoleProvider;
-import io.trino.aws.proxy.spi.credentials.CredentialsProvider;
-import io.trino.aws.proxy.spi.plugin.config.AssumedRoleProviderConfig;
-import io.trino.aws.proxy.spi.plugin.config.CredentialsProviderConfig;
-import io.trino.aws.proxy.spi.plugin.config.PluginIdentifierConfig;
-import io.trino.aws.proxy.spi.plugin.config.S3SecurityFacadeProviderConfig;
-import io.trino.aws.proxy.spi.security.S3SecurityFacadeProvider;
-
-import static com.google.inject.multibindings.OptionalBinder.newOptionalBinder;
-import static io.airlift.configuration.ConditionalModule.conditionalModule;
-import static io.airlift.configuration.ConfigurationAwareModule.combine;
 
 public interface TrinoAwsProxyServerPlugin
 {
-    Logger log = Logger.get(TrinoAwsProxyServerPlugin.class);
-
     default String name()
     {
         return getClass().getSimpleName();
     }
 
     Module module();
-
-    static Module credentialsProviderModule(String identifier, Class<? extends CredentialsProvider> implementationClass, Module module)
-    {
-        return optionalPluginModule(CredentialsProviderConfig.class, identifier, CredentialsProvider.class, implementationClass, module);
-    }
-
-    static Module assumedRoleProviderModule(String identifier, Class<? extends AssumedRoleProvider> implementationClass, Module module)
-    {
-        return optionalPluginModule(AssumedRoleProviderConfig.class, identifier, AssumedRoleProvider.class, implementationClass, module);
-    }
-
-    static Module s3SecurityFacadeProviderModule(String identifier, Class<? extends S3SecurityFacadeProvider> implementationClass, Module module)
-    {
-        return optionalPluginModule(S3SecurityFacadeProviderConfig.class, identifier, S3SecurityFacadeProvider.class, implementationClass, module);
-    }
-
-    static <Implementation> Module optionalPluginModule(
-            Class<? extends PluginIdentifierConfig> configClass,
-            String identifier,
-            Class<Implementation> interfaceClass,
-            Class<? extends Implementation> implementationClass,
-            Module module)
-    {
-        return conditionalModule(configClass,
-                config -> {
-                    log.info("Registered %s plugin implementation %s with conditional identifier \"%s\"", interfaceClass.getSimpleName(), implementationClass.getSimpleName(), identifier);
-                    return config.getPluginIdentifier().map(identifier::equals).orElse(false);
-                },
-                combine(
-                        binder -> {
-                            log.info("Using %s plugin implementation %s with identifier \"%s\"", interfaceClass.getSimpleName(), implementationClass.getSimpleName(), identifier);
-                            newOptionalBinder(binder, interfaceClass).setBinding().to(implementationClass).in(Scopes.SINGLETON);
-                        },
-                        module));
-    }
 }

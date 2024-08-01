@@ -21,7 +21,7 @@ import io.trino.aws.proxy.spi.credentials.Identity;
 
 import static com.google.inject.multibindings.Multibinder.newSetBinder;
 import static io.airlift.configuration.ConfigBinder.configBinder;
-import static io.trino.aws.proxy.spi.plugin.TrinoAwsProxyServerPlugin.credentialsProviderModule;
+import static io.trino.aws.proxy.spi.plugin.TrinoAwsProxyServerBinding.credentialsProviderModule;
 
 public class FileBasedCredentialsModule
         extends AbstractConfigurationAwareModule
