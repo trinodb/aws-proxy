@@ -53,6 +53,7 @@ import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
@@ -61,11 +62,13 @@ import java.util.function.Function;
 import static io.airlift.http.client.Request.Builder.preparePut;
 import static io.airlift.http.client.StaticBodyGenerator.createStaticBodyGenerator;
 import static io.airlift.http.client.StatusResponseHandler.createStatusResponseHandler;
+import static io.trino.aws.proxy.server.testing.TestingUtil.LOREM_IPSUM;
 import static io.trino.aws.proxy.server.testing.TestingUtil.assertFileNotInS3;
 import static io.trino.aws.proxy.server.testing.TestingUtil.cleanupBuckets;
 import static io.trino.aws.proxy.server.testing.TestingUtil.getFileFromStorage;
 import static io.trino.aws.proxy.server.testing.TestingUtil.headObjectInStorage;
 import static io.trino.aws.proxy.server.testing.TestingUtil.listFilesInS3Bucket;
+import static io.trino.aws.proxy.server.testing.TestingUtil.sha256;
 import static java.util.Objects.requireNonNull;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -80,14 +83,13 @@ public class TestGenericRestRequests
 
     private static final String TEST_CONTENT_TYPE = "text/plain;charset=utf-8";
     private static final String ILLEGAL_CHUNK_SIGNATURE = "0".repeat(AwsS3V4ChunkSigner.getSignatureLength());
-    private static final String goodContent = "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Viverra aliquet eget sit amet tellus cras adipiscing. Viverra mauris in aliquam sem fringilla. Facilisis mauris sit amet massa vitae. Mauris vitae ultricies leo integer malesuada. Sed libero enim sed faucibus turpis in eu mi bibendum. Lorem sed risus ultricies tristique nulla aliquet enim. Quis blandit turpis cursus in hac habitasse platea dictumst quisque. Diam maecenas ultricies mi eget mauris pharetra et ultrices neque. Aliquam sem fringilla ut morbi.";
 
     // first char is different case
-    private static final String badContent = "lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Viverra aliquet eget sit amet tellus cras adipiscing. Viverra mauris in aliquam sem fringilla. Facilisis mauris sit amet massa vitae. Mauris vitae ultricies leo integer malesuada. Sed libero enim sed faucibus turpis in eu mi bibendum. Lorem sed risus ultricies tristique nulla aliquet enim. Quis blandit turpis cursus in hac habitasse platea dictumst quisque. Diam maecenas ultricies mi eget mauris pharetra et ultrices neque. Aliquam sem fringilla ut morbi.";
+    private static final String badContent = LOREM_IPSUM.toLowerCase(Locale.ROOT);
 
-    private static final String goodSha256 = "cf091f1003948bfb21f6f166c9ff59a3cc393b106ad744ce9fdae49bdd2d26c9";
+    private static final String goodSha256 = sha256(LOREM_IPSUM);
 
-    private static final String badSha256 = "bf091f1003948bfb21f6f166c9ff59a3cc393b106ad744ce9fdae49bdd2d26c9";
+    private static final String badSha256 = sha256("foo" + LOREM_IPSUM);
 
     public static class Filter
             extends WithTestingHttpClient
@@ -133,19 +135,19 @@ public class TestGenericRestRequests
         credentialsRolesProvider.addCredentials(Credentials.build(validCredential, testingCredentials.requiredRemoteCredential()));
 
         // Upload in 2 chunks
-        assertThat(doAwsChunkedUpload(bucket, "aws-chunked-2-partitions", goodContent, 2, validCredential).getStatusCode()).isEqualTo(200);
-        assertThat(getFileFromStorage(storageClient, bucket, "aws-chunked-2-partitions")).isEqualTo(goodContent);
+        assertThat(doAwsChunkedUpload(bucket, "aws-chunked-2-partitions", LOREM_IPSUM, 2, validCredential).getStatusCode()).isEqualTo(200);
+        assertThat(getFileFromStorage(storageClient, bucket, "aws-chunked-2-partitions")).isEqualTo(LOREM_IPSUM);
 
         // Upload in 3 chunks
-        assertThat(doAwsChunkedUpload(bucket, "aws-chunked-3-partitions", goodContent, 3, validCredential).getStatusCode()).isEqualTo(200);
-        assertThat(getFileFromStorage(storageClient, bucket, "aws-chunked-3-partitions")).isEqualTo(goodContent);
+        assertThat(doAwsChunkedUpload(bucket, "aws-chunked-3-partitions", LOREM_IPSUM, 3, validCredential).getStatusCode()).isEqualTo(200);
+        assertThat(getFileFromStorage(storageClient, bucket, "aws-chunked-3-partitions")).isEqualTo(LOREM_IPSUM);
 
         // Upload in 3 chunks with multiple content-encodings
         ImmutableMultiMap.Builder extraHeadersBuilder = ImmutableMultiMap.builder(false)
                 .add("x-amz-meta-metadata-key", "some-metadata-value")
                 .add("Content-Encoding", "gzip,compress");
-        assertThat(doAwsChunkedUpload(bucket, "aws-chunked-with-metadata", goodContent, 3, validCredential, validCredential, Function.identity(), extraHeadersBuilder.build()).getStatusCode()).isEqualTo(200);
-        assertThat(getFileFromStorage(storageClient, bucket, "aws-chunked-with-metadata")).isEqualTo(goodContent);
+        assertThat(doAwsChunkedUpload(bucket, "aws-chunked-with-metadata", LOREM_IPSUM, 3, validCredential, validCredential, Function.identity(), extraHeadersBuilder.build()).getStatusCode()).isEqualTo(200);
+        assertThat(getFileFromStorage(storageClient, bucket, "aws-chunked-with-metadata")).isEqualTo(LOREM_IPSUM);
         HeadObjectResponse headObjectResponse = headObjectInStorage(storageClient, bucket, "aws-chunked-with-metadata");
         assertThat(headObjectResponse.contentEncoding()).isEqualTo("gzip,compress");
         assertThat(headObjectResponse.contentType()).isEqualTo(TEST_CONTENT_TYPE);
@@ -167,16 +169,16 @@ public class TestGenericRestRequests
         Credential unknownCredential = new Credential(UUID.randomUUID().toString(), UUID.randomUUID().toString());
 
         // Credential is not known to the credential controller
-        assertThat(doAwsChunkedUpload(bucket, fileKey, goodContent, 2, unknownCredential).getStatusCode()).isEqualTo(401);
+        assertThat(doAwsChunkedUpload(bucket, fileKey, LOREM_IPSUM, 2, unknownCredential).getStatusCode()).isEqualTo(401);
         assertFileNotInS3(storageClient, bucket, fileKey);
 
         // The request and the chunks are signed with different keys - both valid, but not matching
-        assertThat(doAwsChunkedUpload(bucket, fileKey, goodContent, 2, validCredential, validCredentialTwo, Function.identity(), ImmutableMultiMap.empty()).getStatusCode()).isEqualTo(401);
+        assertThat(doAwsChunkedUpload(bucket, fileKey, LOREM_IPSUM, 2, validCredential, validCredentialTwo, Function.identity(), ImmutableMultiMap.empty()).getStatusCode()).isEqualTo(401);
         assertFileNotInS3(storageClient, bucket, fileKey);
 
         // Final chunk has an invalid size
         Function<String, String> changeSizeOfFinalChunk = chunked -> chunked.replaceFirst("\\r\\n0;chunk-signature=(\\w+)", "\r\n1;chunk-signature=$1");
-        assertThat(doAwsChunkedUpload(bucket, fileKey, goodContent, 2, validCredential, changeSizeOfFinalChunk).getStatusCode()).isEqualTo(500);
+        assertThat(doAwsChunkedUpload(bucket, fileKey, LOREM_IPSUM, 2, validCredential, changeSizeOfFinalChunk).getStatusCode()).isEqualTo(500);
         assertFileNotInS3(storageClient, bucket, fileKey);
 
         // First chunk has an invalid size
@@ -192,22 +194,22 @@ public class TestGenericRestRequests
             }
             return "%s%s".formatted(newSizeAsString, chunked.substring(firstChunkIdx));
         };
-        assertThat(doAwsChunkedUpload(bucket, fileKey, goodContent, 2, validCredential, changeSizeOfFirstChunk).getStatusCode()).isEqualTo(500);
+        assertThat(doAwsChunkedUpload(bucket, fileKey, LOREM_IPSUM, 2, validCredential, changeSizeOfFirstChunk).getStatusCode()).isEqualTo(500);
         assertFileNotInS3(storageClient, bucket, fileKey);
 
         // Change the signature of each of the chunks
-        assertThat(doAwsChunkedUpload(bucket, fileKey, goodContent, 3, validCredential, getMutatorToBreakSignatureForChunk(0)).getStatusCode()).isEqualTo(401);
+        assertThat(doAwsChunkedUpload(bucket, fileKey, LOREM_IPSUM, 3, validCredential, getMutatorToBreakSignatureForChunk(0)).getStatusCode()).isEqualTo(401);
         assertFileNotInS3(storageClient, bucket, fileKey);
 
-        assertThat(doAwsChunkedUpload(bucket, fileKey, goodContent, 3, validCredential, getMutatorToBreakSignatureForChunk(1)).getStatusCode()).isEqualTo(401);
+        assertThat(doAwsChunkedUpload(bucket, fileKey, LOREM_IPSUM, 3, validCredential, getMutatorToBreakSignatureForChunk(1)).getStatusCode()).isEqualTo(401);
         assertFileNotInS3(storageClient, bucket, fileKey);
 
-        assertThat(doAwsChunkedUpload(bucket, fileKey, goodContent, 3, validCredential, getMutatorToBreakSignatureForChunk(2)).getStatusCode()).isEqualTo(401);
+        assertThat(doAwsChunkedUpload(bucket, fileKey, LOREM_IPSUM, 3, validCredential, getMutatorToBreakSignatureForChunk(2)).getStatusCode()).isEqualTo(401);
         assertFileNotInS3(storageClient, bucket, fileKey);
 
         // Sanity check: uploads work with this key if we do not interfere
-        assertThat(doAwsChunkedUpload(bucket, fileKey, goodContent, 2, validCredential).getStatusCode()).isEqualTo(200);
-        assertThat(getFileFromStorage(storageClient, bucket, fileKey)).isEqualTo(goodContent);
+        assertThat(doAwsChunkedUpload(bucket, fileKey, LOREM_IPSUM, 2, validCredential).getStatusCode()).isEqualTo(200);
+        assertThat(getFileFromStorage(storageClient, bucket, fileKey)).isEqualTo(LOREM_IPSUM);
     }
 
     @Test
@@ -219,9 +221,9 @@ public class TestGenericRestRequests
         Credentials credentials = new Credentials(credential, testingCredentials.remote(), Optional.empty(), Optional.empty());
         credentialsRolesProvider.addCredentials(credentials);
 
-        assertThat(doPutObject(goodContent, goodSha256).getStatusCode()).isEqualTo(200);
+        assertThat(doPutObject(LOREM_IPSUM, goodSha256).getStatusCode()).isEqualTo(200);
         assertThat(doPutObject(badContent, goodSha256).getStatusCode()).isEqualTo(401);
-        assertThat(doPutObject(goodContent, badSha256).getStatusCode()).isEqualTo(401);
+        assertThat(doPutObject(LOREM_IPSUM, badSha256).getStatusCode()).isEqualTo(401);
         assertThat(doPutObject(badContent, badSha256).getStatusCode()).isEqualTo(401);
     }
 

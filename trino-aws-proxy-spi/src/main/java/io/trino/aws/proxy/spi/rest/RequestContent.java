@@ -27,6 +27,7 @@ public interface RequestContent
         STANDARD,
         W3C_CHUNKED,
         AWS_CHUNKED,
+        AWS_CHUNKED_IN_W3C_CHUNKED,
     }
 
     default ContentType contentType()
