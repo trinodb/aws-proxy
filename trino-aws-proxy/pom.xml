@@ -292,6 +292,16 @@
                         <configuration>
                             <artifactItems>
                                 <artifactItem>
+                                    <groupId>${project.groupId}</groupId>
+                                    <artifactId>trino-aws-proxy-spark3</artifactId>
+                                    <version>${project.version}</version>
+                                </artifactItem>
+                                <artifactItem>
+                                    <groupId>${project.groupId}</groupId>
+                                    <artifactId>trino-aws-proxy-spark4</artifactId>
+                                    <version>${project.version}</version>
+                                </artifactItem>
+                                <artifactItem>
                                     <groupId>com.amazonaws</groupId>
                                     <artifactId>aws-java-sdk-bundle</artifactId>
                                     <version>1.12.262</version>
