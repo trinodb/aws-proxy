@@ -18,17 +18,15 @@ import io.airlift.http.server.testing.TestingHttpServer;
 import io.airlift.log.Logger;
 import io.trino.aws.proxy.server.TrinoAwsProxyConfig;
 import io.trino.aws.proxy.server.testing.TestingUtil.ForTesting;
-import io.trino.aws.proxy.spark3.TrinoAwsProxyS3ClientSigil;
-import io.trino.aws.proxy.spark4.TrinoAwsProxyS4ClientSigil;
 import io.trino.aws.proxy.spi.credentials.Credentials;
 import jakarta.annotation.PreDestroy;
 import org.testcontainers.containers.BindMode;
 import org.testcontainers.containers.GenericContainer;
+import org.testcontainers.images.builder.Transferable;
 import org.testcontainers.utility.DockerImageName;
 
 import java.io.File;
 
-import static io.trino.aws.proxy.server.testing.TestingUtil.findProjectClassDirectory;
 import static io.trino.aws.proxy.server.testing.TestingUtil.findTestJar;
 import static io.trino.aws.proxy.server.testing.containers.DockerAttachUtil.clearInputStreamAndClose;
 import static io.trino.aws.proxy.server.testing.containers.DockerAttachUtil.inputToContainerStdin;
@@ -83,8 +81,8 @@ public abstract class PySparkContainer
             Version version)
     {
         File trinoClientDirectory = switch (version) {
-            case VERSION_3 -> findProjectClassDirectory(TrinoAwsProxyS3ClientSigil.class);
-            case VERSION_4 -> findProjectClassDirectory(TrinoAwsProxyS4ClientSigil.class);
+            case VERSION_3 -> findTestJar("trino-aws-proxy-spark3");
+            case VERSION_4 -> findTestJar("trino-aws-proxy-spark4");
         };
 
         File awsSdkJar = switch (version) {
@@ -107,10 +105,26 @@ public abstract class PySparkContainer
             case VERSION_4 -> "io.trino.aws.proxy.spark4.TrinoAwsProxyS4ClientFactory";
         };
 
+        String s3Endpoint = asHostUrl(httpServer.getBaseUrl().resolve(trinoS3ProxyConfig.getS3Path()).toString());
+        String metastoreEndpoint = asHostUrl("localhost:" + metastoreContainer.port());
+
+        String sparkConfFile = """
+                hive.metastore.uris                          %s
+                spark.hadoop.fs.s3a.endpoint                 %s
+                spark.hadoop.fs.s3a.s3.client.factory.impl   %s
+                spark.hadoop.fs.s3a.access.key               %s
+                spark.hadoop.fs.s3a.secret.key               %s
+                spark.hadoop.fs.s3a.path.style.access        True
+                spark.hadoop.fs.s3a.connection.ssl.enabled   False
+                spark.hadoop.fs.s3a.aws.credentials.provider org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider
+                spark.hadoop.fs.s3a.impl                     org.apache.hadoop.fs.s3a.S3AFileSystem
+                """.formatted(metastoreEndpoint, s3Endpoint, clientFactoryClassName, testingCredentials.emulated().accessKey(), testingCredentials.emulated().secretKey());
+
         container = new GenericContainer<>(dockerImageName)
                 .withFileSystemBind(hadoopJar.getAbsolutePath(), "/opt/spark/jars/hadoop.jar", BindMode.READ_ONLY)
                 .withFileSystemBind(awsSdkJar.getAbsolutePath(), "/opt/spark/jars/aws.jar", BindMode.READ_ONLY)
-                .withFileSystemBind(trinoClientDirectory.getAbsolutePath(), "/opt/spark/conf", BindMode.READ_ONLY)
+                .withFileSystemBind(trinoClientDirectory.getAbsolutePath(), "/opt/spark/jars/TrinoAwsProxyClient.jar", BindMode.READ_ONLY)
+                .withCopyToContainer(Transferable.of(sparkConfFile), "/opt/spark/conf/spark-defaults.conf")
                 .withCreateContainerCmdModifier(modifier -> modifier.withTty(true).withStdinOpen(true).withAttachStdin(true).withAttachStdout(true).withAttachStderr(true))
                 .withCommand("/opt/spark/bin/pyspark");
 
@@ -120,26 +134,14 @@ public abstract class PySparkContainer
 
         container.start();
 
-        String metastoreEndpoint = asHostUrl("localhost:" + metastoreContainer.port());
-        String s3Endpoint = asHostUrl(httpServer.getBaseUrl().resolve(trinoS3ProxyConfig.getS3Path()).toString());
-
         clearInputStreamAndClose(inputToContainerStdin(container.getContainerId(), "spark.stop()"));
         clearInputStreamAndClose(inputToContainerStdin(container.getContainerId(), """
                 spark = SparkSession\\
                     .builder\\
                     .appName("testing")\\
-                    .config("hive.metastore.uris", "thrift://%s")\\
                     .enableHiveSupport()\\
-                    .config("spark.hadoop.fs.s3a.endpoint", "%s")\\
-                    .config("spark.hadoop.fs.s3a.access.key", "%s")\\
-                    .config("spark.hadoop.fs.s3a.secret.key", "%s")\\
-                    .config("spark.hadoop.fs.s3a.path.style.access", True)\\
-                    .config("spark.hadoop.fs.s3a.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem")\\
-                    .config("spark.hadoop.fs.s3a.aws.credentials.provider", "org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider")\\
-                    .config("spark.hadoop.fs.s3a.connection.ssl.enabled", False)\\
-                    .config("spark.hadoop.fs.s3a.s3.client.factory.impl", "%s")\\
                     .getOrCreate()
-                """.formatted(metastoreEndpoint, s3Endpoint, testingCredentials.emulated().accessKey(), testingCredentials.emulated().secretKey(), clientFactoryClassName)));
+                """));
 
         log.info("PySpark container started");
     }
