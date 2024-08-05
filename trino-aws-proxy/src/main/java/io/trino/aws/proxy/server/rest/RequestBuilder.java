@@ -153,7 +153,9 @@ class RequestBuilder
         Supplier<Optional<Integer>> contentLengthSupplier = switch (contentType) {
             case STANDARD -> () -> bytesSupplier.get().map(bytes -> bytes.length);
 
-            case AWS_CHUNKED -> () -> {
+            // AWS does not mandate x-amz-decoded-content length is required for chunked transfer encoding
+            // But we require it for simplicity (Content-Length is needed since we don't do chunking on outbound requests)
+            case AWS_CHUNKED, W3C_CHUNKED, AWS_CHUNKED_IN_W3C_CHUNKED -> () -> {
                 int contentLength = requestHeaders.decodedContentLength()
                         .orElseThrow(() -> new WebApplicationException(BAD_REQUEST));
                 return Optional.of(contentLength);

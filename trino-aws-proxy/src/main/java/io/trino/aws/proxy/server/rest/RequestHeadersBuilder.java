@@ -25,6 +25,7 @@ import io.trino.aws.proxy.spi.util.MultiMap;
 import jakarta.ws.rs.WebApplicationException;
 
 import java.time.Instant;
+import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Optional;
@@ -33,6 +34,7 @@ import java.util.function.Function;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static jakarta.ws.rs.core.Response.Status.BAD_REQUEST;
+import static jakarta.ws.rs.core.Response.Status.LENGTH_REQUIRED;
 import static java.util.Objects.requireNonNull;
 import static java.util.function.Function.identity;
 
@@ -48,7 +50,6 @@ final class RequestHeadersBuilder
             "connection",
             "amz-sdk-invocation-id",
             "amx-sdk-request",
-            "x-amz-content-sha256",
             "host");
 
     record InternalRequestHeaders(
@@ -80,6 +81,7 @@ final class RequestHeadersBuilder
                 case "content-encoding" -> builder.contentEncoding(headerValues);
                 case "transfer-encoding" -> builder.transferEncoding(headerValues);
                 case "x-amz-date" -> builder.requestDate(headerValues);
+                case "x-amz-content-sha256" -> builder.contentSha256(headerValues);
                 default -> {
                     if (!IGNORED_HEADERS.contains(headerName)) {
                         builder.addPassthroughHeader(headerName, headerValues);
@@ -99,7 +101,8 @@ final class RequestHeadersBuilder
         private Optional<Instant> requestDate = Optional.empty();
         private Optional<Integer> contentLength = Optional.empty();
         private Optional<Integer> decodedContentLength = Optional.empty();
-        private Optional<ContentType> requestPayloadContentType = Optional.empty();
+        private Optional<String> contentSha256 = Optional.empty();
+        private Set<ContentType> seenRequestPayloadContentTypes = new HashSet<>();
 
         private Builder() {}
 
@@ -110,9 +113,18 @@ final class RequestHeadersBuilder
 
         private static <T> Optional<T> parseHeaderValuesAsSingle(List<String> allValues, Function<String, T> converter)
         {
+            Function<String, T> wrappedConverter = value -> {
+                try {
+                    return converter.apply(value);
+                }
+                catch (Exception _) {
+                    throw new WebApplicationException(BAD_REQUEST);
+                }
+            };
+
             return switch (allValues.size()) {
                 case 0 -> Optional.empty();
-                case 1 -> Optional.of(converter.apply(allValues.getFirst()));
+                case 1 -> Optional.of(wrappedConverter.apply(allValues.getFirst()));
                 default -> throw new WebApplicationException(BAD_REQUEST);
             };
         }
@@ -166,12 +178,14 @@ final class RequestHeadersBuilder
             });
         }
 
+        private void contentSha256(List<String> values)
+        {
+            this.contentSha256 = parseHeaderValuesAsSingle(values, identity());
+        }
+
         private void requestPayloadContentType(ContentType value)
         {
-            if (this.requestPayloadContentType.isPresent()) {
-                throw new WebApplicationException(BAD_REQUEST);
-            }
-            this.requestPayloadContentType = Optional.of(value);
+            this.seenRequestPayloadContentTypes.add(value);
         }
 
         private void addPassthroughHeader(String headerName, List<String> headerValues)
@@ -179,12 +193,37 @@ final class RequestHeadersBuilder
             passthroughHeadersBuilder.addAll(headerName, headerValues);
         }
 
+        private void assertContentTypeValid(ContentType actualContentType)
+        {
+            if (actualContentType == ContentType.AWS_CHUNKED || actualContentType == ContentType.AWS_CHUNKED_IN_W3C_CHUNKED || actualContentType == ContentType.W3C_CHUNKED) {
+                if (decodedContentLength.isEmpty()) {
+                    throw new WebApplicationException(LENGTH_REQUIRED);
+                }
+                String sha256 = contentSha256.orElseThrow(() -> new WebApplicationException(BAD_REQUEST));
+                if (actualContentType != ContentType.W3C_CHUNKED && !sha256.startsWith("STREAMING-")) {
+                    throw new WebApplicationException(BAD_REQUEST);
+                }
+            }
+        }
+
         private InternalRequestHeaders build(MultiMap allHeaders)
         {
+            Optional<ContentType> applicableContentType = switch (seenRequestPayloadContentTypes.size()) {
+                case 0, 1 -> seenRequestPayloadContentTypes.stream().findFirst();
+                case 2 -> {
+                    if (!seenRequestPayloadContentTypes.containsAll(ImmutableSet.of(ContentType.AWS_CHUNKED, ContentType.W3C_CHUNKED))) {
+                        throw new WebApplicationException(BAD_REQUEST);
+                    }
+                    yield Optional.of(ContentType.AWS_CHUNKED_IN_W3C_CHUNKED);
+                }
+                default -> throw new WebApplicationException(BAD_REQUEST);
+            };
+            applicableContentType.ifPresent(this::assertContentTypeValid);
+
             return new InternalRequestHeaders(
                     new RequestHeaders(passthroughHeadersBuilder.build(), allHeaders),
                     requestAuthorization, requestDate, contentLength, decodedContentLength,
-                    requestPayloadContentType);
+                    applicableContentType);
         }
     }
 }

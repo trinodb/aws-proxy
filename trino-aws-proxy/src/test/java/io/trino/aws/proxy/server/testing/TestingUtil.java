@@ -13,6 +13,7 @@
  */
 package io.trino.aws.proxy.server.testing;
 
+import com.google.common.hash.Hashing;
 import com.google.common.io.Resources;
 import com.google.inject.BindingAnnotation;
 import io.trino.aws.proxy.spi.credentials.Credential;
@@ -34,6 +35,7 @@ import java.io.IOException;
 import java.lang.annotation.Retention;
 import java.lang.annotation.Target;
 import java.net.URI;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Optional;
@@ -59,6 +61,7 @@ public final class TestingUtil
     // Domain name with a wildcard CNAME pointing to localhost - needed to test Virtual Host style addressing
     public static final String LOCALHOST_DOMAIN = "local.gate0.net";
     public static final Path TEST_FILE = new File(Resources.getResource("testFile.txt").getPath()).toPath();
+    public static final String LOREM_IPSUM = "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Viverra aliquet eget sit amet tellus cras adipiscing. Viverra mauris in aliquam sem fringilla. Facilisis mauris sit amet massa vitae. Mauris vitae ultricies leo integer malesuada. Sed libero enim sed faucibus turpis in eu mi bibendum. Lorem sed risus ultricies tristique nulla aliquet enim. Quis blandit turpis cursus in hac habitasse platea dictumst quisque. Diam maecenas ultricies mi eget mauris pharetra et ultrices neque. Aliquam sem fringilla ut morbi.";
 
     private static final File targetDirectory = new File(TestingUtil.class.getProtectionDomain().getCodeSource().getLocation().getPath())
             .getParentFile();
@@ -135,5 +138,11 @@ public final class TestingUtil
     public static List<String> listFilesInS3Bucket(S3Client storageClient, String bucket)
     {
         return storageClient.listObjects(request -> request.bucket(bucket)).contents().stream().map(S3Object::key).collect(toImmutableList());
+    }
+
+    @SuppressWarnings("UnstableApiUsage")
+    public static String sha256(String content)
+    {
+        return Hashing.sha256().newHasher().putString(content, StandardCharsets.UTF_8).hash().toString();
     }
 }

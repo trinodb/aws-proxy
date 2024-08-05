@@ -49,6 +49,7 @@ import static io.trino.aws.proxy.server.signing.Signers.OVERRIDE_CONTENT_HASH;
 import static io.trino.aws.proxy.server.signing.Signers.aws4Signer;
 import static io.trino.aws.proxy.server.signing.Signers.legacyAws4Signer;
 import static io.trino.aws.proxy.spi.rest.RequestContent.ContentType.AWS_CHUNKED;
+import static io.trino.aws.proxy.spi.rest.RequestContent.ContentType.AWS_CHUNKED_IN_W3C_CHUNKED;
 import static jakarta.ws.rs.core.Response.Status.BAD_REQUEST;
 import static jakarta.ws.rs.core.Response.Status.UNAUTHORIZED;
 import static java.util.Objects.requireNonNull;
@@ -132,7 +133,7 @@ final class Signer
         boolean enablePayloadSigning = maybeAmazonContentHash
                 .map(contentHashHeader -> !contentHashHeader.equals("UNSIGNED-PAYLOAD"))
                 .orElse(true);
-        boolean enableChunkedEncoding = requestContent.contentType() == AWS_CHUNKED;
+        boolean enableChunkedEncoding = requestContent.contentType() == AWS_CHUNKED || requestContent.contentType() == AWS_CHUNKED_IN_W3C_CHUNKED;
         AwsS3V4SignerParams.Builder signerParamsBuilder = AwsS3V4SignerParams.builder()
                 .enablePayloadSigning(enablePayloadSigning)
                 .enableChunkedEncoding(enableChunkedEncoding);
