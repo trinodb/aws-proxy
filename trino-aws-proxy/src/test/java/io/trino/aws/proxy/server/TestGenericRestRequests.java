@@ -77,6 +77,7 @@ public class TestGenericRestRequests
 {
     private final URI baseUri;
     private final TestingCredentialsRolesProvider credentialsRolesProvider;
+    private final InternalSigningController signingController;
     private final HttpClient httpClient;
     private final Credentials testingCredentials;
     private final S3Client storageClient;
@@ -112,6 +113,10 @@ public class TestGenericRestRequests
     {
         baseUri = httpServer.getBaseUrl().resolve(trinoAwsProxyConfig.getS3Path());
         this.credentialsRolesProvider = requireNonNull(credentialsRolesProvider, "credentialsRolesProvider is null");
+        this.signingController = new InternalSigningController(
+                new CredentialsController(new TestingRemoteS3Facade(), credentialsRolesProvider),
+                new SigningControllerConfig().setMaxClockDrift(new Duration(10, TimeUnit.SECONDS)),
+                new RequestLoggerController(new TrinoAwsProxyConfig()));
         this.httpClient = requireNonNull(httpClient, "httpClient is null");
         this.testingCredentials = requireNonNull(testingCredentials, "testingCredentials is null");
         this.storageClient = requireNonNull(storageClient, "storageClient is null");
@@ -212,21 +217,6 @@ public class TestGenericRestRequests
         assertThat(getFileFromStorage(storageClient, bucket, fileKey)).isEqualTo(LOREM_IPSUM);
     }
 
-    @Test
-    public void testPutObject()
-    {
-        storageClient.createBucket(r -> r.bucket("foo").build());
-
-        Credential credential = new Credential("df4899b1-9026-4c51-a3f3-38fffa236748", "2a142f69-d384-4739-8733-2977f73e2d2c");
-        Credentials credentials = new Credentials(credential, testingCredentials.remote(), Optional.empty(), Optional.empty());
-        credentialsRolesProvider.addCredentials(credentials);
-
-        assertThat(doPutObject(LOREM_IPSUM, goodSha256).getStatusCode()).isEqualTo(200);
-        assertThat(doPutObject(badContent, goodSha256).getStatusCode()).isEqualTo(401);
-        assertThat(doPutObject(LOREM_IPSUM, badSha256).getStatusCode()).isEqualTo(401);
-        assertThat(doPutObject(badContent, badSha256).getStatusCode()).isEqualTo(401);
-    }
-
     private StatusResponse doAwsChunkedUpload(String bucket, String key, String contentToUpload, int partitionCount, Credential credential)
     {
         return doAwsChunkedUpload(bucket, key, contentToUpload, partitionCount, credential, Function.identity());
@@ -258,14 +248,9 @@ public class TestGenericRestRequests
                 .add("Content-Length", String.valueOf(TestingChunkSigningSession.getExpectedChunkedStreamSize(contentToUpload, partitionCount)))
                 .add("Content-Type", TEST_CONTENT_TYPE)
                 .add("Content-Encoding", "aws-chunked");
-        InternalSigningController signingController = new InternalSigningController(
-                new CredentialsController(new TestingRemoteS3Facade(), credentialsRolesProvider),
-                new SigningControllerConfig().setMaxClockDrift(new Duration(10, TimeUnit.SECONDS)),
-                new RequestLoggerController(new TrinoAwsProxyConfig()));
 
         URI requestUri = UriBuilder.fromUri(baseUri).path(bucket).path(key).build();
-        RequestAuthorization requestAuthorization = signingController.signRequest(new SigningMetadata(SigningServiceType.S3, Credentials.build(requestSigningCredential, testingCredentials.requiredRemoteCredential()), Optional.empty()),
-                "us-east-1", requestDate, Optional.empty(), Credentials::emulated, requestUri, requestHeaderBuilder.build(), ImmutableMultiMap.empty(), "PUT").signingAuthorization();
+        RequestAuthorization requestAuthorization = signRequest(requestSigningCredential, requestUri, requestDate, "PUT", requestHeaderBuilder.build());
         String chunkedContent = chunkedPayloadMutator.apply(TestingChunkSigningSession.build(chunkSigningCredential, requestAuthorization.signature(), requestDate).generateChunkedStream(contentToUpload, partitionCount));
         Request.Builder requestBuilder = preparePut().setUri(requestUri);
 
@@ -327,14 +312,9 @@ public class TestGenericRestRequests
                 .add("Content-Length", String.valueOf(rawContent.length()))
                 .add("Content-Type", TEST_CONTENT_TYPE)
                 .add("Content-Encoding", "aws-chunked");
-        InternalSigningController signingController = new InternalSigningController(
-                new CredentialsController(new TestingRemoteS3Facade(), credentialsRolesProvider),
-                new SigningControllerConfig().setMaxClockDrift(new Duration(10, TimeUnit.SECONDS)),
-                new RequestLoggerController(new TrinoAwsProxyConfig()));
 
         URI requestUri = UriBuilder.fromUri(baseUri).path(bucket).path(key).build();
-        RequestAuthorization requestAuthorization = signingController.signRequest(new SigningMetadata(SigningServiceType.S3, Credentials.build(validCredential, testingCredentials.requiredRemoteCredential()), Optional.empty()),
-                "us-east-1", requestDate, Optional.empty(), Credentials::emulated, requestUri, requestHeaderBuilder.build(), ImmutableMultiMap.empty(), "PUT").signingAuthorization();
+        RequestAuthorization requestAuthorization = signRequest(validCredential, requestUri, requestDate, "PUT", requestHeaderBuilder.build());
         Request.Builder requestBuilder = preparePut().setUri(requestUri);
 
         requestHeaderBuilder.add("Authorization", requestAuthorization.authorization());
@@ -344,29 +324,64 @@ public class TestGenericRestRequests
         assertThat(httpClient.execute(requestBuilder.build(), createStatusResponseHandler()).getStatusCode()).isEqualTo(expectedStatusCode);
     }
 
-    private StatusResponse doPutObject(String content, String sha256)
+    @Test
+    public void testPutObject()
+            throws IOException
     {
-        URI uri = UriBuilder.fromUri(baseUri)
-                .path("foo")
-                .path("bar")
-                .build();
+        String bucket = "foo";
+        storageClient.createBucket(r -> r.bucket(bucket).build());
+
+        testPutObject(bucket, LOREM_IPSUM, goodSha256, 200, true);
+        testPutObject(bucket, LOREM_IPSUM, "UNSIGNED-PAYLOAD", 200, true);
+        testPutObject(bucket, badContent, goodSha256, 401, false);
+        testPutObject(bucket, LOREM_IPSUM, badSha256, 401, false);
+        testPutObject(bucket, badContent, badSha256, 401, false);
+    }
+
+    private void testPutObject(String bucket, String content, String hash, int expectedStatusCode, boolean expectUpload)
+            throws IOException
+    {
+        String fileKey = UUID.randomUUID().toString();
+        assertThat(doPutObject(bucket, fileKey, content, hash).getStatusCode()).isEqualTo(expectedStatusCode);
+        if (expectUpload) {
+            assertThat(getFileFromStorage(storageClient, bucket, fileKey)).isEqualTo(content);
+        }
+        else {
+            assertFileNotInS3(storageClient, bucket, fileKey);
+        }
+    }
+
+    private StatusResponse doPutObject(String bucket, String key, String content, String sha256)
+    {
+        Instant requestDate = Instant.now();
+        String requestDateStr = AwsTimestamp.toRequestFormat(requestDate);
+        URI uri = UriBuilder.fromUri(baseUri).path(bucket).path(key).build();
 
         // values discovered from an AWS CLI request sent to a dummy local HTTP server
-        Request request = preparePut().setUri(uri)
-                .setHeader("Host", "127.0.0.1:10064")
-                .setHeader("Accept-Encoding", "identity")
-                .setHeader("Content-Type", "text/plain")
-                .setHeader("User-Agent", "aws-cli/2.15.53 md/awscrt#0.19.19 ua/2.0 os/macos#22.6.0 md/arch#x86_64 lang/python#3.11.9 md/pyimpl#CPython cfg/retry-mode#standard md/installer#source md/prompt#off md/command#s3.cp")
-                .setHeader("Content-MD5", "cAm9NzhZWdMdTMJEogaTZQ==")
-                .setHeader("Expect", "100-continue")
-                .setHeader("X-Amz-Date", "20240617T114456Z")
-                .setHeader("X-Amz-Content-SHA256", sha256)
-                .setHeader("Authorization", "AWS4-HMAC-SHA256 Credential=df4899b1-9026-4c51-a3f3-38fffa236748/20240617/us-east-1/s3/aws4_request, SignedHeaders=content-md5;content-type;host;x-amz-content-sha256;x-amz-date, Signature=89fffb33b584a661ec05906a3da4975903e13c46e030b4231c53711c36a9f78e")
-                .setHeader("Content-Length", "582")
-                .setBodyGenerator(createStaticBodyGenerator(content, StandardCharsets.UTF_8))
-                .build();
+        ImmutableMultiMap.Builder headersBuilder = ImmutableMultiMap.builder(false)
+                .add("Host", "%s:%d".formatted(uri.getHost(), uri.getPort()))
+                .add("Accept-Encoding", "identity")
+                .add("Content-Type", "text/plain")
+                .add("User-Agent", "aws-cli/2.15.53 md/awscrt#0.19.19 ua/2.0 os/macos#22.6.0 md/arch#x86_64 lang/python#3.11.9 md/pyimpl#CPython cfg/retry-mode#standard md/installer#source md/prompt#off md/command#s3.cp")
+                .add("Expect", "100-continue")
+                .add("X-Amz-Date", requestDateStr)
+                .add("X-Amz-Content-SHA256", sha256)
+                .add("Content-Length", String.valueOf(content.length()));
 
-        return httpClient.execute(request, createStatusResponseHandler());
+        RequestAuthorization requestAuthorization = signRequest(testingCredentials.emulated(), uri, requestDate, "PUT", headersBuilder.build());
+        headersBuilder.add("Authorization", requestAuthorization.authorization());
+        Request.Builder requestBuilder = preparePut()
+                .setUri(uri)
+                .setBodyGenerator(createStaticBodyGenerator(content, StandardCharsets.UTF_8));
+        headersBuilder.build().forEachEntry(requestBuilder::addHeader);
+
+        return httpClient.execute(requestBuilder.build(), createStatusResponseHandler());
+    }
+
+    private RequestAuthorization signRequest(Credential signingCredential, URI uri, Instant requestDate, String method, MultiMap headers)
+    {
+        return signingController.signRequest(new SigningMetadata(SigningServiceType.S3, Credentials.build(signingCredential, testingCredentials.requiredRemoteCredential()), Optional.empty()),
+                "us-east-1", requestDate, Optional.empty(), Credentials::emulated, uri, headers, ImmutableMultiMap.empty(), method).signingAuthorization();
     }
 
     private static Function<String, String> getMutatorToBreakSignatureForChunk(int chunkNumber)

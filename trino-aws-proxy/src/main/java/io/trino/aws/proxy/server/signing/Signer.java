@@ -37,7 +37,6 @@ import software.amazon.awssdk.http.SdkHttpFullRequest;
 import software.amazon.awssdk.http.SdkHttpMethod;
 import software.amazon.awssdk.regions.Region;
 
-import java.io.ByteArrayInputStream;
 import java.net.URI;
 import java.time.Clock;
 import java.time.Duration;
@@ -112,8 +111,7 @@ final class Signer
                 region,
                 requestDate,
                 httpMethod,
-                credential,
-                requestContent);
+                credential);
     }
 
     static SigningContext sign(
@@ -130,21 +128,16 @@ final class Signer
     {
         enforceMaxDrift(requestDate, maxClockDrift, maxClockDrift);
         Optional<String> maybeAmazonContentHash = signingHeaders.getFirst("x-amz-content-sha256");
-        boolean enablePayloadSigning = maybeAmazonContentHash
-                .map(contentHashHeader -> !contentHashHeader.equals("UNSIGNED-PAYLOAD"))
-                .orElse(true);
         boolean enableChunkedEncoding = requestContent.contentType() == AWS_CHUNKED || requestContent.contentType() == AWS_CHUNKED_IN_W3C_CHUNKED;
         AwsS3V4SignerParams.Builder signerParamsBuilder = AwsS3V4SignerParams.builder()
-                .enablePayloadSigning(enablePayloadSigning)
+                .enablePayloadSigning(true)
                 .enableChunkedEncoding(enableChunkedEncoding);
         SdkHttpFullRequest.Builder requestBuilder = SdkHttpFullRequest.builder();
-        if (enablePayloadSigning) {
-            // because we stream content without spooling we want to re-use the provided content hash
-            // so that we don't have to calculate it to validate the incoming signature.
-            // Stash the hash in the OVERRIDE_CONTENT_HASH so that aws4Signer can find it and
-            // return it.
-            maybeAmazonContentHash.ifPresent(contentHashHeader -> requestBuilder.putHeader(OVERRIDE_CONTENT_HASH, contentHashHeader));
-        }
+        // because we stream content without spooling we want to re-use the provided content hash
+        // so that we don't have to calculate it to validate the incoming signature.
+        // Stash the hash in the OVERRIDE_CONTENT_HASH so that aws4Signer can find it and
+        // return it.
+        maybeAmazonContentHash.ifPresent(contentHashHeader -> requestBuilder.putHeader(OVERRIDE_CONTENT_HASH, contentHashHeader));
         return internalSign(
                 (signingApi, requestToSign) -> {
                     SdkHttpFullRequest signedRequest = signingApi.sign(requestToSign, signerParamsBuilder.build());
@@ -165,8 +158,7 @@ final class Signer
                 region,
                 requestDate,
                 httpMethod,
-                credential,
-                requestContent);
+                credential);
     }
 
     private record InternalRequestAuthorization(RequestAuthorization requestAuthorization, URI signingUri)
@@ -189,13 +181,9 @@ final class Signer
             String region,
             Instant requestDate,
             String httpMethod,
-            Credential credential,
-            RequestContent requestContent)
+            Credential credential)
     {
         requestBuilder.uri(UriBuilder.fromUri(requestURI).replaceQuery("").build()).method(SdkHttpMethod.fromValue(httpMethod));
-
-        Optional<byte[]> entity = serviceType.contentIsSigned() ? requestContent.standardBytes() : Optional.empty();
-        entity.ifPresent(entityBytes -> requestBuilder.contentStreamProvider(() -> new ByteArrayInputStream(entityBytes)));
 
         signingHeaders.lowercaseHeadersToSign().forEach(entry -> entry.getValue().forEach(value -> requestBuilder.appendHeader(entry.getKey(), value)));
 
