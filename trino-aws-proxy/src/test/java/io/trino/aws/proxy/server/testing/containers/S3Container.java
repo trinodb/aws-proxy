@@ -75,12 +75,13 @@ public class S3Container
                "Statement": [
                   {
                      "Effect": "Allow",
-                     "Action": [
-                        "s3:*"
-                     ],
-                     "Resource": [
-                        "arn:aws:s3:::*"
-                     ]
+                     "Action": "s3:*",
+                     "Resource": "arn:aws:s3:::*",
+                     "Condition": {
+                       "StringEquals": {
+                         "aws:principaltype": "AssumedRole"
+                       }
+                     }
                   }
                ]
             }
