@@ -11,24 +11,25 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.trino.aws.proxy.server;
+package io.trino.aws.proxy.server.rest;
 
 import com.google.inject.Inject;
-import io.trino.aws.proxy.server.testing.TestingS3ClientModule.ForVirtualHostProxy;
+import io.trino.aws.proxy.server.testing.RequestRewriteUtil;
+import io.trino.aws.proxy.server.testing.TestingS3PresignController;
 import io.trino.aws.proxy.server.testing.TestingS3RequestRewriteController;
+import io.trino.aws.proxy.server.testing.TestingS3SecurityController;
 import io.trino.aws.proxy.server.testing.containers.S3Container.ForS3Container;
 import io.trino.aws.proxy.server.testing.harness.TrinoAwsProxyTest;
 import io.trino.aws.proxy.server.testing.harness.TrinoAwsProxyTestCommonModules.WithConfiguredBuckets;
-import io.trino.aws.proxy.server.testing.harness.TrinoAwsProxyTestCommonModules.WithVirtualHostEnabledProxy;
 import software.amazon.awssdk.services.s3.S3Client;
 
-@TrinoAwsProxyTest(filters = {WithConfiguredBuckets.class, WithVirtualHostEnabledProxy.class})
-public class TestProxiedRequestsWithVirtualHostProxy
-        extends AbstractTestProxiedRequests
+@TrinoAwsProxyTest(filters = {WithConfiguredBuckets.class, RequestRewriteUtil.Filter.class})
+public class TestPresigningHeadersWithRewrite
+        extends AbstractTestPresigningHeaders
 {
     @Inject
-    public TestProxiedRequestsWithVirtualHostProxy(@ForVirtualHostProxy S3Client s3Client, @ForS3Container S3Client storageClient, TestingS3RequestRewriteController requestRewriteController)
+    public TestPresigningHeadersWithRewrite(@ForS3Container S3Client storageClient, S3Client internalClient, TestingS3PresignController presignController, TestingS3SecurityController securityController, TestingS3RequestRewriteController requestRewriteController)
     {
-        super(s3Client, storageClient, requestRewriteController);
+        super(storageClient, internalClient, presignController, securityController, requestRewriteController);
     }
 }

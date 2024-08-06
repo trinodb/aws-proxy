@@ -41,7 +41,6 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import software.amazon.awssdk.services.s3.S3Client;
-import software.amazon.awssdk.services.s3.model.DeleteBucketRequest;
 import software.amazon.awssdk.services.s3.model.HeadObjectResponse;
 
 import java.io.ByteArrayInputStream;
@@ -63,7 +62,7 @@ import static io.airlift.http.client.StatusResponseHandler.createStatusResponseH
 import static io.airlift.http.client.StreamingBodyGenerator.streamingBodyGenerator;
 import static io.trino.aws.proxy.server.testing.TestingUtil.LOREM_IPSUM;
 import static io.trino.aws.proxy.server.testing.TestingUtil.assertFileNotInS3;
-import static io.trino.aws.proxy.server.testing.TestingUtil.cleanupBuckets;
+import static io.trino.aws.proxy.server.testing.TestingUtil.deleteAllBuckets;
 import static io.trino.aws.proxy.server.testing.TestingUtil.getFileFromStorage;
 import static io.trino.aws.proxy.server.testing.TestingUtil.headObjectInStorage;
 import static io.trino.aws.proxy.server.testing.TestingUtil.sha256;
@@ -107,8 +106,7 @@ public class TestHttpChunked
     @AfterEach
     public void cleanupStorage()
     {
-        cleanupBuckets(storageClient);
-        storageClient.listBuckets().buckets().forEach(bucket -> storageClient.deleteBucket(DeleteBucketRequest.builder().bucket(bucket.name()).build()));
+        deleteAllBuckets(storageClient);
     }
 
     private class ForceChunkInputStream

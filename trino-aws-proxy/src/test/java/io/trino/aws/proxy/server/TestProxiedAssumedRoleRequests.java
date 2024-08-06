@@ -16,6 +16,7 @@ package io.trino.aws.proxy.server;
 import com.google.inject.Inject;
 import io.airlift.http.server.testing.TestingHttpServer;
 import io.trino.aws.proxy.server.testing.TestingCredentialsRolesProvider;
+import io.trino.aws.proxy.server.testing.TestingS3RequestRewriteController;
 import io.trino.aws.proxy.server.testing.TestingUtil.ForTesting;
 import io.trino.aws.proxy.server.testing.containers.S3Container.ForS3Container;
 import io.trino.aws.proxy.server.testing.harness.TrinoAwsProxyTest;
@@ -31,7 +32,6 @@ import software.amazon.awssdk.services.sts.StsClient;
 import software.amazon.awssdk.services.sts.auth.StsAssumeRoleCredentialsProvider;
 
 import java.net.URI;
-import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 import static java.util.Objects.requireNonNull;
@@ -50,20 +50,19 @@ public class TestProxiedAssumedRoleRequests
             @ForTesting Credentials testingCredentials,
             TestingCredentialsRolesProvider credentialsController,
             @ForS3Container S3Client storageClient,
-            @ForS3Container List<String> configuredBuckets,
-            TrinoAwsProxyConfig trinoAwsProxyConfig)
+            TrinoAwsProxyConfig trinoAwsProxyConfig,
+            TestingS3RequestRewriteController requestRewriteController)
     {
-        this(buildClient(httpServer, testingCredentials, trinoAwsProxyConfig.getS3Path(), trinoAwsProxyConfig.getStsPath()), testingCredentials, credentialsController, storageClient, configuredBuckets);
+        this(buildClient(httpServer, testingCredentials, trinoAwsProxyConfig.getS3Path(), trinoAwsProxyConfig.getStsPath()), credentialsController, storageClient, requestRewriteController);
     }
 
     protected TestProxiedAssumedRoleRequests(
             S3Client internalClient,
-            Credentials testingCredentials,
             TestingCredentialsRolesProvider credentialsController,
             S3Client storageClient,
-            List<String> configuredBuckets)
+            TestingS3RequestRewriteController requestRewriteController)
     {
-        super(internalClient, storageClient, configuredBuckets);
+        super(internalClient, storageClient, requestRewriteController);
 
         this.credentialsController = requireNonNull(credentialsController, "credentialsController is null");
     }

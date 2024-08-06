@@ -15,6 +15,7 @@ package io.trino.aws.proxy.server;
 
 import com.google.inject.Inject;
 import io.airlift.http.server.testing.TestingHttpServer;
+import io.trino.aws.proxy.server.testing.TestingS3RequestRewriteController;
 import io.trino.aws.proxy.server.testing.TestingTrinoAwsProxyServerModule.ForTestingRemoteCredentials;
 import io.trino.aws.proxy.server.testing.containers.S3Container.ForS3Container;
 import io.trino.aws.proxy.server.testing.harness.TrinoAwsProxyTest;
@@ -23,7 +24,6 @@ import io.trino.aws.proxy.spi.credentials.Credentials;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.services.s3.S3Client;
 
-import java.util.List;
 import java.util.Optional;
 
 import static io.trino.aws.proxy.server.testing.TestingUtil.clientBuilder;
@@ -33,9 +33,9 @@ public class TestRemoteSessionProxiedRequests
         extends AbstractTestProxiedRequests
 {
     @Inject
-    public TestRemoteSessionProxiedRequests(@ForS3Container S3Client storageClient, @ForTestingRemoteCredentials Credentials remoteCredentials, TestingHttpServer httpServer, @ForS3Container List<String> configuredBuckets, TrinoAwsProxyConfig trinoAwsProxyConfig)
+    public TestRemoteSessionProxiedRequests(@ForS3Container S3Client storageClient, @ForTestingRemoteCredentials Credentials remoteCredentials, TestingHttpServer httpServer, TrinoAwsProxyConfig trinoAwsProxyConfig, TestingS3RequestRewriteController requestRewriteController)
     {
-        super(buildInternalClient(remoteCredentials, httpServer, trinoAwsProxyConfig.getS3Path()), storageClient, configuredBuckets);
+        super(buildInternalClient(remoteCredentials, httpServer, trinoAwsProxyConfig.getS3Path()), storageClient, requestRewriteController);
     }
 
     private static S3Client buildInternalClient(Credentials credentials, TestingHttpServer httpServer, String s3Path)

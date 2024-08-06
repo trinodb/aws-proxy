@@ -53,7 +53,9 @@ import io.trino.aws.proxy.spi.credentials.StandardIdentity;
 import io.trino.aws.proxy.spi.plugin.TrinoAwsProxyServerPlugin;
 import io.trino.aws.proxy.spi.plugin.config.AssumedRoleProviderConfig;
 import io.trino.aws.proxy.spi.plugin.config.CredentialsProviderConfig;
+import io.trino.aws.proxy.spi.plugin.config.S3RequestRewriterConfig;
 import io.trino.aws.proxy.spi.plugin.config.S3SecurityFacadeProviderConfig;
+import io.trino.aws.proxy.spi.rest.S3RequestRewriter;
 import io.trino.aws.proxy.spi.security.S3SecurityFacadeProvider;
 import io.trino.aws.proxy.spi.signing.SigningServiceType;
 import org.glassfish.jersey.server.model.Resource;
@@ -120,6 +122,13 @@ public class TrinoAwsProxyServerModule
             return StandardIdentity.class;
         });
         newSetBinder(binder, com.fasterxml.jackson.databind.Module.class).addBinding().toProvider(JsonIdentityProvider.class).in(Scopes.SINGLETON);
+
+        // RequestRewriter binder
+        configBinder(binder).bindConfig(S3RequestRewriterConfig.class);
+        newOptionalBinder(binder, S3RequestRewriter.class).setDefault().toProvider(() -> {
+            log.info("Using default %s NOOP implementation", S3RequestRewriter.class.getSimpleName());
+            return S3RequestRewriter.NOOP;
+        });
 
         // provided implementations
         install(new FileBasedCredentialsModule());

@@ -13,7 +13,9 @@
  */
 package io.trino.aws.proxy.server;
 
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import io.trino.aws.proxy.server.testing.TestingS3RequestRewriteController;
 import io.trino.aws.proxy.server.testing.TestingUtil;
 import jakarta.annotation.PreDestroy;
 import org.junit.jupiter.api.AfterEach;
@@ -25,21 +27,18 @@ import software.amazon.awssdk.services.s3.model.CompleteMultipartUploadRequest;
 import software.amazon.awssdk.services.s3.model.CompleteMultipartUploadResponse;
 import software.amazon.awssdk.services.s3.model.CompletedMultipartUpload;
 import software.amazon.awssdk.services.s3.model.CompletedPart;
+import software.amazon.awssdk.services.s3.model.CreateBucketResponse;
 import software.amazon.awssdk.services.s3.model.CreateMultipartUploadRequest;
 import software.amazon.awssdk.services.s3.model.CreateMultipartUploadResponse;
 import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
 import software.amazon.awssdk.services.s3.model.DeleteObjectResponse;
-import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.HeadObjectResponse;
 import software.amazon.awssdk.services.s3.model.ListBucketsResponse;
-import software.amazon.awssdk.services.s3.model.ListObjectsResponse;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectResponse;
-import software.amazon.awssdk.services.s3.model.S3Object;
 import software.amazon.awssdk.services.s3.model.UploadPartRequest;
 import software.amazon.awssdk.services.s3.model.UploadPartResponse;
 
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.time.Duration;
@@ -55,22 +54,24 @@ import java.util.stream.IntStream;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.util.concurrent.MoreExecutors.shutdownAndAwaitTermination;
 import static io.trino.aws.proxy.server.testing.TestingUtil.TEST_FILE;
+import static io.trino.aws.proxy.server.testing.TestingUtil.getFileFromStorage;
 import static io.trino.aws.proxy.server.testing.TestingUtil.headObjectInStorage;
+import static io.trino.aws.proxy.server.testing.TestingUtil.listFilesInS3Bucket;
 import static java.util.Objects.requireNonNull;
 import static org.assertj.core.api.Assertions.assertThat;
 
 public abstract class AbstractTestProxiedRequests
 {
-    private final S3Client internalClient;
-    private final S3Client remoteClient;
-    private final List<String> configuredBuckets;
+    final S3Client internalClient;
+    final S3Client remoteClient;
+    private final TestingS3RequestRewriteController requestRewriteController;
     private final ExecutorService executorService = Executors.newVirtualThreadPerTaskExecutor();
 
-    protected AbstractTestProxiedRequests(S3Client internalClient, S3Client remoteClient, List<String> configuredBuckets)
+    protected AbstractTestProxiedRequests(S3Client internalClient, S3Client remoteClient, TestingS3RequestRewriteController requestRewriteController)
     {
         this.internalClient = requireNonNull(internalClient, "internalClient is null");
         this.remoteClient = requireNonNull(remoteClient, "remoteClient is null");
-        this.configuredBuckets = requireNonNull(configuredBuckets, "configuredBuckets is null");
+        this.requestRewriteController = requireNonNull(requestRewriteController, "requestRewriteController is null");
     }
 
     @PreDestroy
@@ -86,68 +87,70 @@ public abstract class AbstractTestProxiedRequests
     }
 
     @Test
+    public void testCreateBucket()
+    {
+        String newBucketName = "new-bucket";
+        CreateBucketResponse createBucketResponse = internalClient.createBucket(r -> r.bucket(newBucketName));
+        assertThat(createBucketResponse.sdkHttpResponse().statusCode()).isEqualTo(200);
+
+        ListBucketsResponse listBucketsResponse = remoteClient.listBuckets();
+        assertThat(listBucketsResponse.buckets()).extracting(Bucket::name).contains(requestRewriteController.getTargetBucket(newBucketName, ""));
+    }
+
+    @Test
     public void testListBuckets()
     {
-        ListBucketsResponse listBucketsResponse = internalClient.listBuckets();
-        assertThat(listBucketsResponse.buckets())
-                .extracting(Bucket::name)
-                .containsExactlyInAnyOrderElementsOf(configuredBuckets);
+        List<String> actualBuckets = remoteClient.listBuckets().buckets().stream().map(Bucket::name).collect(toImmutableList());
+        List<String> bucketsReportedByProxy = internalClient.listBuckets().buckets().stream().map(Bucket::name).collect(toImmutableList());
 
-        assertThat(configuredBuckets.stream().map(bucketName -> internalClient.listObjects(request -> request.bucket(bucketName)).contents().size()))
-                .containsOnly(0)
-                .hasSize(configuredBuckets.size());
+        assertThat(bucketsReportedByProxy).containsExactlyElementsOf(actualBuckets);
     }
 
     @Test
     public void testListBucketsWithContents()
     {
-        String bucketToTest = configuredBuckets.getFirst();
+        String bucketToTest = "one";
         String testKey = "some-key";
-        assertThat(internalClient.listObjects(request -> request.bucket(bucketToTest)).contents()).isEmpty();
+        assertThat(listFilesInS3Bucket(internalClient, bucketToTest)).isEmpty();
 
-        remoteClient.putObject(request -> request.bucket(bucketToTest).key(testKey), RequestBody.fromString("some-contents"));
+        remoteClient.putObject(request -> request.bucket(requestRewriteController.getTargetBucket(bucketToTest, testKey)).key(requestRewriteController.getTargetKey(bucketToTest, testKey)), RequestBody.fromString("some-contents"));
 
-        assertThat(internalClient.listObjects(request -> request.bucket(bucketToTest)).contents())
-                .extracting(S3Object::key)
-                .containsOnly(testKey);
+        assertThat(listFilesInS3Bucket(internalClient, bucketToTest)).containsExactlyInAnyOrder(requestRewriteController.getTargetKey(bucketToTest, testKey));
     }
 
     @Test
     public void testUploadAndDelete()
             throws IOException
     {
-        PutObjectRequest putObjectRequest = PutObjectRequest.builder().bucket("two").key("test").build();
+        String bucket = "two";
+        String key = "test";
+        PutObjectRequest putObjectRequest = PutObjectRequest.builder().bucket(bucket).key(key).build();
         PutObjectResponse putObjectResponse = internalClient.putObject(putObjectRequest, TEST_FILE);
         assertThat(putObjectResponse.sdkHttpResponse().statusCode()).isEqualTo(200);
 
-        GetObjectRequest getObjectRequest = GetObjectRequest.builder().bucket("two").key("test").build();
-        ByteArrayOutputStream readContents = new ByteArrayOutputStream();
-        internalClient.getObject(getObjectRequest).transferTo(readContents);
-
         String expectedContents = Files.readString(TEST_FILE);
+        assertThat(getFileFromStorage(internalClient, bucket, key)).isEqualTo(expectedContents);
+        assertThat(getFileFromStorage(remoteClient, requestRewriteController.getTargetBucket(bucket, key), requestRewriteController.getTargetKey(bucket, key))).isEqualTo(expectedContents);
 
-        assertThat(readContents.toString()).isEqualTo(expectedContents);
+        assertThat(listFilesInS3Bucket(internalClient, bucket)).containsExactlyInAnyOrder(requestRewriteController.getTargetKey(bucket, key));
+        assertThat(listFilesInS3Bucket(remoteClient, requestRewriteController.getTargetBucket(bucket, key))).containsExactlyInAnyOrder(requestRewriteController.getTargetKey(bucket, key));
 
-        ListObjectsResponse listObjectsResponse = internalClient.listObjects(request -> request.bucket("two"));
-        assertThat(listObjectsResponse.contents())
-                .hasSize(1)
-                .first()
-                .extracting(S3Object::key, S3Object::size)
-                .containsExactlyInAnyOrder("test", Files.size(TEST_FILE));
-
-        DeleteObjectRequest deleteObjectRequest = DeleteObjectRequest.builder().bucket("two").key("test").build();
+        DeleteObjectRequest deleteObjectRequest = DeleteObjectRequest.builder().bucket(bucket).key(key).build();
         internalClient.deleteObject(deleteObjectRequest);
 
-        listObjectsResponse = internalClient.listObjects(request -> request.bucket("two"));
-        assertThat(listObjectsResponse.contents()).isEmpty();
+        assertThat(listFilesInS3Bucket(internalClient, bucket)).isEmpty();
+        assertThat(listFilesInS3Bucket(remoteClient, requestRewriteController.getTargetBucket(bucket, key))).isEmpty();
     }
 
     @Test
     public void testUploadWithContentTypeAndMetadata()
+            throws IOException
     {
+        String bucket = "two";
+        String key = "testWithMetadata";
         PutObjectRequest putObjectRequest = PutObjectRequest.builder()
-                .bucket("two")
-                .key("testWithMetadata")
+                .bucket(bucket)
+                .key(key)
                 .contentType("text/plain;charset=utf-8")
                 .contentEncoding("gzip,compress")
                 .metadata(ImmutableMap.of("metadata-key", "metadata-value"))
@@ -155,7 +158,9 @@ public abstract class AbstractTestProxiedRequests
         PutObjectResponse putObjectResponse = internalClient.putObject(putObjectRequest, TEST_FILE);
         assertThat(putObjectResponse.sdkHttpResponse().statusCode()).isEqualTo(200);
 
-        HeadObjectResponse headObjectResponse = headObjectInStorage(internalClient, "two", "testWithMetadata");
+        assertThat(getFileFromStorage(internalClient, bucket, key)).isEqualTo(Files.readString(TEST_FILE));
+        assertThat(getFileFromStorage(remoteClient, requestRewriteController.getTargetBucket(bucket, key), requestRewriteController.getTargetKey(bucket, key))).isEqualTo(Files.readString(TEST_FILE));
+        HeadObjectResponse headObjectResponse = headObjectInStorage(internalClient, bucket, key);
         assertThat(headObjectResponse.sdkHttpResponse().statusCode()).isEqualTo(200);
 
         assertThat(headObjectResponse.contentType()).isEqualTo("text/plain;charset=utf-8");
@@ -167,7 +172,9 @@ public abstract class AbstractTestProxiedRequests
     public void testMultipartUpload()
             throws IOException
     {
-        CreateMultipartUploadRequest multipartUploadRequest = CreateMultipartUploadRequest.builder().bucket("three").key("multi").build();
+        String bucket = "three";
+        String key = "multi";
+        CreateMultipartUploadRequest multipartUploadRequest = CreateMultipartUploadRequest.builder().bucket(bucket).key(key).build();
         CreateMultipartUploadResponse multipartUploadResponse = internalClient.createMultipartUpload(multipartUploadRequest);
 
         String uploadId = multipartUploadResponse.uploadId();
@@ -177,7 +184,7 @@ public abstract class AbstractTestProxiedRequests
         List<? extends Future<?>> futures = IntStream.rangeClosed(1, 5)
                 .mapToObj(partNumber -> executorService.submit(() -> {
                     String content = buildLine(partNumber);
-                    UploadPartRequest part = UploadPartRequest.builder().bucket("three").key("multi").uploadId(uploadId).partNumber(partNumber).contentLength((long) content.length()).build();
+                    UploadPartRequest part = UploadPartRequest.builder().bucket(bucket).key(key).uploadId(uploadId).partNumber(partNumber).contentLength((long) content.length()).build();
                     UploadPartResponse uploadPartResponse = internalClient.uploadPart(part, RequestBody.fromString(content));
                     assertThat(uploadPartResponse.sdkHttpResponse().statusCode()).isEqualTo(200);
 
@@ -203,8 +210,8 @@ public abstract class AbstractTestProxiedRequests
                 .build();
 
         CompleteMultipartUploadRequest completeRequest = CompleteMultipartUploadRequest.builder()
-                .bucket("three")
-                .key("multi")
+                .bucket(bucket)
+                .key(key)
                 .uploadId(uploadId)
                 .multipartUpload(completedUpload)
                 .build();
@@ -212,17 +219,14 @@ public abstract class AbstractTestProxiedRequests
         CompleteMultipartUploadResponse completeResponse = internalClient.completeMultipartUpload(completeRequest);
         assertThat(completeResponse.sdkHttpResponse().statusCode()).isEqualTo(200);
 
-        GetObjectRequest getObjectRequest = GetObjectRequest.builder().bucket("three").key("multi").build();
-        ByteArrayOutputStream readContents = new ByteArrayOutputStream();
-        internalClient.getObject(getObjectRequest).transferTo(readContents);
-
         String expected = IntStream.rangeClosed(1, 5)
                 .mapToObj(AbstractTestProxiedRequests::buildLine)
                 .collect(Collectors.joining());
 
-        assertThat(readContents.toString()).isEqualTo(expected);
+        assertThat(getFileFromStorage(internalClient, bucket, key)).isEqualTo(expected);
+        assertThat(getFileFromStorage(remoteClient, requestRewriteController.getTargetBucket(bucket, key), requestRewriteController.getTargetKey(bucket, key))).isEqualTo(expected);
 
-        DeleteObjectRequest deleteObjectRequest = DeleteObjectRequest.builder().bucket("three").key("multi").build();
+        DeleteObjectRequest deleteObjectRequest = DeleteObjectRequest.builder().bucket(bucket).key(key).build();
         DeleteObjectResponse deleteObjectResponse = internalClient.deleteObject(deleteObjectRequest);
         assertThat(deleteObjectResponse.sdkHttpResponse().statusCode()).isEqualTo(204);
     }
@@ -230,16 +234,19 @@ public abstract class AbstractTestProxiedRequests
     @Test
     public void testPathsNeedingEscaping()
     {
-        internalClient.createBucket(r -> r.bucket("escapes"));
-        internalClient.putObject(r -> r.bucket("escapes").key("a=1/b=2"), RequestBody.fromString("something"));
-        internalClient.putObject(r -> r.bucket("escapes").key("a=1%2Fb=2"), RequestBody.fromString("else"));
+        String bucket = "escapes";
+        remoteClient.createBucket(r -> r.bucket(requestRewriteController.getTargetBucket(bucket, "")));
+        internalClient.putObject(r -> r.bucket(bucket).key("a=1/b=2"), RequestBody.fromString("something"));
+        internalClient.putObject(r -> r.bucket(bucket).key("a=1%2Fb=2"), RequestBody.fromString("else"));
 
-        ListObjectsResponse listObjectsResponse = internalClient.listObjects(request -> request.bucket("escapes"));
-        assertThat(listObjectsResponse.contents()).extracting(S3Object::key).containsExactlyInAnyOrder("a=1/b=2", "a=1%2Fb=2");
+        List<String> expectedKeys = ImmutableList.of(requestRewriteController.getTargetKey(bucket, "a=1/b=2"), requestRewriteController.getTargetKey(bucket, "a=1%2Fb=2"));
+        assertThat(listFilesInS3Bucket(internalClient, bucket)).containsExactlyInAnyOrderElementsOf(expectedKeys);
+        assertThat(listFilesInS3Bucket(remoteClient, requestRewriteController.getTargetBucket(bucket, ""))).containsExactlyInAnyOrderElementsOf(expectedKeys);
 
-        internalClient.deleteObject(r -> r.bucket("escapes").key("a=1/b=2"));
-        internalClient.deleteObject(r -> r.bucket("escapes").key("a=1%2Fb=2"));
-        internalClient.deleteBucket(r -> r.bucket("escapes"));
+        internalClient.deleteObject(r -> r.bucket(bucket).key("a=1/b=2"));
+        internalClient.deleteObject(r -> r.bucket(bucket).key("a=1%2Fb=2"));
+        assertThat(listFilesInS3Bucket(internalClient, bucket)).isEmpty();
+        internalClient.deleteBucket(r -> r.bucket(bucket));
     }
 
     private static String buildLine(int partNumber)
