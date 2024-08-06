@@ -45,7 +45,6 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import software.amazon.awssdk.auth.signer.internal.chunkedencoding.AwsS3V4ChunkSigner;
 import software.amazon.awssdk.services.s3.S3Client;
-import software.amazon.awssdk.services.s3.model.DeleteBucketRequest;
 import software.amazon.awssdk.services.s3.model.HeadObjectResponse;
 
 import java.io.IOException;
@@ -64,7 +63,7 @@ import static io.airlift.http.client.StaticBodyGenerator.createStaticBodyGenerat
 import static io.airlift.http.client.StatusResponseHandler.createStatusResponseHandler;
 import static io.trino.aws.proxy.server.testing.TestingUtil.LOREM_IPSUM;
 import static io.trino.aws.proxy.server.testing.TestingUtil.assertFileNotInS3;
-import static io.trino.aws.proxy.server.testing.TestingUtil.cleanupBuckets;
+import static io.trino.aws.proxy.server.testing.TestingUtil.deleteAllBuckets;
 import static io.trino.aws.proxy.server.testing.TestingUtil.getFileFromStorage;
 import static io.trino.aws.proxy.server.testing.TestingUtil.headObjectInStorage;
 import static io.trino.aws.proxy.server.testing.TestingUtil.listFilesInS3Bucket;
@@ -125,8 +124,7 @@ public class TestGenericRestRequests
     @AfterEach
     public void cleanupStorage()
     {
-        cleanupBuckets(storageClient);
-        storageClient.listBuckets().buckets().forEach(bucket -> storageClient.deleteBucket(DeleteBucketRequest.builder().bucket(bucket.name()).build()));
+        deleteAllBuckets(storageClient);
     }
 
     @Test

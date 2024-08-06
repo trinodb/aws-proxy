@@ -24,7 +24,9 @@ import io.trino.aws.proxy.spi.credentials.Identity;
 import io.trino.aws.proxy.spi.plugin.config.AssumedRoleProviderConfig;
 import io.trino.aws.proxy.spi.plugin.config.CredentialsProviderConfig;
 import io.trino.aws.proxy.spi.plugin.config.PluginIdentifierConfig;
+import io.trino.aws.proxy.spi.plugin.config.S3RequestRewriterConfig;
 import io.trino.aws.proxy.spi.plugin.config.S3SecurityFacadeProviderConfig;
+import io.trino.aws.proxy.spi.rest.S3RequestRewriter;
 import io.trino.aws.proxy.spi.security.S3SecurityFacadeProvider;
 
 import static com.google.inject.multibindings.OptionalBinder.newOptionalBinder;
@@ -48,6 +50,11 @@ public interface TrinoAwsProxyServerBinding
     static Module s3SecurityFacadeProviderModule(String identifier, Class<? extends S3SecurityFacadeProvider> implementationClass, Module module)
     {
         return optionalPluginModule(S3SecurityFacadeProviderConfig.class, identifier, S3SecurityFacadeProvider.class, implementationClass, module);
+    }
+
+    static Module s3RequestRewriterModule(String identifier, Class<? extends S3RequestRewriter> implementationClass, Module module)
+    {
+        return optionalPluginModule(S3RequestRewriterConfig.class, identifier, S3RequestRewriter.class, implementationClass, module);
     }
 
     static <T extends Identity> void bindIdentityType(Binder binder, Class<T> type)

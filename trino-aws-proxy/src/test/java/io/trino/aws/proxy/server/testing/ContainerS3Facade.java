@@ -30,7 +30,6 @@ public final class ContainerS3Facade
         @Inject
         public PathStyleContainerS3Facade(S3Container s3Container, TestingRemoteS3Facade delegatingFacade)
         {
-            //super((ignored1, ignored2) -> "127.0.0.1", false, Optional.of(5432));
             super((ignored1, ignored2) -> s3Container.containerHost().getHost(), false, Optional.of(s3Container.containerHost().getPort()));
             delegatingFacade.setDelegate(this);
         }

@@ -14,14 +14,13 @@
 package io.trino.aws.proxy.server;
 
 import com.google.inject.Inject;
+import io.trino.aws.proxy.server.testing.TestingS3RequestRewriteController;
 import io.trino.aws.proxy.server.testing.TestingTrinoAwsProxyServer;
 import io.trino.aws.proxy.server.testing.containers.S3Container.ForS3Container;
 import io.trino.aws.proxy.server.testing.harness.BuilderFilter;
 import io.trino.aws.proxy.server.testing.harness.TrinoAwsProxyTest;
 import io.trino.aws.proxy.server.testing.harness.TrinoAwsProxyTestCommonModules.WithConfiguredBuckets;
 import software.amazon.awssdk.services.s3.S3Client;
-
-import java.util.List;
 
 @TrinoAwsProxyTest(filters = {WithConfiguredBuckets.class, TestProxiedRequestsWithEmptyPath.Filter.class})
 public class TestProxiedRequestsWithEmptyPath
@@ -38,8 +37,8 @@ public class TestProxiedRequestsWithEmptyPath
     }
 
     @Inject
-    public TestProxiedRequestsWithEmptyPath(S3Client s3Client, @ForS3Container S3Client storageClient, @ForS3Container List<String> configuredBuckets)
+    public TestProxiedRequestsWithEmptyPath(S3Client s3Client, @ForS3Container S3Client storageClient, TestingS3RequestRewriteController requestRewriteController)
     {
-        super(s3Client, storageClient, configuredBuckets);
+        super(s3Client, storageClient, requestRewriteController);
     }
 }

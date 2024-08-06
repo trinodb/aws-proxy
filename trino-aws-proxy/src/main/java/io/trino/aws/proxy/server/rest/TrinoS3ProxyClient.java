@@ -25,6 +25,8 @@ import io.trino.aws.proxy.server.security.S3SecurityController;
 import io.trino.aws.proxy.spi.credentials.Credentials;
 import io.trino.aws.proxy.spi.rest.ParsedS3Request;
 import io.trino.aws.proxy.spi.rest.RequestContent;
+import io.trino.aws.proxy.spi.rest.S3RequestRewriter;
+import io.trino.aws.proxy.spi.rest.S3RequestRewriter.S3RewriteResult;
 import io.trino.aws.proxy.spi.security.SecurityResponse;
 import io.trino.aws.proxy.spi.security.SecurityResponse.Failure;
 import io.trino.aws.proxy.spi.signing.SigningContext;
@@ -38,6 +40,7 @@ import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.container.AsyncResponse;
 import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.UriBuilder;
+import software.amazon.awssdk.utils.http.SdkHttpUtils;
 
 import java.io.InputStream;
 import java.lang.annotation.Retention;
@@ -68,6 +71,7 @@ public class TrinoS3ProxyClient
     private final S3SecurityController s3SecurityController;
     private final S3PresignController s3PresignController;
     private final LimitStreamController limitStreamController;
+    private final S3RequestRewriter s3RequestRewriter;
     private final ExecutorService executorService = Executors.newVirtualThreadPerTaskExecutor();
     private final boolean generatePresignedUrlsOnHead;
 
@@ -84,7 +88,8 @@ public class TrinoS3ProxyClient
             S3SecurityController s3SecurityController,
             TrinoAwsProxyConfig trinoAwsProxyConfig,
             S3PresignController s3PresignController,
-            LimitStreamController limitStreamController)
+            LimitStreamController limitStreamController,
+            S3RequestRewriter s3RequestRewriter)
     {
         this.httpClient = requireNonNull(httpClient, "httpClient is null");
         this.signingController = requireNonNull(signingController, "signingController is null");
@@ -92,6 +97,7 @@ public class TrinoS3ProxyClient
         this.s3SecurityController = requireNonNull(s3SecurityController, "securityController is null");
         this.s3PresignController = requireNonNull(s3PresignController, "presignController is null");
         this.limitStreamController = requireNonNull(limitStreamController, "quotaStreamController is null");
+        this.s3RequestRewriter = requireNonNull(s3RequestRewriter, "s3RequestRewriter is null");
 
         generatePresignedUrlsOnHead = trinoAwsProxyConfig.isGeneratePresignedUrlsOnHead();
     }
@@ -106,7 +112,13 @@ public class TrinoS3ProxyClient
 
     public void proxyRequest(SigningMetadata signingMetadata, ParsedS3Request request, AsyncResponse asyncResponse, RequestLoggingSession requestLoggingSession)
     {
-        URI remoteUri = remoteS3Facade.buildEndpoint(uriBuilder(request.queryParameters()), request.rawPath(), request.bucketName(), request.requestAuthorization().region());
+        Optional<S3RewriteResult> rewriteResult = s3RequestRewriter.rewrite(signingMetadata.credentials(), request);
+        String targetBucket = rewriteResult.map(S3RewriteResult::finalRequestBucket).orElse(request.bucketName());
+        String targetKey = rewriteResult
+                .map(S3RewriteResult::finalRequestKey)
+                .map(SdkHttpUtils::urlEncodeIgnoreSlashes)
+                .orElse(request.rawPath());
+        URI remoteUri = remoteS3Facade.buildEndpoint(uriBuilder(request.queryParameters()), targetKey, targetBucket, request.requestAuthorization().region());
 
         SecurityResponse securityResponse = s3SecurityController.apply(request, signingMetadata.credentials().identity());
         if (securityResponse instanceof Failure(var error)) {
