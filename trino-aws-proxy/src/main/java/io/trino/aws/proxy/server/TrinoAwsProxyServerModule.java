@@ -31,6 +31,7 @@ import io.airlift.jaxrs.JaxrsBinder;
 import io.airlift.log.Logger;
 import io.trino.aws.proxy.server.credentials.CredentialsController;
 import io.trino.aws.proxy.server.credentials.file.FileBasedCredentialsModule;
+import io.trino.aws.proxy.server.credentials.http.HttpCredentialsModule;
 import io.trino.aws.proxy.server.remote.RemoteS3Module;
 import io.trino.aws.proxy.server.rest.RequestFilter;
 import io.trino.aws.proxy.server.rest.RequestLoggerController;
@@ -119,6 +120,7 @@ public class TrinoAwsProxyServerModule
         // provided implementations
         install(new FileBasedCredentialsModule());
         install(new OpaS3SecurityModule());
+        install(new HttpCredentialsModule());
 
         // AssumedRoleProvider binder
         configBinder(binder).bindConfig(AssumedRoleProviderConfig.class);
