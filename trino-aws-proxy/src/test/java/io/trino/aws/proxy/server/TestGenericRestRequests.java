@@ -338,6 +338,44 @@ public class TestGenericRestRequests
         testPutObject(bucket, badContent, badSha256, 401, false);
     }
 
+    @Test
+    public void testPutObjectWithEscaping()
+            throws IOException
+    {
+        String bucket = "foo";
+        storageClient.createBucket(r -> r.bucket(bucket).build());
+
+        // Unescaped keys
+        testPutObjectWithEscaping(bucket, "a=1/b=2", "a=1/b=2", "a=1/b=2");
+        // Escaped keys
+        testPutObjectWithEscaping(bucket, "a%3D1/b%3D2", "a%3D1/b%3D2", "a=1/b=2");
+        // Mismatched escaped character casing
+        testPutObjectWithEscaping(bucket, "a%3D1/b%3D2", "a%3d1/b%3d2", "a=1/b=2");
+        // Mismatched escaping
+        testPutObjectWithEscaping(bucket, "a=1/b=2", "a%3D1/b%3D2", "a=1/b=2");
+        testPutObjectWithEscaping(bucket, "a%3D1/b%3D2", "a=1/b=2", "a=1/b=2");
+        // Keys are not double-decoded
+        testPutObjectWithEscaping(bucket, "a%3D1%252Fb%3D2", "a%3D1%252Fb%3D2", "a=1%2Fb=2");
+    }
+
+    private void testPutObjectWithEscaping(String bucket, String signingFileKey, String requestFileKey, String storageFileKey)
+            throws IOException
+    {
+        String fileContents = UUID.randomUUID().toString();
+        signingFileKey += "_" + fileContents;
+        requestFileKey += "_" + fileContents;
+        storageFileKey += "_" + fileContents;
+        assertThat(
+                httpClient.execute(
+                        Request.Builder.fromRequest(createPutObjectRequest(bucket, signingFileKey, fileContents, sha256(fileContents)))
+                                .setUri(UriBuilder.fromUri(baseUri).path(bucket).path(requestFileKey).build())
+                                .build(),
+                        createStatusResponseHandler()))
+                .extracting(StatusResponse::getStatusCode)
+                .isEqualTo(200);
+        assertThat(getFileFromStorage(storageClient, bucket, storageFileKey)).isEqualTo(fileContents);
+    }
+
     private void testPutObject(String bucket, String content, String hash, int expectedStatusCode, boolean expectUpload)
             throws IOException
     {
@@ -351,7 +389,7 @@ public class TestGenericRestRequests
         }
     }
 
-    private StatusResponse doPutObject(String bucket, String key, String content, String sha256)
+    private Request createPutObjectRequest(String bucket, String key, String content, String sha256)
     {
         Instant requestDate = Instant.now();
         String requestDateStr = AwsTimestamp.toRequestFormat(requestDate);
@@ -374,8 +412,12 @@ public class TestGenericRestRequests
                 .setUri(uri)
                 .setBodyGenerator(createStaticBodyGenerator(content, StandardCharsets.UTF_8));
         headersBuilder.build().forEachEntry(requestBuilder::addHeader);
+        return requestBuilder.build();
+    }
 
-        return httpClient.execute(requestBuilder.build(), createStatusResponseHandler());
+    private StatusResponse doPutObject(String bucket, String key, String content, String sha256)
+    {
+        return httpClient.execute(createPutObjectRequest(bucket, key, content, sha256), createStatusResponseHandler());
     }
 
     private RequestAuthorization signRequest(Credential signingCredential, URI uri, Instant requestDate, String method, MultiMap headers)
