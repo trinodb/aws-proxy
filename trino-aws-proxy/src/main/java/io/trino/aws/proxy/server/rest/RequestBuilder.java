@@ -27,7 +27,6 @@ import io.trino.aws.proxy.spi.signing.RequestAuthorization;
 import io.trino.aws.proxy.spi.util.ImmutableMultiMap;
 import io.trino.aws.proxy.spi.util.MultiMap;
 import jakarta.ws.rs.WebApplicationException;
-import jakarta.ws.rs.core.UriBuilder;
 import org.glassfish.jersey.server.ContainerRequest;
 
 import java.io.ByteArrayInputStream;
@@ -98,8 +97,7 @@ class RequestBuilder
         BucketAndKey bucketAndKey = serverHostName
                 .flatMap(serverHostNameValue -> {
                     String lowercaseServerHostName = serverHostNameValue.toLowerCase(Locale.ROOT);
-                    return headers.unmodifiedHeaders().getFirst("host")
-                            .map(value -> UriBuilder.fromUri("http://" + value.toLowerCase(Locale.ROOT)).build().getHost())
+                    return Optional.of(request.requestUri().getHost())
                             .filter(value -> value.endsWith(lowercaseServerHostName))
                             .map(value -> value.substring(0, value.length() - lowercaseServerHostName.length()))
                             .map(value -> value.endsWith(".") ? value.substring(0, value.length() - 1) : value);
