@@ -15,6 +15,8 @@ package io.trino.aws.proxy.server.credentials.http;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.module.SimpleModule;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Multimaps;
 import com.google.inject.Inject;
 import io.airlift.http.client.FullJsonResponseHandler.JsonResponse;
 import io.airlift.http.client.HttpClient;
@@ -28,6 +30,7 @@ import io.trino.aws.proxy.spi.credentials.Identity;
 import jakarta.ws.rs.core.UriBuilder;
 
 import java.net.URI;
+import java.util.Map;
 import java.util.Optional;
 
 import static io.airlift.http.client.FullJsonResponseHandler.createFullJsonResponseHandler;
@@ -40,6 +43,7 @@ public class HttpCredentialsProvider
     private final HttpClient httpClient;
     private final JsonCodec<Credentials> jsonCodec;
     private final URI httpCredentialsProviderEndpoint;
+    private final Map<String, String> httpHeaders;
 
     @Inject
     public HttpCredentialsProvider(@ForHttpCredentialsProvider HttpClient httpClient, HttpCredentialsProviderConfig config, ObjectMapper objectMapper, Class<? extends Identity> identityClass)
@@ -49,6 +53,7 @@ public class HttpCredentialsProvider
         this.httpCredentialsProviderEndpoint = config.getEndpoint();
         ObjectMapper adjustedObjectMapper = objectMapper.registerModule(new SimpleModule().addAbstractTypeMapping(Identity.class, identityClass));
         this.jsonCodec = new JsonCodecFactory(() -> adjustedObjectMapper).jsonCodec(Credentials.class);
+        this.httpHeaders = ImmutableMap.copyOf(config.getHttpHeaders());
     }
 
     @Override
@@ -56,10 +61,10 @@ public class HttpCredentialsProvider
     {
         UriBuilder uriBuilder = UriBuilder.fromUri(httpCredentialsProviderEndpoint).path(emulatedAccessKey);
         session.ifPresent(sessionToken -> uriBuilder.queryParam("sessionToken", sessionToken));
-        Request request = prepareGet()
-                .setUri(uriBuilder.build())
-                .build();
-        JsonResponse<Credentials> response = httpClient.execute(request, createFullJsonResponseHandler(jsonCodec));
+        Request.Builder requestBuilder = prepareGet()
+                .addHeaders(Multimaps.forMap(httpHeaders))
+                .setUri(uriBuilder.build());
+        JsonResponse<Credentials> response = httpClient.execute(requestBuilder.build(), createFullJsonResponseHandler(jsonCodec));
         if (response.getStatusCode() == HttpStatus.NOT_FOUND.code() || !response.hasValue()) {
             return Optional.empty();
         }
