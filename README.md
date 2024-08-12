@@ -68,3 +68,18 @@ spark = SparkSession\
     
 # try spark sql commands
 ```
+
+## Module Configurations
+
+### HTTP Credentials Provider
+
+The HTTP credentials provider provides an option to include additional headers on requests sent to the HTTP service (e.g., for authentication).
+
+These can be configured with `credentials-provider.http.headers`. This config entry is formatted as a comma-separated list of header names and values, where each entry is in the format `header-name:header-value`.
+
+For instance, `header1:value1,header2:value2`.
+If a header name or value should contain a comma, these can be escaped by doubling them (`,,` translates to a single comma in the literal header name or value, and is not treated as a separator).
+
+E.g.: setting this config property to `"x-api-key: xyz,,123, Authorization: key,,,,123"` results in 2 headers:
+- `x-api-key`: with value `xyz,123`
+- `Authorization`: with value `key,,123`

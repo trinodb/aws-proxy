@@ -13,6 +13,7 @@
  */
 package io.trino.aws.proxy.server.credentials.http;
 
+import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.inject.Inject;
@@ -50,6 +51,8 @@ public class TestHttpCredentialsProvider
     public static class Filter
             implements BuilderFilter
     {
+        private static String httpEndpointUri;
+
         @Override
         public TestingTrinoAwsProxyServer.Builder filter(TestingTrinoAwsProxyServer.Builder builder)
         {
@@ -57,6 +60,7 @@ public class TestHttpCredentialsProvider
             try {
                 httpCredentialsServer = createTestingHttpCredentialsServer();
                 httpCredentialsServer.start();
+                httpEndpointUri = httpCredentialsServer.getBaseUrl().toString();
             }
             catch (Exception e) {
                 throw new RuntimeException("Failed to start test http credentials provider server", e);
@@ -65,7 +69,8 @@ public class TestHttpCredentialsProvider
                     .addModule(new HttpCredentialsModule())
                     .addModule(binder -> bindIdentityType(binder, TestingIdentity.class))
                     .withProperty("credentials-provider.type", HTTP_CREDENTIALS_PROVIDER_IDENTIFIER)
-                    .withProperty("credentials-provider.http.endpoint", httpCredentialsServer.getBaseUrl().toString());
+                    .withProperty("credentials-provider.http.endpoint", httpEndpointUri)
+                    .withProperty("credentials-provider.http.headers", "Authorization: auth, Content-Type: application/json");
         }
     }
 
@@ -139,6 +144,10 @@ public class TestHttpCredentialsProvider
         protected void doGet(HttpServletRequest request, HttpServletResponse response)
                 throws IOException
         {
+            if (Strings.isNullOrEmpty(request.getHeader("Authorization")) || Strings.isNullOrEmpty("Content-Type")) {
+                response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+                return;
+            }
             Optional<String> sessionToken = Optional.ofNullable(request.getParameter("sessionToken"));
             String emulatedAccessKey = request.getPathInfo().substring(1);
             String credentialsIdentifier = "";

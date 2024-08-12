@@ -13,14 +13,19 @@
  */
 package io.trino.aws.proxy.server.credentials.http;
 
+import com.google.common.base.Splitter;
 import io.airlift.configuration.Config;
 import jakarta.validation.constraints.NotNull;
 
 import java.net.URI;
+import java.util.Map;
+
+import static com.google.common.collect.ImmutableMap.toImmutableMap;
 
 public class HttpCredentialsProviderConfig
 {
     private URI endpoint;
+    private Map<String, String> httpHeaders = Map.of();
 
     @NotNull
     public URI getEndpoint()
@@ -32,6 +37,29 @@ public class HttpCredentialsProviderConfig
     public HttpCredentialsProviderConfig setEndpoint(String endpoint)
     {
         this.endpoint = URI.create(endpoint);
+        return this;
+    }
+
+    public Map<String, String> getHttpHeaders()
+    {
+        return httpHeaders;
+    }
+
+    @Config("credentials-provider.http.headers")
+    public HttpCredentialsProviderConfig setHttpHeaders(String httpHeadersList)
+    {
+        try {
+            this.httpHeaders = Splitter.on(",").trimResults().omitEmptyStrings()
+                    .splitToStream(httpHeadersList.replaceAll(",,", "\r"))
+                    .map(item -> item.replace("\r", ","))
+                    .map(s -> s.split(":", 2))
+                    .collect(toImmutableMap(
+                            a -> a[0].trim(),
+                            a -> a[1].trim()));
+        }
+        catch (IndexOutOfBoundsException e) {
+            throw new IllegalArgumentException("Invalid HTTP header list: " + httpHeadersList);
+        }
         return this;
     }
 }
