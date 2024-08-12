@@ -61,7 +61,7 @@ public class TestOpaSecurity
         public TestingTrinoAwsProxyServer.Builder filter(TestingTrinoAwsProxyServer.Builder builder)
         {
             return builder.withProperty("s3-security.type", OPA_S3_SECURITY_IDENTIFIER)
-                    .withProperty("opa-s3-security.server-base-uri", "http://localhost")
+                    .withProperty("opa-s3-security.server-base-uri", "http://localhost/v1/data")
                     .addModule(binder -> binder.bind(OpaS3SecurityMapper.class).to(OpaMapper.class).in(Scopes.SINGLETON))
                     .withS3Container()
                     .withOpaContainer();
