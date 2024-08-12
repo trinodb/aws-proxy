@@ -52,7 +52,7 @@ public class OpaS3SecurityFacadeProvider
     {
         this.httpClient = requireNonNull(httpClient, "httpClient is null");
         this.opaS3SecurityMapper = requireNonNull(opaS3SecurityMapper, "opaS3SecurityMapper is null");
-        opaServerUri = UriBuilder.fromUri(config.getOpaServerBaseUri()).path("/v1/data").build();
+        opaServerUri = UriBuilder.fromUri(config.getOpaServerBaseUri()).build();
     }
 
     @Override
