@@ -63,7 +63,7 @@ public class TestS3SecurityController
         assertThat(listObjectsResponse.contents()).isEmpty();
 
         // set facade that disallows list objects on bucket "one"
-        securityController.setDelegate(request -> _ -> {
+        securityController.setDelegate((request, _) -> _ -> {
             if ("one".equals(request.bucketName()) && request.httpVerb().equalsIgnoreCase("get")) {
                 return FAILURE;
             }

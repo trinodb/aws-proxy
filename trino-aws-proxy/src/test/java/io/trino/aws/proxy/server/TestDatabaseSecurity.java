@@ -19,6 +19,7 @@ import io.trino.aws.proxy.server.testing.TestingTrinoAwsProxyServer;
 import io.trino.aws.proxy.server.testing.containers.PySparkContainer;
 import io.trino.aws.proxy.server.testing.harness.BuilderFilter;
 import io.trino.aws.proxy.server.testing.harness.TrinoAwsProxyTest;
+import io.trino.aws.proxy.spi.credentials.Identity;
 import io.trino.aws.proxy.spi.rest.ParsedS3Request;
 import io.trino.aws.proxy.spi.security.S3DatabaseSecurityDecorator;
 import io.trino.aws.proxy.spi.security.S3SecurityFacade;
@@ -63,7 +64,7 @@ public class TestDatabaseSecurity
         final AtomicBoolean disallowGets = new AtomicBoolean();
 
         @Override
-        public S3SecurityFacade securityFacadeForRequest(ParsedS3Request request)
+        public S3SecurityFacade securityFacadeForRequest(ParsedS3Request request, Optional<Identity> identity)
                 throws WebApplicationException
         {
             S3SecurityFacade s3SecurityFacade = lowercaseAction -> SUCCESS;

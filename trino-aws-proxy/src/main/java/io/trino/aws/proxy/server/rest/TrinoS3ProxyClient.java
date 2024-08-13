@@ -105,7 +105,7 @@ public class TrinoS3ProxyClient
     {
         URI remoteUri = remoteS3Facade.buildEndpoint(uriBuilder(request.queryParameters()), request.rawPath(), request.bucketName(), request.requestAuthorization().region());
 
-        SecurityResponse securityResponse = s3SecurityController.apply(request);
+        SecurityResponse securityResponse = s3SecurityController.apply(request, signingMetadata.credentials().identity());
         if (securityResponse instanceof Failure(var error)) {
             log.debug("SecurityController check failed. AccessKey: %s, Request: %s, SecurityResponse: %s", signingMetadata.credentials().emulated().accessKey(), request, securityResponse);
             requestLoggingSession.logError("request.security.fail.credentials", signingMetadata.credentials().emulated());

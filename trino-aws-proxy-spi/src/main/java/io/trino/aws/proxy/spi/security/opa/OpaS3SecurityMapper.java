@@ -14,6 +14,7 @@
 package io.trino.aws.proxy.spi.security.opa;
 
 import com.google.common.collect.ImmutableMap;
+import io.trino.aws.proxy.spi.credentials.Identity;
 import io.trino.aws.proxy.spi.rest.ParsedS3Request;
 import io.trino.aws.proxy.spi.security.SecurityResponse;
 
@@ -58,7 +59,7 @@ public interface OpaS3SecurityMapper
                 .orElse(FAILURE);
     }
 
-    OpaRequest toRequest(ParsedS3Request request, Optional<String> lowercaseAction, URI baseUri);
+    OpaRequest toRequest(ParsedS3Request request, Optional<String> lowercaseAction, URI baseUri, Optional<Identity> identity);
 
     static Optional<Boolean> extractBoolean(Map<?, ?> map, String key)
     {

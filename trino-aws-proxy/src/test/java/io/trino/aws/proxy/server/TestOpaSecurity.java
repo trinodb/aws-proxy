@@ -24,6 +24,7 @@ import io.trino.aws.proxy.server.testing.TestingTrinoAwsProxyServer;
 import io.trino.aws.proxy.server.testing.containers.OpaContainer;
 import io.trino.aws.proxy.server.testing.harness.BuilderFilter;
 import io.trino.aws.proxy.server.testing.harness.TrinoAwsProxyTest;
+import io.trino.aws.proxy.spi.credentials.Identity;
 import io.trino.aws.proxy.spi.rest.ParsedS3Request;
 import io.trino.aws.proxy.spi.security.opa.OpaRequest;
 import io.trino.aws.proxy.spi.security.opa.OpaS3SecurityMapper;
@@ -80,8 +81,9 @@ public class TestOpaSecurity
         }
 
         @Override
-        public OpaRequest toRequest(ParsedS3Request request, Optional<String> lowercaseAction, URI baseUri)
+        public OpaRequest toRequest(ParsedS3Request request, Optional<String> lowercaseAction, URI baseUri, Optional<Identity> identity)
         {
+            assertThat(identity).isPresent();
             URI uri = UriBuilder.fromUri(baseUri).port(containerPort).path("test").path("allow").build();
             return new OpaRequest(uri, ImmutableMap.of("table", request.keyInBucket()));
         }

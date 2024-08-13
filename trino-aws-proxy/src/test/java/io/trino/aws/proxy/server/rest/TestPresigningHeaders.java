@@ -108,7 +108,7 @@ public class TestPresigningHeaders
         Presigned presigned = getPresigned("get", "one", "gettest");
         assertThat(presigned.presignedHeaderMethods).containsExactlyInAnyOrder("GET", "PUT", "POST", "DELETE");
 
-        securityController.setDelegate(request -> lowercaseAction -> request.httpVerb().equalsIgnoreCase("DELETE") ? FAILURE : SUCCESS);
+        securityController.setDelegate((request, _) -> lowercaseAction -> request.httpVerb().equalsIgnoreCase("DELETE") ? FAILURE : SUCCESS);
 
         presigned = getPresigned("get", "one", "gettest");
         assertThat(presigned.presignedHeaderMethods).containsExactlyInAnyOrder("GET", "PUT", "POST");

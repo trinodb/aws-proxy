@@ -17,6 +17,7 @@ import com.google.inject.Inject;
 import io.airlift.http.client.HttpClient;
 import io.airlift.http.client.Request;
 import io.airlift.json.JsonCodec;
+import io.trino.aws.proxy.spi.credentials.Identity;
 import io.trino.aws.proxy.spi.rest.ParsedS3Request;
 import io.trino.aws.proxy.spi.security.S3SecurityFacade;
 import io.trino.aws.proxy.spi.security.S3SecurityFacadeProvider;
@@ -56,15 +57,15 @@ public class OpaS3SecurityFacadeProvider
     }
 
     @Override
-    public S3SecurityFacade securityFacadeForRequest(ParsedS3Request request)
+    public S3SecurityFacade securityFacadeForRequest(ParsedS3Request request, Optional<Identity> identity)
             throws WebApplicationException
     {
-        return lowercaseAction -> facade(request, lowercaseAction);
+        return lowercaseAction -> facade(request, lowercaseAction, identity);
     }
 
-    private SecurityResponse facade(ParsedS3Request parsedS3Request, Optional<String> lowercaseAction)
+    private SecurityResponse facade(ParsedS3Request parsedS3Request, Optional<String> lowercaseAction, Optional<Identity> identity)
     {
-        OpaRequest opaRequest = opaS3SecurityMapper.toRequest(parsedS3Request, lowercaseAction, opaServerUri);
+        OpaRequest opaRequest = opaS3SecurityMapper.toRequest(parsedS3Request, lowercaseAction, opaServerUri, identity);
 
         Map<String, Object> inputDocument = opaS3SecurityMapper.toInputDocument(opaRequest.document());
 

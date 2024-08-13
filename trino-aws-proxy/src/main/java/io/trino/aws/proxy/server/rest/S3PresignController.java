@@ -84,7 +84,7 @@ public class S3PresignController
                 request.rawQuery(),
                 request.requestContent());
 
-        return switch (s3SecurityController.apply(checkRequest)) {
+        return switch (s3SecurityController.apply(checkRequest, signingMetadata.credentials().identity())) {
             case Success _ -> Stream.of(Map.entry(httpMethod, signingContext.signingUri()));
             case Failure _ -> Stream.empty();
         };
