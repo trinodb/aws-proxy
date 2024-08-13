@@ -15,8 +15,10 @@ package io.trino.aws.proxy.server.credentials.file;
 
 import com.google.inject.Binder;
 import io.airlift.configuration.AbstractConfigurationAwareModule;
+import io.trino.aws.proxy.spi.credentials.Credentials;
 
 import static io.airlift.configuration.ConfigBinder.configBinder;
+import static io.airlift.json.JsonCodecBinder.jsonCodecBinder;
 import static io.trino.aws.proxy.spi.plugin.TrinoAwsProxyServerBinding.credentialsProviderModule;
 
 public class FileBasedCredentialsModule
@@ -34,6 +36,7 @@ public class FileBasedCredentialsModule
                 innerBinder -> {
                     configBinder(innerBinder).bindConfig(FileBasedCredentialsProviderConfig.class);
                     innerBinder.bind(FileBasedCredentialsProvider.class);
+                    jsonCodecBinder(innerBinder).bindListJsonCodec(Credentials.class);
                 }));
     }
 }

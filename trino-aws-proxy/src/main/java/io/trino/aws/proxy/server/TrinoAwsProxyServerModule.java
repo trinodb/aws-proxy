@@ -30,6 +30,7 @@ import io.airlift.http.server.HttpServerBinder;
 import io.airlift.jaxrs.JaxrsBinder;
 import io.airlift.log.Logger;
 import io.trino.aws.proxy.server.credentials.CredentialsController;
+import io.trino.aws.proxy.server.credentials.JsonIdentityProvider;
 import io.trino.aws.proxy.server.credentials.file.FileBasedCredentialsModule;
 import io.trino.aws.proxy.server.credentials.http.HttpCredentialsModule;
 import io.trino.aws.proxy.server.remote.RemoteS3Module;
@@ -116,6 +117,7 @@ public class TrinoAwsProxyServerModule
             log.info("Using %s identity type", StandardIdentity.class.getSimpleName());
             return StandardIdentity.class;
         });
+        newSetBinder(binder, com.fasterxml.jackson.databind.Module.class).addBinding().toProvider(JsonIdentityProvider.class).in(Scopes.SINGLETON);
 
         // provided implementations
         install(new FileBasedCredentialsModule());

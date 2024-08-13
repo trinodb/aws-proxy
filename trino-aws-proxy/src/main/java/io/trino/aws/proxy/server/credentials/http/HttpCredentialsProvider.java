@@ -13,8 +13,6 @@
  */
 package io.trino.aws.proxy.server.credentials.http;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Multimaps;
 import com.google.inject.Inject;
@@ -23,10 +21,8 @@ import io.airlift.http.client.HttpClient;
 import io.airlift.http.client.HttpStatus;
 import io.airlift.http.client.Request;
 import io.airlift.json.JsonCodec;
-import io.airlift.json.JsonCodecFactory;
 import io.trino.aws.proxy.spi.credentials.Credentials;
 import io.trino.aws.proxy.spi.credentials.CredentialsProvider;
-import io.trino.aws.proxy.spi.credentials.Identity;
 import jakarta.ws.rs.core.UriBuilder;
 
 import java.net.URI;
@@ -46,13 +42,11 @@ public class HttpCredentialsProvider
     private final Map<String, String> httpHeaders;
 
     @Inject
-    public HttpCredentialsProvider(@ForHttpCredentialsProvider HttpClient httpClient, HttpCredentialsProviderConfig config, ObjectMapper objectMapper, Class<? extends Identity> identityClass)
+    public HttpCredentialsProvider(@ForHttpCredentialsProvider HttpClient httpClient, HttpCredentialsProviderConfig config, JsonCodec<Credentials> jsonCodec)
     {
-        requireNonNull(objectMapper, "objectMapper is null");
         this.httpClient = requireNonNull(httpClient, "httpClient is null");
+        this.jsonCodec = requireNonNull(jsonCodec, "jsonCodec is null");
         this.httpCredentialsProviderEndpoint = config.getEndpoint();
-        ObjectMapper adjustedObjectMapper = objectMapper.registerModule(new SimpleModule().addAbstractTypeMapping(Identity.class, identityClass));
-        this.jsonCodec = new JsonCodecFactory(() -> adjustedObjectMapper).jsonCodec(Credentials.class);
         this.httpHeaders = ImmutableMap.copyOf(config.getHttpHeaders());
     }
 
