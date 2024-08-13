@@ -53,4 +53,9 @@ public record Credentials(Credential emulated, Optional<Credential> remote, Opti
     {
         return new Credentials(emulated, Optional.of(remote), Optional.of(remoteSessionRole), Optional.empty());
     }
+
+    public static Credentials build(Credential emulated, Credential remote, Identity identity)
+    {
+        return new Credentials(emulated, Optional.of(remote), Optional.empty(), Optional.of(identity));
+    }
 }

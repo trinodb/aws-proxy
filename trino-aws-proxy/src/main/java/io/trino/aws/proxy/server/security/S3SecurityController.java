@@ -16,6 +16,7 @@ package io.trino.aws.proxy.server.security;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Splitter;
 import com.google.inject.Inject;
+import io.trino.aws.proxy.spi.credentials.Identity;
 import io.trino.aws.proxy.spi.rest.ParsedS3Request;
 import io.trino.aws.proxy.spi.security.S3SecurityFacade;
 import io.trino.aws.proxy.spi.security.S3SecurityFacadeProvider;
@@ -29,7 +30,7 @@ import static java.util.Objects.requireNonNull;
 
 public class S3SecurityController
 {
-    private static final S3SecurityFacadeProvider DEFAULT_SECURITY_FACADE_PROVIDER = _ -> _ -> SUCCESS;
+    private static final S3SecurityFacadeProvider DEFAULT_SECURITY_FACADE_PROVIDER = (_, _) -> _ -> SUCCESS;
 
     private final S3SecurityFacadeProvider s3SecurityFacadeProvider;
 
@@ -39,9 +40,9 @@ public class S3SecurityController
         this.s3SecurityFacadeProvider = requireNonNull(s3SecurityFacadeProvider, "s3SecurityFacadeProvider is null");
     }
 
-    public SecurityResponse apply(ParsedS3Request request)
+    public SecurityResponse apply(ParsedS3Request request, Optional<Identity> identity)
     {
-        S3SecurityFacade s3SecurityFacade = currentProvider().securityFacadeForRequest(request);
+        S3SecurityFacade s3SecurityFacade = currentProvider().securityFacadeForRequest(request, identity);
 
         Optional<String> lowercaseAction = request.rawQuery().flatMap(S3SecurityController::parseAction);
 

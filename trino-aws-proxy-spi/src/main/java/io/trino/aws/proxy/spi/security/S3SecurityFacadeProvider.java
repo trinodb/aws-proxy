@@ -13,17 +13,20 @@
  */
 package io.trino.aws.proxy.spi.security;
 
+import io.trino.aws.proxy.spi.credentials.Identity;
 import io.trino.aws.proxy.spi.rest.ParsedS3Request;
 import jakarta.ws.rs.WebApplicationException;
 
+import java.util.Optional;
+
 public interface S3SecurityFacadeProvider
 {
-    S3SecurityFacadeProvider NOOP = _ -> S3SecurityFacade.NOOP;
+    S3SecurityFacadeProvider NOOP = (_, _) -> S3SecurityFacade.NOOP;
 
     /**
      * Return a validated/authenticated facade for the given request or
      * throw {@link jakarta.ws.rs.WebApplicationException}
      */
-    S3SecurityFacade securityFacadeForRequest(ParsedS3Request request)
+    S3SecurityFacade securityFacadeForRequest(ParsedS3Request request, Optional<Identity> identity)
             throws WebApplicationException;
 }

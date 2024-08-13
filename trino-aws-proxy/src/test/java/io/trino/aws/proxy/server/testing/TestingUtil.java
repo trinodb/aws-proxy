@@ -56,7 +56,8 @@ public final class TestingUtil
 
     public static final Credentials TESTING_CREDENTIALS = Credentials.build(
             new Credential(UUID.randomUUID().toString(), UUID.randomUUID().toString()),
-            new Credential(UUID.randomUUID().toString(), UUID.randomUUID().toString()));
+            new Credential(UUID.randomUUID().toString(), UUID.randomUUID().toString()),
+            new TestingIdentity(UUID.randomUUID().toString(), List.of(), UUID.randomUUID().toString()));
 
     // Domain name with a wildcard CNAME pointing to localhost - needed to test Virtual Host style addressing
     public static final String LOCALHOST_DOMAIN = "local.gate0.net";
