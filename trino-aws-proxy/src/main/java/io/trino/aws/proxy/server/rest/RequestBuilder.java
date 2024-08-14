@@ -96,11 +96,10 @@ class RequestBuilder
 
         BucketAndKey bucketAndKey = serverHostName
                 .flatMap(serverHostNameValue -> {
-                    String lowercaseServerHostName = serverHostNameValue.toLowerCase(Locale.ROOT);
+                    String dotLowercaseServerHostName = "." + serverHostNameValue.toLowerCase(Locale.ROOT);
                     return Optional.of(request.requestUri().getHost())
-                            .filter(value -> value.endsWith(lowercaseServerHostName))
-                            .map(value -> value.substring(0, value.length() - lowercaseServerHostName.length()))
-                            .map(value -> value.endsWith(".") ? value.substring(0, value.length() - 1) : value);
+                            .filter(value -> value.endsWith(dotLowercaseServerHostName))
+                            .map(value -> value.substring(0, value.length() - dotLowercaseServerHostName.length()));
                 })
                 .map(bucket -> new BucketAndKey(bucket, requestPath))
                 .orElseGet(() -> {
