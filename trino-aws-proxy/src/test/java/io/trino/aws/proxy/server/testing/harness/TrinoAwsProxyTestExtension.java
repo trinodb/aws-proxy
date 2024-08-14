@@ -18,7 +18,7 @@ import com.google.inject.Key;
 import com.google.inject.Scopes;
 import io.trino.aws.proxy.server.remote.RemoteS3Facade;
 import io.trino.aws.proxy.server.testing.ContainerS3Facade;
-import io.trino.aws.proxy.server.testing.TestingS3ClientProvider;
+import io.trino.aws.proxy.server.testing.TestingS3ClientModule;
 import io.trino.aws.proxy.server.testing.TestingTrinoAwsProxyServer;
 import io.trino.aws.proxy.server.testing.TestingUtil.ForTesting;
 import io.trino.aws.proxy.server.testing.containers.S3Container;
@@ -72,9 +72,7 @@ public class TrinoAwsProxyTestExtension
 
         Injector injector = trinoS3ProxyServer.getInjector()
                 .createChildInjector(binder -> {
-                    binder.bind(TestingS3ClientProvider.TestingS3ClientConfig.class).in(Scopes.SINGLETON);
-                    binder.bind(TestingS3ClientProvider.class).in(Scopes.SINGLETON);
-                    binder.bind(S3Client.class).toProvider(TestingS3ClientProvider.class).in(Scopes.SINGLETON);
+                    binder.install(new TestingS3ClientModule());
                     binder.bind(TestingTrinoAwsProxyServer.class).toInstance(trinoS3ProxyServer);
                     binder.bind(factoryContext.getTestClass()).in(Scopes.SINGLETON);
                 });
