@@ -15,7 +15,9 @@ package io.trino.aws.proxy.server.security.opa;
 
 import com.google.inject.Binder;
 import io.airlift.configuration.AbstractConfigurationAwareModule;
+import io.trino.aws.proxy.spi.security.opa.OpaClient;
 
+import static com.google.inject.multibindings.OptionalBinder.newOptionalBinder;
 import static io.airlift.configuration.ConfigBinder.configBinder;
 import static io.airlift.http.client.HttpClientBinder.httpClientBinder;
 import static io.trino.aws.proxy.spi.plugin.TrinoAwsProxyServerBinding.s3SecurityFacadeProviderModule;
@@ -33,6 +35,7 @@ public class OpaS3SecurityModule
         install(s3SecurityFacadeProviderModule(OPA_S3_SECURITY_IDENTIFIER, OpaS3SecurityFacadeProvider.class, internalBinder -> {
             configBinder(internalBinder).bindConfig(OpaS3SecurityConfig.class);
             httpClientBinder(internalBinder).bindHttpClient(OPA_S3_SECURITY_IDENTIFIER, ForOpa.class);
+            newOptionalBinder(internalBinder, OpaClient.class).setDefault().to(DefaultOpaClient.class);
         }));
     }
 }
