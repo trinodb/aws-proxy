@@ -58,9 +58,10 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 public class TestOpaSecurity
 {
     private final HttpClient httpClient;
-    private final int containerPort;
     private final S3Client s3Client;
     private final S3Client storageClient;
+    private final String opaContainerHost;
+    private final int opaContainerPort;
 
     public static class Filter
             implements BuilderFilter
@@ -79,13 +80,15 @@ public class TestOpaSecurity
     public static class TestingOpaS3SecurityFacade
             implements OpaS3SecurityFacade
     {
-        private final int containerPort;
         private final OpaClient opaClient;
+        private final String opaContainerHost;
+        private final int opaContainerPort;
 
         @Inject
         public TestingOpaS3SecurityFacade(OpaContainer container, OpaClient opaClient)
         {
-            containerPort = container.getPort();
+            opaContainerHost = container.getHost();
+            opaContainerPort = container.getPort();
             this.opaClient = requireNonNull(opaClient, "opaClient is null");
         }
 
@@ -99,7 +102,7 @@ public class TestOpaSecurity
             if (request.keyInBucket().equals("default-deny")) {
                 return SecurityResponse.FAILURE;
             }
-            URI uri = UriBuilder.fromUri(opaServerBaseUri).port(containerPort).path("test").path("allow").build();
+            URI uri = UriBuilder.fromUri(opaServerBaseUri).host(opaContainerHost).port(opaContainerPort).path("test").path("allow").build();
             return opaClient.getSecurityResponse(new OpaRequest(uri, ImmutableMap.of("table", request.keyInBucket())));
         }
     }
@@ -115,19 +118,20 @@ public class TestOpaSecurity
             """;
 
     @Inject
-    public TestOpaSecurity(@ForOpa HttpClient httpClient, OpaContainer container, S3Client s3Client, @ForS3Container S3Client storageClient)
+    public TestOpaSecurity(@ForOpa HttpClient httpClient, S3Client s3Client, @ForS3Container S3Client storageClient, OpaContainer container)
     {
         this.httpClient = requireNonNull(httpClient, "httpClient is null");
-        containerPort = container.getPort();
         this.s3Client = requireNonNull(s3Client, "s3Client is null");
         this.storageClient = requireNonNull(storageClient, "storageClient is null");
+        opaContainerHost = container.getHost();
+        opaContainerPort = container.getPort();
     }
 
     @BeforeAll
     public void setup()
     {
         Request request = preparePut()
-                .setUri(URI.create("http://localhost:%s/v1/policies/test".formatted(containerPort)))
+                .setUri(UriBuilder.newInstance().scheme("http").host(opaContainerHost).port(opaContainerPort).path("v1/policies/test").build())
                 .setBodyGenerator(createStaticBodyGenerator(POLICY, StandardCharsets.UTF_8))
                 .build();
 

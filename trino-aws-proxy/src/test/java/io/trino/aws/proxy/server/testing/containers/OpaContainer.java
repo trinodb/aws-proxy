@@ -43,6 +43,11 @@ public class OpaContainer
         return container.getFirstMappedPort();
     }
 
+    public String getHost()
+    {
+        return container.getHost();
+    }
+
     @PreDestroy
     public void shutdown()
     {
