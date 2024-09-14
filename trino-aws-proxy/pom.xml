@@ -11,6 +11,8 @@
 
     <properties>
         <air.main.basedir>${project.parent.basedir}</air.main.basedir>
+        <air.readme.file>README.md</air.readme.file>
+        <main-class>io.trino.aws.proxy.server.TrinoAwsProxyServer</main-class>
     </properties>
 
     <dependencies>

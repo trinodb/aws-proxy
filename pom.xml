@@ -31,6 +31,7 @@
         <module>trino-aws-proxy-spark3</module>
         <module>trino-aws-proxy-spark4</module>
         <module>trino-aws-proxy-spi</module>
+        <module>trino-aws-proxy-test-container</module>
     </modules>
 
     <scm>
@@ -58,6 +59,7 @@
         <dep.minio.version>8.5.9</dep.minio.version>
         <dep.docker.version>3.3.6</dep.docker.version>
         <dep.awaitility.version>4.1.1</dep.awaitility.version>
+        <dep.commons-compress.version>1.24.0</dep.commons-compress.version>
     </properties>
 
     <dependencyManagement>
@@ -92,6 +94,13 @@
 
             <dependency>
                 <groupId>${project.groupId}</groupId>
+                <artifactId>trino-aws-proxy</artifactId>
+                <version>${project.version}</version>
+                <type>tar.gz</type>
+            </dependency>
+
+            <dependency>
+                <groupId>${project.groupId}</groupId>
                 <artifactId>trino-aws-proxy-spark3</artifactId>
                 <version>${project.version}</version>
             </dependency>
@@ -105,6 +114,12 @@
             <dependency>
                 <groupId>${project.groupId}</groupId>
                 <artifactId>trino-aws-proxy-spi</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>${project.groupId}</groupId>
+                <artifactId>trino-aws-proxy-test-container</artifactId>
                 <version>${project.version}</version>
             </dependency>
 
@@ -124,6 +139,12 @@
                 <groupId>io.minio</groupId>
                 <artifactId>minio</artifactId>
                 <version>${dep.minio.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>org.apache.commons</groupId>
+                <artifactId>commons-compress</artifactId>
+                <version>${dep.commons-compress.version}</version>
             </dependency>
 
             <dependency>
