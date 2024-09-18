@@ -44,6 +44,7 @@ import java.nio.file.Files;
 import java.time.Duration;
 import java.util.Comparator;
 import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -54,6 +55,7 @@ import java.util.stream.IntStream;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.util.concurrent.MoreExecutors.shutdownAndAwaitTermination;
 import static io.trino.aws.proxy.server.testing.TestingUtil.TEST_FILE;
+import static io.trino.aws.proxy.server.testing.TestingUtil.assertFileNotInS3;
 import static io.trino.aws.proxy.server.testing.TestingUtil.getFileFromStorage;
 import static io.trino.aws.proxy.server.testing.TestingUtil.headObjectInStorage;
 import static io.trino.aws.proxy.server.testing.TestingUtil.listFilesInS3Bucket;
@@ -247,6 +249,17 @@ public abstract class AbstractTestProxiedRequests
         internalClient.deleteObject(r -> r.bucket(bucket).key("a=1%2Fb=2"));
         assertThat(listFilesInS3Bucket(internalClient, bucket)).isEmpty();
         internalClient.deleteBucket(r -> r.bucket(bucket));
+    }
+
+    @Test
+    public void testKeyOrBucketDoesNotExist()
+    {
+        assertFileNotInS3(internalClient, UUID.randomUUID().toString(), UUID.randomUUID().toString());
+
+        String newBucketName = "empty-bucket";
+        remoteClient.createBucket(r -> r.bucket(newBucketName));
+
+        assertFileNotInS3(internalClient, newBucketName, UUID.randomUUID().toString());
     }
 
     private static String buildLine(int partNumber)
