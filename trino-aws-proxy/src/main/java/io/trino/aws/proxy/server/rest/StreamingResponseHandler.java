@@ -16,7 +16,6 @@ package io.trino.aws.proxy.server.rest;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableMap;
 import io.airlift.http.client.HeaderName;
-import io.airlift.http.client.HttpStatus;
 import io.airlift.http.client.Request;
 import io.airlift.http.client.Response;
 import io.airlift.http.client.ResponseHandler;
@@ -78,9 +77,7 @@ class StreamingResponseHandler
         };
 
         jakarta.ws.rs.core.Response.ResponseBuilder responseBuilder = jakarta.ws.rs.core.Response.status(response.getStatusCode());
-        if (HttpStatus.familyForStatusCode(response.getStatusCode()) == HttpStatus.Family.SUCCESSFUL) {
-            responseBuilder.entity(streamingOutput);
-        }
+        responseBuilder.entity(streamingOutput);
         response.getHeaders()
                 .keySet()
                 .stream()
