@@ -14,11 +14,16 @@
 package io.trino.aws.proxy.server.credentials.http;
 
 import com.google.common.collect.ImmutableMap;
+import io.airlift.units.Duration;
 import org.junit.jupiter.api.Test;
 
+import java.net.URI;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 import static io.airlift.configuration.testing.ConfigAssertions.assertFullMapping;
+import static io.airlift.configuration.testing.ConfigAssertions.assertRecordedDefaults;
+import static io.airlift.configuration.testing.ConfigAssertions.recordDefaults;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
@@ -27,20 +32,35 @@ public class TestHttpCredentialsProviderConfig
     @Test
     public void testExplicitPropertyMappings()
     {
-        Map<String, String> properties = ImmutableMap.of(
-                "credentials-provider.http.endpoint", "http://usersvc:9000/api/v1/users",
-                "credentials-provider.http.headers", "x-api-key: xyz123, Content-Type: application/json");
+        Map<String, String> properties = ImmutableMap.<String, String>builder()
+                .put("credentials-provider.http.endpoint", "http://usersvc:9000/api/v1/users")
+                .put("credentials-provider.http.headers", "x-api-key: xyz123, Content-Type: application/json")
+                .put("credentials-provider.http.cache-size", "123")
+                .put("credentials-provider.http.cache-ttl", "2m")
+                .buildOrThrow();
         HttpCredentialsProviderConfig expected = new HttpCredentialsProviderConfig()
-                .setEndpoint("http://usersvc:9000/api/v1/users")
-                .setHttpHeaders("x-api-key: xyz123, Content-Type: application/json");
+                .setEndpoint(URI.create("http://usersvc:9000/api/v1/users"))
+                .setHttpHeaders("x-api-key: xyz123, Content-Type: application/json")
+                .setCacheSize(123)
+                .setCacheTtl(new Duration(2, TimeUnit.MINUTES));
         assertFullMapping(properties, expected);
+    }
+
+    @Test
+    public void testConfigDefaults()
+    {
+        assertRecordedDefaults(recordDefaults(HttpCredentialsProviderConfig.class)
+                .setEndpoint(null)
+                .setHttpHeaders("")
+                .setCacheSize(0)
+                .setCacheTtl(Duration.ZERO));
     }
 
     @Test
     public void testValidHttpHeaderVariation1()
     {
         HttpCredentialsProviderConfig config = new HttpCredentialsProviderConfig()
-                .setEndpoint("http://usersvc:9000/api/v1/users")
+                .setEndpoint(URI.create("http://usersvc:9000/api/v1/users"))
                 .setHttpHeaders("x-api-key: Authorization: xyz123");
         Map<String, String> httpHeaders = config.getHttpHeaders();
         assertThat(httpHeaders.get("x-api-key")).isEqualTo("Authorization: xyz123");
@@ -50,7 +70,7 @@ public class TestHttpCredentialsProviderConfig
     public void testValidHttpHeaderVariation2()
     {
         HttpCredentialsProviderConfig config = new HttpCredentialsProviderConfig()
-                .setEndpoint("http://usersvc:9000/api/v1/users")
+                .setEndpoint(URI.create("http://usersvc:9000/api/v1/users"))
                 .setHttpHeaders("x-api-key: xyz,,123, Authorization: key,,,,123");
         Map<String, String> httpHeaders = config.getHttpHeaders();
         assertThat(httpHeaders.get("x-api-key")).isEqualTo("xyz,123");
@@ -61,7 +81,7 @@ public class TestHttpCredentialsProviderConfig
     public void testIncorrectHttpHeader1()
     {
         assertThrows(IllegalArgumentException.class, () -> new HttpCredentialsProviderConfig()
-                .setEndpoint("http://usersvc:9000/api/v1/users")
+                .setEndpoint(URI.create("http://usersvc:9000/api/v1/users"))
                 .setHttpHeaders("malformed-header"));
     }
 
@@ -69,7 +89,7 @@ public class TestHttpCredentialsProviderConfig
     public void testIncorrectHttpHeader2()
     {
         assertThrows(IllegalArgumentException.class, () -> new HttpCredentialsProviderConfig()
-                .setEndpoint("http://usersvc:9000/api/v1/users")
+                .setEndpoint(URI.create("http://usersvc:9000/api/v1/users"))
                 .setHttpHeaders("x-api-key: xyz,,,123, Authorization: key123"));
     }
 }

@@ -58,6 +58,7 @@
         <dep.minio.version>8.5.9</dep.minio.version>
         <dep.docker.version>3.3.6</dep.docker.version>
         <dep.awaitility.version>4.1.1</dep.awaitility.version>
+        <dep.caffeine.version>3.1.8</dep.caffeine.version>
     </properties>
 
     <dependencyManagement>
@@ -106,6 +107,18 @@
                 <groupId>${project.groupId}</groupId>
                 <artifactId>trino-aws-proxy-spi</artifactId>
                 <version>${project.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>com.github.ben-manes.caffeine</groupId>
+                <artifactId>caffeine</artifactId>
+                <version>${dep.caffeine.version}</version>
+                <exclusions>
+                    <exclusion>
+                        <groupId>org.checkerframework</groupId>
+                        <artifactId>checker-qual</artifactId>
+                    </exclusion>
+                </exclusions>
             </dependency>
 
             <dependency>
