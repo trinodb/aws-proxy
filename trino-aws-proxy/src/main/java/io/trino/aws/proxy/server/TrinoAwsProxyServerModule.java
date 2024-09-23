@@ -19,6 +19,7 @@ import com.fasterxml.jackson.databind.Module;
 import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.fasterxml.jackson.dataformat.xml.XmlMapper;
+import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.inject.Binder;
 import com.google.inject.Provides;
@@ -38,6 +39,7 @@ import io.trino.aws.proxy.server.rest.LimitStreamController;
 import io.trino.aws.proxy.server.rest.RequestFilter;
 import io.trino.aws.proxy.server.rest.RequestLoggerController;
 import io.trino.aws.proxy.server.rest.S3PresignController;
+import io.trino.aws.proxy.server.rest.ThrowableMapper;
 import io.trino.aws.proxy.server.rest.TrinoLogsResource;
 import io.trino.aws.proxy.server.rest.TrinoS3ProxyClient;
 import io.trino.aws.proxy.server.rest.TrinoS3ProxyClient.ForProxyClient;
@@ -90,6 +92,7 @@ public class TrinoAwsProxyServerModule
         MapBinder<Class<?>, SigningServiceType> signingServiceTypesMapBinder = newMapBinder(binder, new TypeLiteral<>() {}, new TypeLiteral<>() {});
 
         jaxrsBinder.bind(RequestFilter.class);
+        jaxrsBinder.bind(ThrowableMapper.class);
         bindResourceAtPath(jaxrsBinder, signingServiceTypesMapBinder, SigningServiceType.S3, TrinoS3Resource.class, builtConfig.getS3Path());
         bindResourceAtPath(jaxrsBinder, signingServiceTypesMapBinder, SigningServiceType.STS, TrinoStsResource.class, builtConfig.getStsPath());
         bindResourceAtPath(jaxrsBinder, signingServiceTypesMapBinder, SigningServiceType.LOGS, TrinoLogsResource.class, builtConfig.getLogsPath());
@@ -160,6 +163,7 @@ public class TrinoAwsProxyServerModule
     {
         // NOTE: this is _not_ a singleton on purpose. ObjectMappers/XmlMappers are mutable.
         XmlMapper xmlMapper = new XmlMapper();
+        xmlMapper.registerModule(new Jdk8Module());
         xmlMapper.setPropertyNamingStrategy(PropertyNamingStrategies.UPPER_CAMEL_CASE);
         return xmlMapper;
     }

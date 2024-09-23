@@ -109,7 +109,7 @@ public class TestDatabaseSecurity
 
         try {
             facadeProvider.disallowGets.set(true);
-            clearInputStreamAndClose(inputToContainerStdin(pySparkContainer.containerId(), "spark.sql(\"select * from %s.%s\").show()".formatted(DATABASE_NAME, TABLE_NAME)), line -> line.contains("Error Code: 401 Unauthorized"));
+            clearInputStreamAndClose(inputToContainerStdin(pySparkContainer.containerId(), "spark.sql(\"select * from %s.%s\").show()".formatted(DATABASE_NAME, TABLE_NAME)), line -> line.contains("Status Code: 401; Error Code: Unauthorized"));
         }
         finally {
             facadeProvider.disallowGets.set(false);
