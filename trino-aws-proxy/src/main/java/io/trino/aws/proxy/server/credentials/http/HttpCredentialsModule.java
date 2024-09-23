@@ -37,7 +37,6 @@ public class HttpCredentialsModule
                 HttpCredentialsProvider.class,
                 innerBinder -> {
                     configBinder(innerBinder).bindConfig(HttpCredentialsProviderConfig.class);
-                    innerBinder.bind(HttpCredentialsProvider.class);
                     httpClientBinder(innerBinder).bindHttpClient(HTTP_CREDENTIALS_PROVIDER_HTTP_CLIENT_NAME, ForHttpCredentialsProvider.class);
                     jsonCodecBinder(innerBinder).bindJsonCodec(Credentials.class);
                 }));
