@@ -87,12 +87,15 @@ public class RequestFilter
             }
 
             Request request = RequestBuilder.fromRequest(containerRequest);
+            containerRequest.setProperty(Request.class.getName(), request);
+
             RequestLoggingSession requestLoggingSession = requestLoggerController.newRequestSession(request, signingServiceType);
             containerRequest.setProperty(RequestLoggingSession.class.getName(), requestLoggingSession);
 
             SigningMetadata signingMetadata;
             try {
                 signingMetadata = signingController.validateAndParseAuthorization(request, signingServiceType);
+                containerRequest.setProperty(SigningMetadata.class.getName(), signingMetadata);
             }
             catch (Exception e) {
                 requestLoggingSession.logException(e);
@@ -100,12 +103,10 @@ public class RequestFilter
                 switch (Throwables.getRootCause(e)) {
                     case WebApplicationException webApplicationException -> throw webApplicationException;
                     case IOException ioException -> throw ioException;
+                    case RuntimeException runtimeException -> throw runtimeException;
                     default -> throw new RuntimeException(e);
                 }
             }
-
-            containerRequest.setProperty(Request.class.getName(), request);
-            containerRequest.setProperty(SigningMetadata.class.getName(), signingMetadata);
         }
         else {
             log.warn("%s is not a ContainerRequest", requestContext.getRequest().getClass().getName());
