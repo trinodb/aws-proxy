@@ -33,8 +33,10 @@ import jakarta.ws.rs.core.Response;
 import java.util.Optional;
 
 import static io.trino.aws.proxy.server.rest.RequestBuilder.fromRequest;
+import static io.trino.aws.proxy.server.rest.ResourceSecurity.AccessType.S3;
 import static java.util.Objects.requireNonNull;
 
+@ResourceSecurity(S3)
 public class TrinoS3Resource
 {
     private final TrinoS3ProxyClient proxyClient;

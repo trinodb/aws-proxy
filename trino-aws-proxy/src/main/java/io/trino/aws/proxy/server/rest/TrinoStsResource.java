@@ -37,8 +37,10 @@ import java.util.Map;
 import java.util.Optional;
 
 import static com.google.common.collect.ImmutableMap.toImmutableMap;
+import static io.trino.aws.proxy.server.rest.ResourceSecurity.AccessType.STS;
 import static java.util.Objects.requireNonNull;
 
+@ResourceSecurity(STS)
 public class TrinoStsResource
 {
     private static final Logger log = Logger.get(TrinoStsResource.class);

@@ -36,6 +36,7 @@ public class TrinoAwsProxyConfig
     private String logsPath = "/api/v1/s3Proxy/logs";
     private int requestLoggerSavedQty = 10000;
     private Optional<DataSize> maxPayloadSize = Optional.empty();
+    private String statusPath = "/api/v1/s3Proxy/status";
 
     @Config("aws.proxy.s3.hostname")
     @ConfigDescription("Hostname to use for S3 REST operations, virtual-host style addressing is only supported if this is set")
@@ -145,6 +146,20 @@ public class TrinoAwsProxyConfig
     public TrinoAwsProxyConfig setMaxPayloadSize(DataSize maxPayloadSize)
     {
         this.maxPayloadSize = Optional.of(requireNonNull(maxPayloadSize, "requestByteQuota is null"));
+        return this;
+    }
+
+    @NotNull
+    public String getStatusPath()
+    {
+        return statusPath;
+    }
+
+    @Config("aws.proxy.status.path")
+    @ConfigDescription("URL Path for node status, optional")
+    public TrinoAwsProxyConfig setStatusPath(String statusPath)
+    {
+        this.statusPath = statusPath;
         return this;
     }
 }
