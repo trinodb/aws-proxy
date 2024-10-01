@@ -25,7 +25,6 @@ import com.google.inject.Binder;
 import com.google.inject.Provides;
 import com.google.inject.Scopes;
 import com.google.inject.TypeLiteral;
-import com.google.inject.multibindings.MapBinder;
 import io.airlift.configuration.AbstractConfigurationAwareModule;
 import io.airlift.http.server.HttpServerBinder;
 import io.airlift.jaxrs.JaxrsBinder;
@@ -36,14 +35,16 @@ import io.trino.aws.proxy.server.credentials.file.FileBasedCredentialsModule;
 import io.trino.aws.proxy.server.credentials.http.HttpCredentialsModule;
 import io.trino.aws.proxy.server.remote.RemoteS3Module;
 import io.trino.aws.proxy.server.rest.LimitStreamController;
-import io.trino.aws.proxy.server.rest.RequestFilter;
+import io.trino.aws.proxy.server.rest.ParamProvider;
 import io.trino.aws.proxy.server.rest.RequestLoggerController;
+import io.trino.aws.proxy.server.rest.ResourceSecurityDynamicFeature;
 import io.trino.aws.proxy.server.rest.S3PresignController;
 import io.trino.aws.proxy.server.rest.ThrowableMapper;
 import io.trino.aws.proxy.server.rest.TrinoLogsResource;
 import io.trino.aws.proxy.server.rest.TrinoS3ProxyClient;
 import io.trino.aws.proxy.server.rest.TrinoS3ProxyClient.ForProxyClient;
 import io.trino.aws.proxy.server.rest.TrinoS3Resource;
+import io.trino.aws.proxy.server.rest.TrinoStatusResource;
 import io.trino.aws.proxy.server.rest.TrinoStsResource;
 import io.trino.aws.proxy.server.security.S3SecurityController;
 import io.trino.aws.proxy.server.security.opa.OpaS3SecurityModule;
@@ -60,7 +61,6 @@ import io.trino.aws.proxy.spi.plugin.config.S3RequestRewriterConfig;
 import io.trino.aws.proxy.spi.plugin.config.S3SecurityFacadeProviderConfig;
 import io.trino.aws.proxy.spi.rest.S3RequestRewriter;
 import io.trino.aws.proxy.spi.security.S3SecurityFacadeProvider;
-import io.trino.aws.proxy.spi.signing.SigningServiceType;
 import org.glassfish.jersey.server.model.Resource;
 
 import java.util.List;
@@ -68,7 +68,6 @@ import java.util.Map;
 import java.util.ServiceLoader;
 import java.util.Set;
 
-import static com.google.inject.multibindings.MapBinder.newMapBinder;
 import static com.google.inject.multibindings.Multibinder.newSetBinder;
 import static com.google.inject.multibindings.OptionalBinder.newOptionalBinder;
 import static io.airlift.configuration.ConfigBinder.configBinder;
@@ -89,13 +88,13 @@ public class TrinoAwsProxyServerModule
 
         JaxrsBinder jaxrsBinder = jaxrsBinder(binder);
 
-        MapBinder<Class<?>, SigningServiceType> signingServiceTypesMapBinder = newMapBinder(binder, new TypeLiteral<>() {}, new TypeLiteral<>() {});
-
-        jaxrsBinder.bind(RequestFilter.class);
         jaxrsBinder.bind(ThrowableMapper.class);
-        bindResourceAtPath(jaxrsBinder, signingServiceTypesMapBinder, SigningServiceType.S3, TrinoS3Resource.class, builtConfig.getS3Path());
-        bindResourceAtPath(jaxrsBinder, signingServiceTypesMapBinder, SigningServiceType.STS, TrinoStsResource.class, builtConfig.getStsPath());
-        bindResourceAtPath(jaxrsBinder, signingServiceTypesMapBinder, SigningServiceType.LOGS, TrinoLogsResource.class, builtConfig.getLogsPath());
+        jaxrsBinder.bind(ParamProvider.class);
+        jaxrsBinder.bind(ResourceSecurityDynamicFeature.class);
+        bindResourceAtPath(jaxrsBinder, TrinoS3Resource.class, builtConfig.getS3Path());
+        bindResourceAtPath(jaxrsBinder, TrinoStsResource.class, builtConfig.getStsPath());
+        bindResourceAtPath(jaxrsBinder, TrinoLogsResource.class, builtConfig.getLogsPath());
+        bindResourceAtPath(jaxrsBinder, TrinoStatusResource.class, builtConfig.getStatusPath());
 
         binder.bind(CredentialsController.class).in(Scopes.SINGLETON);
         binder.bind(RequestLoggerController.class).in(Scopes.SINGLETON);
@@ -211,11 +210,9 @@ public class TrinoAwsProxyServerModule
                 });
     }
 
-    private static void bindResourceAtPath(JaxrsBinder jaxrsBinder, MapBinder<Class<?>, SigningServiceType> signingServiceTypesMapBinder, SigningServiceType signingServiceType, Class<?> resourceClass, String resourcePathPrefix)
+    private static void bindResourceAtPath(JaxrsBinder jaxrsBinder, Class<?> resourceClass, String resourcePrefix)
     {
-        Resource resource = Resource.builder(resourceClass).path(resourcePathPrefix).build();
         jaxrsBinder.bind(resourceClass);
-        jaxrsBinder.bindInstance(resource);
-        signingServiceTypesMapBinder.addBinding(resourceClass).toInstance(signingServiceType);
+        jaxrsBinder.bindInstance(Resource.builder(resourceClass).path(resourcePrefix).build());
     }
 }
