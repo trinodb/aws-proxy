@@ -16,11 +16,8 @@ package io.trino.aws.proxy.server.credentials.http;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.inject.Inject;
-import io.airlift.http.server.HttpServerConfig;
-import io.airlift.http.server.HttpServerInfo;
 import io.airlift.http.server.testing.TestingHttpServer;
-import io.airlift.json.ObjectMapperProvider;
-import io.airlift.node.NodeInfo;
+import io.trino.aws.proxy.server.testing.TestingHttpCredentialsProviderServlet;
 import io.trino.aws.proxy.server.testing.TestingIdentity;
 import io.trino.aws.proxy.server.testing.TestingTrinoAwsProxyServer;
 import io.trino.aws.proxy.server.testing.harness.BuilderFilter;
@@ -28,40 +25,32 @@ import io.trino.aws.proxy.server.testing.harness.TrinoAwsProxyTest;
 import io.trino.aws.proxy.spi.credentials.Credential;
 import io.trino.aws.proxy.spi.credentials.Credentials;
 import io.trino.aws.proxy.spi.credentials.CredentialsProvider;
-import jakarta.servlet.http.HttpServlet;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import java.io.IOException;
 import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import static io.trino.aws.proxy.server.credentials.http.HttpCredentialsModule.HTTP_CREDENTIALS_PROVIDER_IDENTIFIER;
+import static io.trino.aws.proxy.server.testing.TestingHttpCredentialsProviderServlet.DUMMY_EMULATED_ACCESS_KEY;
+import static io.trino.aws.proxy.server.testing.TestingHttpCredentialsProviderServlet.DUMMY_EMULATED_SECRET_KEY;
+import static io.trino.aws.proxy.server.testing.TestingHttpCredentialsProviderServlet.DUMMY_REMOTE_ACCESS_KEY;
+import static io.trino.aws.proxy.server.testing.TestingHttpCredentialsProviderServlet.DUMMY_REMOTE_SECRET_KEY;
+import static io.trino.aws.proxy.server.testing.TestingUtil.createTestingHttpServer;
 import static io.trino.aws.proxy.spi.plugin.TrinoAwsProxyServerBinding.bindIdentityType;
-import static jakarta.ws.rs.core.MediaType.APPLICATION_JSON;
 import static java.util.Objects.requireNonNull;
 import static org.assertj.core.api.Assertions.assertThat;
 
 @TrinoAwsProxyTest(filters = TestHttpCredentialsProvider.Filter.class)
 public class TestHttpCredentialsProvider
 {
-    private static final String DUMMY_EMULATED_ACCESS_KEY = "test-emulated-access-key";
-    private static final String DUMMY_EMULATED_SECRET_KEY = "test-emulated-secret-key";
-    private static final String DUMMY_REMOTE_ACCESS_KEY = "test-remote-access-key";
-    private static final String DUMMY_REMOTE_SECRET_KEY = "test-remote-secret-key";
-
     private final CredentialsProvider credentialsProvider;
-    private final HttpCredentialsServlet httpCredentialsServlet;
+    private final TestingHttpCredentialsProviderServlet httpCredentialsServlet;
     private final HttpCredentialsProvider httpCredentialsProvider;
 
     public static class Filter
             implements BuilderFilter
     {
-        private static String httpEndpointUri;
-
         @Override
         public TestingTrinoAwsProxyServer.Builder filter(TestingTrinoAwsProxyServer.Builder builder)
         {
@@ -73,9 +62,11 @@ public class TestHttpCredentialsProvider
                     .buildOrThrow();
             String headerConfigAsString = "Authorization: some-auth, Content-Type: application/json, Some-Dummy-Header:test,,value";
 
-            HttpCredentialsServlet httpCredentialsServlet = new HttpCredentialsServlet(expectedHeaders);
+            TestingHttpCredentialsProviderServlet httpCredentialsServlet;
+            String httpEndpointUri;
             try {
-                httpCredentialsServer = createTestingHttpCredentialsServer(httpCredentialsServlet);
+                httpCredentialsServlet = new TestingHttpCredentialsProviderServlet(expectedHeaders);
+                httpCredentialsServer = createTestingHttpServer(httpCredentialsServlet);
                 httpCredentialsServer.start();
                 httpEndpointUri = httpCredentialsServer.getBaseUrl().toString();
             }
@@ -90,12 +81,12 @@ public class TestHttpCredentialsProvider
                     .withProperty("credentials-provider.http.headers", headerConfigAsString)
                     .withProperty("credentials-provider.http.cache-size", "2")
                     .withProperty("credentials-provider.http.cache-ttl", "10m")
-                    .addModule(binder -> binder.bind(HttpCredentialsServlet.class).toInstance(httpCredentialsServlet));
+                    .addModule(binder -> binder.bind(TestingHttpCredentialsProviderServlet.class).toInstance(httpCredentialsServlet));
         }
     }
 
     @Inject
-    public TestHttpCredentialsProvider(CredentialsProvider credentialsProvider, HttpCredentialsServlet httpCredentialsServlet, CredentialsProvider httpCredentialsProvider)
+    public TestHttpCredentialsProvider(CredentialsProvider credentialsProvider, TestingHttpCredentialsProviderServlet httpCredentialsServlet, CredentialsProvider httpCredentialsProvider)
     {
         this.credentialsProvider = requireNonNull(credentialsProvider, "credentialsProvider is null");
         this.httpCredentialsServlet = requireNonNull(httpCredentialsServlet, "httpCredentialsServlet is null");
@@ -184,76 +175,5 @@ public class TestHttpCredentialsProvider
     {
         assertThat(credentialsProvider.credentials(emulatedAccessKey, sessionToken)).isEmpty();
         assertThat(httpCredentialsServlet.getRequestCount()).isEqualTo(1);
-    }
-
-    private static TestingHttpServer createTestingHttpCredentialsServer(HttpCredentialsServlet servlet)
-            throws IOException
-    {
-        NodeInfo nodeInfo = new NodeInfo("test");
-        HttpServerConfig config = new HttpServerConfig().setHttpPort(0);
-        HttpServerInfo httpServerInfo = new HttpServerInfo(config, nodeInfo);
-        return new TestingHttpServer(httpServerInfo, nodeInfo, config, servlet, ImmutableMap.of());
-    }
-
-    private static class HttpCredentialsServlet
-            extends HttpServlet
-    {
-        private final Map<String, String> expectedHeaders;
-        private final AtomicInteger requestCounter;
-
-        private HttpCredentialsServlet(Map<String, String> expectedHeaders)
-        {
-            this.expectedHeaders = ImmutableMap.copyOf(expectedHeaders);
-            this.requestCounter = new AtomicInteger();
-        }
-
-        @Override
-        protected void doGet(HttpServletRequest request, HttpServletResponse response)
-                throws IOException
-        {
-            requestCounter.addAndGet(1);
-            for (Map.Entry<String, String> expectedHeader : expectedHeaders.entrySet()) {
-                if (!expectedHeader.getValue().equals(request.getHeader(expectedHeader.getKey()))) {
-                    response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
-                    return;
-                }
-            }
-            Optional<String> sessionToken = Optional.ofNullable(request.getParameter("sessionToken"));
-            String emulatedAccessKey = request.getPathInfo().substring(1);
-            // The session token in the request is legal if it is either:
-            // - Not present
-            // - Matching our test logic: it should be equal to the access-key + "-token"
-            boolean isLegalSessionToken = sessionToken
-                    .map(presentSessionToken -> "%s-token".formatted(emulatedAccessKey).equals(presentSessionToken))
-                    .orElse(true);
-            if (!isLegalSessionToken) {
-                response.setStatus(HttpServletResponse.SC_NOT_FOUND);
-                return;
-            }
-            switch (emulatedAccessKey) {
-                case DUMMY_EMULATED_ACCESS_KEY -> {
-                    Credential emulated = new Credential(DUMMY_EMULATED_ACCESS_KEY, DUMMY_EMULATED_SECRET_KEY, sessionToken);
-                    Credential remote = new Credential(DUMMY_REMOTE_ACCESS_KEY, DUMMY_REMOTE_SECRET_KEY);
-                    Credentials credentials = new Credentials(emulated, Optional.of(remote), Optional.empty(), Optional.of(new TestingIdentity("test-username", ImmutableList.of(), "xyzpdq")));
-                    String jsonCredentials = new ObjectMapperProvider().get().writeValueAsString(credentials);
-                    response.setContentType(APPLICATION_JSON);
-                    response.getWriter().print(jsonCredentials);
-                }
-                case "incorrect-response" -> {
-                    response.getWriter().print("incorrect response");
-                }
-                default -> response.setStatus(HttpServletResponse.SC_NOT_FOUND);
-            }
-        }
-
-        private int getRequestCount()
-        {
-            return requestCounter.get();
-        }
-
-        private void resetRequestCount()
-        {
-            requestCounter.set(0);
-        }
     }
 }
