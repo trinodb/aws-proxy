@@ -14,15 +14,11 @@
 package io.trino.aws.proxy.server.rest;
 
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
 import com.google.inject.BindingAnnotation;
 import com.google.inject.Inject;
 import com.google.inject.Key;
 import io.airlift.http.client.HttpStatus;
-import io.airlift.http.server.HttpServerConfig;
-import io.airlift.http.server.HttpServerInfo;
 import io.airlift.http.server.testing.TestingHttpServer;
-import io.airlift.node.NodeInfo;
 import io.trino.aws.proxy.server.remote.PathStyleRemoteS3Facade;
 import io.trino.aws.proxy.server.testing.TestingRemoteS3Facade;
 import io.trino.aws.proxy.server.testing.TestingTrinoAwsProxyServer.Builder;
@@ -43,6 +39,7 @@ import java.util.Map;
 import java.util.Optional;
 
 import static com.google.common.collect.ImmutableMap.toImmutableMap;
+import static io.trino.aws.proxy.server.testing.TestingUtil.createTestingHttpServer;
 import static io.trino.aws.proxy.server.testing.TestingUtil.getFileFromStorage;
 import static java.lang.annotation.ElementType.FIELD;
 import static java.lang.annotation.ElementType.METHOD;
@@ -87,7 +84,7 @@ public class TestProxiedErrorResponses
         {
             TestingHttpServer httpErrorResponseServer;
             try {
-                httpErrorResponseServer = createTestingHttpErrorResponseServer();
+                httpErrorResponseServer = createTestingHttpServer(new HttpErrorResponseServlet());
                 httpErrorResponseServer.start();
             }
             catch (Exception e) {
@@ -118,15 +115,6 @@ public class TestProxiedErrorResponses
                 .satisfies(
                         exception -> assertThat(exception.statusCode()).isEqualTo(status.code()),
                         exception -> assertThat(exception.awsErrorDetails().errorCode()).isEqualTo(status.reason()));
-    }
-
-    private static TestingHttpServer createTestingHttpErrorResponseServer()
-            throws IOException
-    {
-        NodeInfo nodeInfo = new NodeInfo("test");
-        HttpServerConfig config = new HttpServerConfig().setHttpPort(0);
-        HttpServerInfo httpServerInfo = new HttpServerInfo(config, nodeInfo);
-        return new TestingHttpServer(httpServerInfo, nodeInfo, config, new HttpErrorResponseServlet(), ImmutableMap.of());
     }
 
     private static class HttpErrorResponseServlet
