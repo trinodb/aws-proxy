@@ -13,11 +13,17 @@
  */
 package io.trino.aws.proxy.server.testing;
 
+import com.google.common.collect.ImmutableMap;
 import com.google.common.hash.Hashing;
 import com.google.common.io.Resources;
 import com.google.inject.BindingAnnotation;
+import io.airlift.http.server.HttpServerConfig;
+import io.airlift.http.server.HttpServerInfo;
+import io.airlift.http.server.testing.TestingHttpServer;
+import io.airlift.node.NodeInfo;
 import io.trino.aws.proxy.spi.credentials.Credential;
 import io.trino.aws.proxy.spi.credentials.Credentials;
+import jakarta.servlet.Servlet;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.S3ClientBuilder;
@@ -147,5 +153,14 @@ public final class TestingUtil
     public static String sha256(String content)
     {
         return Hashing.sha256().newHasher().putString(content, StandardCharsets.UTF_8).hash().toString();
+    }
+
+    public static TestingHttpServer createTestingHttpServer(Servlet servlet)
+            throws IOException
+    {
+        NodeInfo nodeInfo = new NodeInfo("test");
+        HttpServerConfig config = new HttpServerConfig().setHttpPort(0);
+        HttpServerInfo httpServerInfo = new HttpServerInfo(config, nodeInfo);
+        return new TestingHttpServer(httpServerInfo, nodeInfo, config, servlet, ImmutableMap.of());
     }
 }
