@@ -13,6 +13,7 @@
  */
 package io.trino.aws.proxy.server.rest;
 
+import com.google.common.collect.ImmutableSet;
 import com.google.inject.Inject;
 import io.trino.aws.proxy.server.TrinoAwsProxyConfig;
 import io.trino.aws.proxy.server.security.S3SecurityController;
@@ -23,19 +24,27 @@ import io.trino.aws.proxy.spi.security.SecurityResponse.Success;
 import io.trino.aws.proxy.spi.signing.SigningContext;
 import io.trino.aws.proxy.spi.signing.SigningController;
 import io.trino.aws.proxy.spi.signing.SigningMetadata;
+import jakarta.ws.rs.WebApplicationException;
 
 import java.net.URI;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Stream;
 
 import static com.google.common.collect.ImmutableMap.toImmutableMap;
+import static com.google.common.collect.ImmutableSet.toImmutableSet;
+import static com.google.common.collect.Sets.intersection;
+import static jakarta.ws.rs.core.Response.Status.BAD_REQUEST;
+import static java.util.Locale.ENGLISH;
 import static java.util.Objects.requireNonNull;
 
 public class S3PresignController
 {
+    static final String PRESIGNED_URL_METHODS_HEADER_NAME = "X-Trino-Pre-Signed-Url-Methods";
+
     private final SigningController signingController;
     private final Duration presignUrlDuration;
     private final S3SecurityController s3SecurityController;
@@ -53,9 +62,23 @@ public class S3PresignController
     {
         Optional<Instant> signatureExpiry = Optional.of(Instant.now().plusMillis(presignUrlDuration.toMillis()));
 
-        return Stream.of("GET", "PUT", "POST", "DELETE")
+        return getPresignedUrlRequestedMethods(request).stream()
                 .flatMap(httpMethod -> buildPresignedRemoteUrl(httpMethod, signingMetadata, request, targetRequestTimestamp, remoteUri, signatureExpiry))
                 .collect(toImmutableMap(Map.Entry::getKey, Map.Entry::getValue));
+    }
+
+    private Set<String> getPresignedUrlRequestedMethods(ParsedS3Request request)
+    {
+        Set<String> requestedMethods = request.requestHeaders().unmodifiedHeaders().get(PRESIGNED_URL_METHODS_HEADER_NAME).stream()
+                .map(value -> value.toUpperCase(ENGLISH))
+                .collect(toImmutableSet());
+        Set<String> filtered = intersection(ImmutableSet.of("GET", "PUT", "POST", "DELETE"), requestedMethods);
+
+        if (requestedMethods.size() != filtered.size()) {
+            throw new WebApplicationException(BAD_REQUEST);
+        }
+
+        return filtered;
     }
 
     private Stream<Map.Entry<String, URI>> buildPresignedRemoteUrl(String httpMethod, SigningMetadata signingMetadata, ParsedS3Request request, Instant targetRequestTimestamp, URI remoteUri, Optional<Instant> signatureExpiry)

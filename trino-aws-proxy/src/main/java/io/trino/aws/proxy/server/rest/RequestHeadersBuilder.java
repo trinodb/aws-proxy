@@ -33,8 +33,10 @@ import java.util.Set;
 import java.util.function.Function;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
+import static io.trino.aws.proxy.server.rest.S3PresignController.PRESIGNED_URL_METHODS_HEADER_NAME;
 import static jakarta.ws.rs.core.Response.Status.BAD_REQUEST;
 import static jakarta.ws.rs.core.Response.Status.LENGTH_REQUIRED;
+import static java.util.Locale.ENGLISH;
 import static java.util.Objects.requireNonNull;
 import static java.util.function.Function.identity;
 
@@ -50,7 +52,8 @@ final class RequestHeadersBuilder
             "connection",
             "amz-sdk-invocation-id",
             "amx-sdk-request",
-            "host");
+            "host",
+            PRESIGNED_URL_METHODS_HEADER_NAME.toLowerCase(ENGLISH));
 
     record InternalRequestHeaders(
             RequestHeaders requestHeaders,
