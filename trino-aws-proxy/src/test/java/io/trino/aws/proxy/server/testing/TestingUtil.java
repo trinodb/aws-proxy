@@ -13,7 +13,6 @@
  */
 package io.trino.aws.proxy.server.testing;
 
-import com.google.common.collect.ImmutableMap;
 import com.google.common.hash.Hashing;
 import com.google.common.io.Resources;
 import com.google.inject.BindingAnnotation;
@@ -161,6 +160,6 @@ public final class TestingUtil
         NodeInfo nodeInfo = new NodeInfo("test");
         HttpServerConfig config = new HttpServerConfig().setHttpPort(0);
         HttpServerInfo httpServerInfo = new HttpServerInfo(config, nodeInfo);
-        return new TestingHttpServer(httpServerInfo, nodeInfo, config, servlet, ImmutableMap.of());
+        return new TestingHttpServer(httpServerInfo, nodeInfo, config, servlet);
     }
 }

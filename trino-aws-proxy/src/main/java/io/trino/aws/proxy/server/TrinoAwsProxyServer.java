@@ -14,10 +14,8 @@
 package io.trino.aws.proxy.server;
 
 import com.google.common.collect.ImmutableList;
-import com.google.inject.Injector;
 import com.google.inject.Module;
 import io.airlift.bootstrap.Bootstrap;
-import io.airlift.event.client.EventModule;
 import io.airlift.http.server.HttpServerModule;
 import io.airlift.jaxrs.JaxrsModule;
 import io.airlift.json.JsonModule;
@@ -35,13 +33,12 @@ public final class TrinoAwsProxyServer
         ImmutableList.Builder<Module> modules = ImmutableList.<Module>builder()
                 .add(new TrinoAwsProxyServerModule())
                 .add(new NodeModule())
-                .add(new EventModule())
                 .add(new HttpServerModule())
                 .add(new JsonModule())
                 .add(new JaxrsModule());
 
         Bootstrap app = new Bootstrap(modules.build());
-        Injector injector = app.initialize();
+        app.initialize();
 
         log.info("======== SERVER STARTED ========");
     }
