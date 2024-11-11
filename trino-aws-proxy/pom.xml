@@ -16,11 +16,6 @@
     <dependencies>
         <dependency>
             <groupId>${project.groupId}</groupId>
-            <artifactId>000-temp-trino-aws-proxy</artifactId>
-        </dependency>
-
-        <dependency>
-            <groupId>${project.groupId}</groupId>
             <artifactId>trino-aws-proxy-spi</artifactId>
         </dependency>
 
@@ -295,7 +290,6 @@
                     <ignoredDependencies>
                         <!-- I can't figure out what the dependency plugin is complaining about - punt for now -->
                         <ignoredDependency>software.amazon.awssdk:sdk-core</ignoredDependency>
-                        <ignoredDependency>${project.groupId}:000-temp-trino-aws-proxy</ignoredDependency>
                     </ignoredDependencies>
                 </configuration>
                 <executions>

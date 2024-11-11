@@ -26,7 +26,6 @@
     </licenses>
 
     <modules>
-        <module>000-temp-trino-aws-proxy</module>
         <module>trino-aws-proxy</module>
         <module>trino-aws-proxy-spark3</module>
         <module>trino-aws-proxy-spark4</module>
@@ -77,12 +76,6 @@
                 <version>${dep.aws-sdk.version}</version>
                 <type>pom</type>
                 <scope>import</scope>
-            </dependency>
-
-            <dependency>
-                <groupId>${project.groupId}</groupId>
-                <artifactId>000-temp-trino-aws-proxy</artifactId>
-                <version>${project.version}</version>
             </dependency>
 
             <dependency>
@@ -253,7 +246,6 @@
                     <ignoredDependencies>
                         <dependency>
                             <groupId>${project.groupId}</groupId>
-                            <artifactId>000-temp-trino-aws-proxy</artifactId>
                         </dependency>
                     </ignoredDependencies>
                 </configuration>
