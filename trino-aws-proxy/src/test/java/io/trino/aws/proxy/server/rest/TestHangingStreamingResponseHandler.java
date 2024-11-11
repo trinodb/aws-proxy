@@ -20,7 +20,6 @@ import com.google.inject.Key;
 import com.google.inject.Module;
 import io.airlift.bootstrap.Bootstrap;
 import io.airlift.bootstrap.LifeCycleManager;
-import io.airlift.event.client.EventModule;
 import io.airlift.http.client.HttpClient;
 import io.airlift.http.client.Request;
 import io.airlift.http.server.testing.TestingHttpServer;
@@ -87,7 +86,6 @@ public class TestHangingStreamingResponseHandler
         List<Module> modules = ImmutableList.of(
                 module,
                 new TestingNodeModule(),
-                new EventModule(),
                 new JaxrsModule(),
                 new JsonModule(),
                 new TestingHttpServerModule());

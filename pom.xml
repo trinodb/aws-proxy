@@ -5,7 +5,7 @@
     <parent>
         <groupId>io.airlift</groupId>
         <artifactId>airbase</artifactId>
-        <version>172</version>
+        <version>198</version>
     </parent>
 
     <groupId>io.trino</groupId>
@@ -50,10 +50,10 @@
         <air.modernizer.java-version>8</air.modernizer.java-version>
         <air.check.skip-modernizer>true</air.check.skip-modernizer>
 
-        <dep.airlift.version>266</dep.airlift.version>
+        <dep.airlift.version>284</dep.airlift.version>
         <dep.aws-sdk.version>2.25.32</dep.aws-sdk.version>
         <dep.airlift-units.version>1.10</dep.airlift-units.version>
-        <dep.jersey.version>3.1.8</dep.jersey.version>
+        <dep.jersey.version>3.1.9</dep.jersey.version>
         <dep.testcontainers.version>1.19.8</dep.testcontainers.version>
         <dep.minio.version>8.5.9</dep.minio.version>
         <dep.docker.version>3.3.6</dep.docker.version>

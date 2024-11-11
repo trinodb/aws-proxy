@@ -24,7 +24,6 @@ import com.google.inject.Scopes;
 import com.google.inject.TypeLiteral;
 import io.airlift.bootstrap.Bootstrap;
 import io.airlift.bootstrap.LifeCycleManager;
-import io.airlift.event.client.EventModule;
 import io.airlift.http.server.testing.TestingHttpServerModule;
 import io.airlift.jaxrs.JaxrsModule;
 import io.airlift.json.JsonModule;
@@ -241,7 +240,6 @@ public final class TestingTrinoAwsProxyServer
         ImmutableList.Builder<Module> modules = ImmutableList.<Module>builder()
                 .add(new TestingTrinoAwsProxyServerModule())
                 .add(new TestingNodeModule())
-                .add(new EventModule())
                 .add(new TestingHttpServerModule())
                 .add(new JsonModule())
                 .add(new JaxrsModule());
