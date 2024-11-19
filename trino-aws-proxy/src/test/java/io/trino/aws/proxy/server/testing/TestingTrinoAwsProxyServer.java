@@ -30,7 +30,6 @@ import io.airlift.json.JsonModule;
 import io.airlift.log.Level;
 import io.airlift.log.Logging;
 import io.airlift.node.testing.TestingNodeModule;
-import io.trino.aws.proxy.server.remote.RemoteS3Facade;
 import io.trino.aws.proxy.server.testing.TestingTrinoAwsProxyServerModule.ForTestingRemoteCredentials;
 import io.trino.aws.proxy.server.testing.TestingUtil.ForTesting;
 import io.trino.aws.proxy.server.testing.containers.MetastoreContainer;
@@ -42,6 +41,7 @@ import io.trino.aws.proxy.server.testing.containers.PySparkContainer.PySparkV4Co
 import io.trino.aws.proxy.server.testing.containers.S3Container;
 import io.trino.aws.proxy.server.testing.containers.S3Container.ForS3Container;
 import io.trino.aws.proxy.spi.credentials.Credentials;
+import io.trino.aws.proxy.spi.remote.RemoteS3Facade;
 
 import java.io.Closeable;
 import java.util.Collection;
@@ -52,6 +52,7 @@ import static com.google.inject.multibindings.OptionalBinder.newOptionalBinder;
 import static io.trino.aws.proxy.server.testing.TestingUtil.TESTING_CREDENTIALS;
 import static io.trino.aws.proxy.spi.plugin.TrinoAwsProxyServerBinding.assumedRoleProviderModule;
 import static io.trino.aws.proxy.spi.plugin.TrinoAwsProxyServerBinding.credentialsProviderModule;
+import static io.trino.aws.proxy.spi.plugin.TrinoAwsProxyServerBinding.remoteS3Module;
 
 public final class TestingTrinoAwsProxyServer
         implements Closeable
@@ -117,8 +118,12 @@ public final class TestingTrinoAwsProxyServer
                 newOptionalBinder(binder, Key.get(RemoteS3Facade.class, ForTesting.class))
                         .setDefault()
                         .to(ContainerS3Facade.PathStyleContainerS3Facade.class)
-                        .asEagerSingleton();
+                        .in(Scopes.SINGLETON);
             });
+
+            addModule(remoteS3Module("testing", TestingRemoteS3Facade.class, (binder) -> binder.bind(TestingRemoteS3Facade.class).in(Scopes.SINGLETON)));
+            withProperty("remote-s3.type", "testing");
+
             return this;
         }
 

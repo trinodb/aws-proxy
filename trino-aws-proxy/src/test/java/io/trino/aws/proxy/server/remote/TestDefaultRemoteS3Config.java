@@ -22,12 +22,12 @@ import static io.airlift.configuration.testing.ConfigAssertions.assertFullMappin
 import static io.airlift.configuration.testing.ConfigAssertions.assertRecordedDefaults;
 import static io.airlift.configuration.testing.ConfigAssertions.recordDefaults;
 
-public class TestRemoteS3Config
+public class TestDefaultRemoteS3Config
 {
     @Test
     public void testDefaults()
     {
-        assertRecordedDefaults(recordDefaults(RemoteS3Config.class)
+        assertRecordedDefaults(recordDefaults(DefaultRemoteS3Config.class)
                 .setDomain("amazonaws.com").setHttps(true).setPort(null)
                 .setVirtualHostStyle(true)
                 .setHostnameTemplate("${bucket}.s3.${region}.${domain}"));
@@ -43,7 +43,7 @@ public class TestRemoteS3Config
                 "remoteS3.virtual-host-style", "false",
                 "remoteS3.hostname.template", "s3.${region}.${domain}");
 
-        RemoteS3Config expected = new RemoteS3Config().setHttps(false).setDomain("testS3Domain.com").setPort(80).setVirtualHostStyle(false)
+        DefaultRemoteS3Config expected = new DefaultRemoteS3Config().setHttps(false).setDomain("testS3Domain.com").setPort(80).setVirtualHostStyle(false)
                 .setHostnameTemplate("s3.${region}.${domain}");
         assertFullMapping(properties, expected);
     }

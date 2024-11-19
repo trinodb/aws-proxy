@@ -20,7 +20,7 @@ import jakarta.validation.constraints.NotNull;
 
 import java.util.Optional;
 
-public class RemoteS3Config
+public class DefaultRemoteS3Config
 {
     private boolean https = true;
     private String domain = "amazonaws.com";
@@ -29,35 +29,35 @@ public class RemoteS3Config
     private String hostnameTemplate = "${bucket}.s3.${region}.${domain}";
 
     @Config("remoteS3.https")
-    public RemoteS3Config setHttps(boolean https)
+    public DefaultRemoteS3Config setHttps(boolean https)
     {
         this.https = https;
         return this;
     }
 
     @Config("remoteS3.domain")
-    public RemoteS3Config setDomain(String s3Domain)
+    public DefaultRemoteS3Config setDomain(String s3Domain)
     {
         this.domain = s3Domain;
         return this;
     }
 
     @Config("remoteS3.port")
-    public RemoteS3Config setPort(Integer port)
+    public DefaultRemoteS3Config setPort(Integer port)
     {
         this.port = Optional.ofNullable(port);
         return this;
     }
 
     @Config("remoteS3.virtual-host-style")
-    public RemoteS3Config setVirtualHostStyle(boolean virtualHostStyle)
+    public DefaultRemoteS3Config setVirtualHostStyle(boolean virtualHostStyle)
     {
         this.virtualHostStyle = virtualHostStyle;
         return this;
     }
 
     @Config("remoteS3.hostname.template")
-    public RemoteS3Config setHostnameTemplate(String hostnameTemplate)
+    public DefaultRemoteS3Config setHostnameTemplate(String hostnameTemplate)
     {
         this.hostnameTemplate = hostnameTemplate;
         return this;

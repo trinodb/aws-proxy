@@ -15,16 +15,17 @@ package io.trino.aws.proxy.server.testing.harness;
 
 import com.google.common.collect.ImmutableList;
 import com.google.inject.Key;
+import com.google.inject.Scopes;
 import com.google.inject.TypeLiteral;
-import com.google.inject.multibindings.OptionalBinder;
-import io.trino.aws.proxy.server.remote.RemoteS3Facade;
 import io.trino.aws.proxy.server.testing.ContainerS3Facade;
 import io.trino.aws.proxy.server.testing.TestingTrinoAwsProxyServer;
 import io.trino.aws.proxy.server.testing.TestingUtil.ForTesting;
 import io.trino.aws.proxy.server.testing.containers.S3Container.ForS3Container;
+import io.trino.aws.proxy.spi.remote.RemoteS3Facade;
 
 import java.util.List;
 
+import static com.google.inject.multibindings.OptionalBinder.newOptionalBinder;
 import static io.airlift.http.client.HttpClientBinder.httpClientBinder;
 import static io.trino.aws.proxy.server.testing.TestingUtil.LOCALHOST_DOMAIN;
 
@@ -39,7 +40,7 @@ public final class TrinoAwsProxyTestCommonModules
         public TestingTrinoAwsProxyServer.Builder filter(TestingTrinoAwsProxyServer.Builder builder)
         {
             return builder.addModule(binder ->
-                    OptionalBinder.newOptionalBinder(binder, Key.get(new TypeLiteral<List<String>>() {}, ForS3Container.class))
+                    newOptionalBinder(binder, Key.get(new TypeLiteral<List<String>>() {}, ForS3Container.class))
                             .setBinding()
                             .toInstance(CONFIGURED_BUCKETS));
         }
@@ -52,10 +53,10 @@ public final class TrinoAwsProxyTestCommonModules
         public TestingTrinoAwsProxyServer.Builder filter(TestingTrinoAwsProxyServer.Builder builder)
         {
             return builder.addModule(binder ->
-                    OptionalBinder.newOptionalBinder(binder, Key.get(RemoteS3Facade.class, ForTesting.class))
+                    newOptionalBinder(binder, Key.get(RemoteS3Facade.class, ForTesting.class))
                             .setBinding()
                             .to(ContainerS3Facade.VirtualHostStyleContainerS3Facade.class)
-                            .asEagerSingleton());
+                            .in(Scopes.SINGLETON));
         }
     }
 

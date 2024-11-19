@@ -33,7 +33,7 @@ import io.trino.aws.proxy.server.credentials.CredentialsController;
 import io.trino.aws.proxy.server.credentials.JsonIdentityProvider;
 import io.trino.aws.proxy.server.credentials.file.FileBasedCredentialsModule;
 import io.trino.aws.proxy.server.credentials.http.HttpCredentialsModule;
-import io.trino.aws.proxy.server.remote.RemoteS3Module;
+import io.trino.aws.proxy.server.remote.DefaultRemoteS3Module;
 import io.trino.aws.proxy.server.rest.LimitStreamController;
 import io.trino.aws.proxy.server.rest.ParamProvider;
 import io.trino.aws.proxy.server.rest.RequestLoggerController;
@@ -57,8 +57,10 @@ import io.trino.aws.proxy.spi.credentials.StandardIdentity;
 import io.trino.aws.proxy.spi.plugin.TrinoAwsProxyServerPlugin;
 import io.trino.aws.proxy.spi.plugin.config.AssumedRoleProviderConfig;
 import io.trino.aws.proxy.spi.plugin.config.CredentialsProviderConfig;
+import io.trino.aws.proxy.spi.plugin.config.RemoteS3Config;
 import io.trino.aws.proxy.spi.plugin.config.S3RequestRewriterConfig;
 import io.trino.aws.proxy.spi.plugin.config.S3SecurityFacadeProviderConfig;
+import io.trino.aws.proxy.spi.remote.RemoteS3Facade;
 import io.trino.aws.proxy.spi.rest.S3RequestRewriter;
 import io.trino.aws.proxy.spi.security.S3SecurityFacadeProvider;
 import org.glassfish.jersey.server.model.Resource;
@@ -70,6 +72,7 @@ import java.util.Set;
 
 import static com.google.inject.multibindings.Multibinder.newSetBinder;
 import static com.google.inject.multibindings.OptionalBinder.newOptionalBinder;
+import static io.airlift.configuration.ConditionalModule.conditionalModule;
 import static io.airlift.configuration.ConfigBinder.configBinder;
 import static io.airlift.http.client.HttpClientBinder.httpClientBinder;
 import static io.airlift.http.server.HttpServerBinder.httpServerBinder;
@@ -147,8 +150,15 @@ public class TrinoAwsProxyServerModule
             return AssumedRoleProvider.NOOP;
         });
 
+        // RemoteS3 binder
+        newOptionalBinder(binder, RemoteS3Facade.class);
+        // RemoteS3 provided implementation
+        install(conditionalModule(
+                RemoteS3Config.class,
+                config -> config.getPluginIdentifier().isEmpty(),
+                new DefaultRemoteS3Module()));
+
         installSigningController(binder);
-        installRemoteS3Facade(binder);
         installS3SecurityController(binder);
 
         installPlugins();
@@ -165,12 +175,6 @@ public class TrinoAwsProxyServerModule
         xmlMapper.registerModule(new Jdk8Module());
         xmlMapper.setPropertyNamingStrategy(PropertyNamingStrategies.UPPER_CAMEL_CASE);
         return xmlMapper;
-    }
-
-    @VisibleForTesting
-    protected void installRemoteS3Facade(Binder binder)
-    {
-        install(new RemoteS3Module());
     }
 
     @VisibleForTesting

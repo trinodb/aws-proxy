@@ -17,7 +17,6 @@ import com.google.inject.Binder;
 import com.google.inject.BindingAnnotation;
 import com.google.inject.Scopes;
 import io.trino.aws.proxy.server.TrinoAwsProxyServerModule;
-import io.trino.aws.proxy.server.remote.RemoteS3Facade;
 import io.trino.aws.proxy.server.rest.S3PresignController;
 import io.trino.aws.proxy.server.security.S3SecurityController;
 
@@ -36,13 +35,6 @@ public class TestingTrinoAwsProxyServerModule
     @Target({FIELD, PARAMETER, METHOD})
     @BindingAnnotation
     public @interface ForTestingRemoteCredentials {}
-
-    @Override
-    protected void installRemoteS3Facade(Binder binder)
-    {
-        binder.bind(RemoteS3Facade.class).to(TestingRemoteS3Facade.class).in(Scopes.SINGLETON);
-        binder.bind(TestingRemoteS3Facade.class).in(Scopes.SINGLETON);
-    }
 
     @Override
     protected void installS3SecurityController(Binder binder)

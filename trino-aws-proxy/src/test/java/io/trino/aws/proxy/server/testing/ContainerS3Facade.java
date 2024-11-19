@@ -28,10 +28,9 @@ public final class ContainerS3Facade
             extends PathStyleRemoteS3Facade
     {
         @Inject
-        public PathStyleContainerS3Facade(S3Container s3Container, TestingRemoteS3Facade delegatingFacade)
+        public PathStyleContainerS3Facade(S3Container s3Container)
         {
             super((ignored1, ignored2) -> s3Container.containerHost().getHost(), false, Optional.of(s3Container.containerHost().getPort()));
-            delegatingFacade.setDelegate(this);
         }
     }
 
@@ -39,10 +38,9 @@ public final class ContainerS3Facade
             extends VirtualHostStyleRemoteS3Facade
     {
         @Inject
-        public VirtualHostStyleContainerS3Facade(S3Container s3Container, TestingRemoteS3Facade delegatingFacade)
+        public VirtualHostStyleContainerS3Facade(S3Container s3Container)
         {
             super((bucket, ignored) -> bucket.isEmpty() ? LOCALHOST_DOMAIN : "%s.%s".formatted(bucket, LOCALHOST_DOMAIN), false, Optional.of(s3Container.containerHost().getPort()));
-            delegatingFacade.setDelegate(this);
         }
     }
 }
