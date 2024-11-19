@@ -14,15 +14,11 @@
 package io.trino.aws.proxy.server.testing.harness;
 
 import com.google.inject.Injector;
-import com.google.inject.Key;
 import com.google.inject.Scopes;
-import io.trino.aws.proxy.server.remote.RemoteS3Facade;
-import io.trino.aws.proxy.server.testing.ContainerS3Facade;
 import io.trino.aws.proxy.server.testing.TestingS3ClientModule;
 import io.trino.aws.proxy.server.testing.TestingS3RequestRewriteController;
 import io.trino.aws.proxy.server.testing.TestingS3RequestRewriter;
 import io.trino.aws.proxy.server.testing.TestingTrinoAwsProxyServer;
-import io.trino.aws.proxy.server.testing.TestingUtil.ForTesting;
 import io.trino.aws.proxy.server.testing.containers.S3Container;
 import io.trino.aws.proxy.server.testing.containers.S3Container.ForS3Container;
 import org.junit.jupiter.api.extension.ExtensionContext;
@@ -64,10 +60,6 @@ public class TrinoAwsProxyTestExtension
                 .withS3Container()
                 .addModule(binder -> {
                     binder.bind(S3Client.class).annotatedWith(ForS3Container.class).toProvider(S3Container.class);
-                    newOptionalBinder(binder, Key.get(RemoteS3Facade.class, ForTesting.class))
-                            .setDefault()
-                            .to(ContainerS3Facade.PathStyleContainerS3Facade.class)
-                            .asEagerSingleton();
                     newOptionalBinder(binder, TestingS3RequestRewriter.class).setDefault().toInstance(TestingS3RequestRewriter.NOOP);
                     binder.bind(TestingS3RequestRewriteController.class).in(Scopes.SINGLETON);
                 })

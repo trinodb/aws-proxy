@@ -11,39 +11,31 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.trino.aws.proxy.server.testing;
+package io.trino.aws.proxy.server.remote;
 
 import com.google.inject.Inject;
-import io.trino.aws.proxy.server.testing.TestingUtil.ForTesting;
+import io.trino.aws.proxy.server.remote.DefaultRemoteS3Module.ForDefaultRemoteS3Facade;
 import io.trino.aws.proxy.spi.remote.RemoteS3Facade;
 import jakarta.ws.rs.core.UriBuilder;
 
 import java.net.URI;
-import java.util.concurrent.atomic.AtomicReference;
 
 import static java.util.Objects.requireNonNull;
 
-public class TestingRemoteS3Facade
+public class DefaultRemoteS3Facade
         implements RemoteS3Facade
 {
-    private final AtomicReference<RemoteS3Facade> delegate = new AtomicReference<>();
-
-    public TestingRemoteS3Facade() {}
+    private final RemoteS3Facade delegate;
 
     @Inject
-    public TestingRemoteS3Facade(@ForTesting RemoteS3Facade delegate)
+    public DefaultRemoteS3Facade(@ForDefaultRemoteS3Facade RemoteS3Facade delegate)
     {
-        setDelegate(delegate);
+        this.delegate = requireNonNull(delegate, "delegate is null");
     }
 
     @Override
     public URI buildEndpoint(UriBuilder uriBuilder, String path, String bucket, String region)
     {
-        return requireNonNull(delegate.get(), "delegate is null").buildEndpoint(uriBuilder, path, bucket, region);
-    }
-
-    public void setDelegate(RemoteS3Facade delegate)
-    {
-        this.delegate.set(requireNonNull(delegate, "delegate is null"));
+        return delegate.buildEndpoint(uriBuilder, path, bucket, region);
     }
 }

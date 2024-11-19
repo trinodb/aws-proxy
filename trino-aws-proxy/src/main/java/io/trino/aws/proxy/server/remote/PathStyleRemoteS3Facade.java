@@ -14,6 +14,7 @@
 package io.trino.aws.proxy.server.remote;
 
 import com.google.inject.Inject;
+import io.trino.aws.proxy.spi.remote.RemoteS3Facade;
 import jakarta.ws.rs.core.UriBuilder;
 
 import java.net.URI;
@@ -29,7 +30,7 @@ public class PathStyleRemoteS3Facade
     private final Optional<Integer> port;
 
     @Inject
-    public PathStyleRemoteS3Facade(RemoteS3Config remoteS3Config)
+    public PathStyleRemoteS3Facade(DefaultRemoteS3Config remoteS3Config)
     {
         this((bucket, region) -> RemoteS3HostBuilder.getHostName(bucket, region, remoteS3Config.getDomain(), remoteS3Config.getHostnameTemplate()), remoteS3Config.getHttps(), remoteS3Config.getPort());
     }

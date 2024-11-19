@@ -11,18 +11,28 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.trino.aws.proxy.server.remote;
+package io.trino.aws.proxy.spi.plugin.config;
 
-import jakarta.ws.rs.core.UriBuilder;
+import io.airlift.configuration.Config;
+import jakarta.validation.constraints.NotNull;
 
-import java.net.URI;
+import java.util.Optional;
 
-public interface RemoteS3Facade
+public class RemoteS3Config
+        implements PluginIdentifierConfig
 {
-    URI buildEndpoint(UriBuilder uriBuilder, String path, String bucket, String region);
+    private Optional<String> identifier = Optional.empty();
 
-    default URI remoteUri(String region)
+    @NotNull
+    @Override
+    public Optional<String> getPluginIdentifier()
     {
-        return buildEndpoint(UriBuilder.newInstance(), "/", "", region);
+        return identifier;
+    }
+
+    @Config("remote-s3.type")
+    public void setPluginIdentifier(String identifier)
+    {
+        this.identifier = Optional.of(identifier);
     }
 }
