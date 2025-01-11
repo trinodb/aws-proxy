@@ -18,9 +18,14 @@ import com.google.inject.Module;
 import io.airlift.bootstrap.Bootstrap;
 import io.airlift.http.server.HttpServerModule;
 import io.airlift.jaxrs.JaxrsModule;
+import io.airlift.jmx.JmxHttpModule;
+import io.airlift.jmx.JmxModule;
 import io.airlift.json.JsonModule;
+import io.airlift.log.LogJmxModule;
 import io.airlift.log.Logger;
 import io.airlift.node.NodeModule;
+import io.airlift.openmetrics.JmxOpenMetricsModule;
+import org.weakref.jmx.guice.MBeanModule;
 
 public final class TrinoAwsProxyServer
 {
@@ -35,7 +40,12 @@ public final class TrinoAwsProxyServer
                 .add(new NodeModule())
                 .add(new HttpServerModule())
                 .add(new JsonModule())
-                .add(new JaxrsModule());
+                .add(new JaxrsModule())
+                .add(new JmxModule())
+                .add(new JmxHttpModule())
+                .add(new JmxOpenMetricsModule())
+                .add(new LogJmxModule())
+                .add(new MBeanModule());
 
         Bootstrap app = new Bootstrap(modules.build());
         app.initialize();
