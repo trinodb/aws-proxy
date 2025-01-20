@@ -16,7 +16,6 @@ package io.trino.aws.proxy.server.rest;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Stopwatch;
 import com.google.common.base.Throwables;
-import com.google.common.collect.EvictingQueue;
 import com.google.common.collect.ImmutableMap;
 import com.google.inject.Inject;
 import io.airlift.log.Logger;
@@ -27,12 +26,14 @@ import jakarta.annotation.PreDestroy;
 import jakarta.ws.rs.WebApplicationException;
 
 import java.time.Instant;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Queue;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Predicate;
 
@@ -125,6 +126,41 @@ public class RequestLoggerController
         REQUEST_END,
     }
 
+    public static class ConcurrentLinkedQueueWithEviction<E>
+            extends ConcurrentLinkedQueue<E>
+    {
+        private final int maxSize;
+
+        public ConcurrentLinkedQueueWithEviction(int maxSize)
+        {
+            super();
+            this.maxSize = maxSize;
+        }
+
+        @Override
+        public boolean add(E e)
+        {
+            boolean isOperationSuccessful = super.add(e);
+            evict();
+            return isOperationSuccessful;
+        }
+
+        @Override
+        public boolean addAll(Collection<? extends E> c)
+        {
+            boolean isOperationSuccessful = super.addAll(c);
+            evict();
+            return isOperationSuccessful;
+        }
+
+        private void evict()
+        {
+            while (super.size() > maxSize) {
+                super.poll(); // Remove the oldest element (FIFO eviction)
+            }
+        }
+    }
+
     public static String eventId(Instant timestamp, long requestNumber, EventType eventType)
     {
         int typeKey = switch (eventType) {
@@ -146,7 +182,7 @@ public class RequestLoggerController
     public RequestLoggerController(TrinoAwsProxyConfig trinoAwsProxyConfig)
     {
         // *2 because we log request/response
-        saveQueue = EvictingQueue.create(trinoAwsProxyConfig.getRequestLoggerSavedQty() * 2);
+        saveQueue = new ConcurrentLinkedQueueWithEviction<>(trinoAwsProxyConfig.getRequestLoggerSavedQty() * 2);
         saveQueueEnabled = (trinoAwsProxyConfig.getRequestLoggerSavedQty() > 0);
     }
 
