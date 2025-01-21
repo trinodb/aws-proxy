@@ -18,6 +18,7 @@ import com.google.common.base.Stopwatch;
 import com.google.common.base.Throwables;
 import com.google.common.collect.EvictingQueue;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Queues;
 import com.google.inject.Inject;
 import io.airlift.log.Logger;
 import io.trino.aws.proxy.server.TrinoAwsProxyConfig;
@@ -146,7 +147,7 @@ public class RequestLoggerController
     public RequestLoggerController(TrinoAwsProxyConfig trinoAwsProxyConfig)
     {
         // *2 because we log request/response
-        saveQueue = EvictingQueue.create(trinoAwsProxyConfig.getRequestLoggerSavedQty() * 2);
+        saveQueue = Queues.synchronizedQueue(EvictingQueue.create(trinoAwsProxyConfig.getRequestLoggerSavedQty() * 2));
         saveQueueEnabled = (trinoAwsProxyConfig.getRequestLoggerSavedQty() > 0);
     }
 
