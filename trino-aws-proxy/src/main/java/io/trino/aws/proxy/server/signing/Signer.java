@@ -15,6 +15,7 @@ package io.trino.aws.proxy.server.signing;
 
 import com.google.common.annotations.VisibleForTesting;
 import io.airlift.log.Logger;
+import io.trino.aws.proxy.server.signing.Signers.SigningApi;
 import io.trino.aws.proxy.spi.credentials.Credential;
 import io.trino.aws.proxy.spi.rest.RequestContent;
 import io.trino.aws.proxy.spi.signing.ChunkSigningSession;
@@ -45,10 +46,13 @@ import java.util.Optional;
 import java.util.function.BiFunction;
 
 import static io.trino.aws.proxy.server.signing.Signers.OVERRIDE_CONTENT_HASH;
-import static io.trino.aws.proxy.server.signing.Signers.aws4Signer;
-import static io.trino.aws.proxy.server.signing.Signers.legacyAws4Signer;
+import static io.trino.aws.proxy.server.signing.Signers.awsS3V4Signer;
+import static io.trino.aws.proxy.server.signing.Signers.awsV4Signer;
+import static io.trino.aws.proxy.server.signing.Signers.legacyS3AwsV4Signer;
 import static io.trino.aws.proxy.spi.rest.RequestContent.ContentType.AWS_CHUNKED;
 import static io.trino.aws.proxy.spi.rest.RequestContent.ContentType.AWS_CHUNKED_IN_W3C_CHUNKED;
+import static io.trino.aws.proxy.spi.signing.SigningTrait.S3V4_SIGNER;
+import static io.trino.aws.proxy.spi.signing.SigningTrait.STREAM_CONTENT;
 import static jakarta.ws.rs.core.Response.Status.BAD_REQUEST;
 import static jakarta.ws.rs.core.Response.Status.UNAUTHORIZED;
 import static java.util.Objects.requireNonNull;
@@ -67,7 +71,7 @@ final class Signer
 
     static byte[] signingKey(AwsCredentials credentials, Aws4SignerRequestParams signerRequestParams)
     {
-        return aws4Signer.signingKey(credentials, signerRequestParams);
+        return awsS3V4Signer.signingKey(credentials, signerRequestParams);
     }
 
     static SigningContext presign(
@@ -127,17 +131,24 @@ final class Signer
             RequestContent requestContent)
     {
         enforceMaxDrift(requestDate, maxClockDrift, maxClockDrift);
-        Optional<String> maybeAmazonContentHash = signingHeaders.getFirst("x-amz-content-sha256");
         boolean enableChunkedEncoding = requestContent.contentType() == AWS_CHUNKED || requestContent.contentType() == AWS_CHUNKED_IN_W3C_CHUNKED;
         AwsS3V4SignerParams.Builder signerParamsBuilder = AwsS3V4SignerParams.builder()
                 .enablePayloadSigning(true)
                 .enableChunkedEncoding(enableChunkedEncoding);
         SdkHttpFullRequest.Builder requestBuilder = SdkHttpFullRequest.builder();
-        // because we stream content without spooling we want to re-use the provided content hash
-        // so that we don't have to calculate it to validate the incoming signature.
-        // Stash the hash in the OVERRIDE_CONTENT_HASH so that aws4Signer can find it and
-        // return it.
-        maybeAmazonContentHash.ifPresent(contentHashHeader -> requestBuilder.putHeader(OVERRIDE_CONTENT_HASH, contentHashHeader));
+
+        if (serviceType.hasTrait(STREAM_CONTENT)) {
+            // because we stream content without spooling we want to re-use the provided content hash
+            // so that we don't have to calculate it to validate the incoming signature.
+            // Stash the hash in the OVERRIDE_CONTENT_HASH so that aws4Signer can find it and
+            // return it.
+            signingHeaders.getFirst("x-amz-content-sha256")
+                    .ifPresent(contentHashHeader -> requestBuilder.putHeader(OVERRIDE_CONTENT_HASH, contentHashHeader));
+        }
+        else {
+            requestContent.inputStream().ifPresent(inputStream -> requestBuilder.contentStreamProvider(() -> inputStream));
+        }
+
         return internalSign(
                 (signingApi, requestToSign) -> {
                     SdkHttpFullRequest signedRequest = signingApi.sign(requestToSign, signerParamsBuilder.build());
@@ -171,7 +182,7 @@ final class Signer
     }
 
     private static <R extends Aws4SignerParams.Builder<R>> SigningContext internalSign(
-            BiFunction<Signers.SigningApi, SdkHttpFullRequest, InternalRequestAuthorization> authorizationBuilder,
+            BiFunction<SigningApi, SdkHttpFullRequest, InternalRequestAuthorization> authorizationBuilder,
             SdkHttpFullRequest.Builder requestBuilder,
             R paramsBuilder,
             SigningServiceType serviceType,
@@ -201,9 +212,14 @@ final class Signer
         Clock clock = Clock.fixed(requestDate, AwsTimestamp.ZONE);
         paramsBuilder.signingClockOverride(clock);
 
-        InternalRequestAuthorization internalRequestAuthorization = isLegacy(signingHeaders)
-                ? authorizationBuilder.apply(legacyAws4Signer, requestBuilder.build())
-                : authorizationBuilder.apply(aws4Signer, requestBuilder.build());
+        SigningApi signer;
+        if (serviceType.hasTrait(S3V4_SIGNER)) {
+            signer = isLegacy(signingHeaders) ? legacyS3AwsV4Signer : awsS3V4Signer;
+        }
+        else {
+            signer = awsV4Signer;
+        }
+        InternalRequestAuthorization internalRequestAuthorization = authorizationBuilder.apply(signer, requestBuilder.build());
         return buildSigningContext(
                 internalRequestAuthorization,
                 signingKey(credentials, new Aws4SignerRequestParams(paramsBuilder.build())),
