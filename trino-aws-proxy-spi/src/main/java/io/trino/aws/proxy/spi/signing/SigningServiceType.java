@@ -13,16 +13,33 @@
  */
 package io.trino.aws.proxy.spi.signing;
 
+import com.google.common.collect.ImmutableSet;
+
+import java.util.Set;
+
+import static io.trino.aws.proxy.spi.signing.SigningTrait.S3V4_SIGNER;
+import static io.trino.aws.proxy.spi.signing.SigningTrait.STREAM_CONTENT;
 import static java.util.Objects.requireNonNull;
 
-public record SigningServiceType(String serviceName)
+public record SigningServiceType(String serviceName, Set<SigningTrait> signingTraits)
 {
-    public static final SigningServiceType S3 = new SigningServiceType("s3");
+    public static final SigningServiceType S3 = new SigningServiceType("s3", S3V4_SIGNER, STREAM_CONTENT);
     public static final SigningServiceType STS = new SigningServiceType("sts");
     public static final SigningServiceType LOGS = new SigningServiceType("logs");
 
     public SigningServiceType
     {
         requireNonNull(serviceName, "serviceName is null");
+        signingTraits = ImmutableSet.copyOf(signingTraits);
+    }
+
+    public SigningServiceType(String serviceName, SigningTrait... signingTraits)
+    {
+        this(serviceName, ImmutableSet.copyOf(signingTraits));
+    }
+
+    public boolean hasTrait(SigningTrait signingTrait)
+    {
+        return signingTraits.contains(signingTrait);
     }
 }

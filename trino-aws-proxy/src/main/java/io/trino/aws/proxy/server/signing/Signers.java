@@ -16,24 +16,24 @@ package io.trino.aws.proxy.server.signing;
 import software.amazon.awssdk.auth.credentials.AwsCredentials;
 import software.amazon.awssdk.auth.signer.internal.AbstractAwsS3V4Signer;
 import software.amazon.awssdk.auth.signer.internal.Aws4SignerRequestParams;
+import software.amazon.awssdk.auth.signer.internal.BaseAws4Signer;
 import software.amazon.awssdk.auth.signer.internal.CopiedAbstractAwsS3V4Signer;
 import software.amazon.awssdk.auth.signer.params.Aws4PresignerParams;
 import software.amazon.awssdk.auth.signer.params.AwsS3V4SignerParams;
 import software.amazon.awssdk.core.checksums.SdkChecksum;
 import software.amazon.awssdk.http.SdkHttpFullRequest;
 
-import java.net.URI;
 import java.util.Optional;
 
 class Signers
 {
     static final String OVERRIDE_CONTENT_HASH = "__TRINO__OVERRIDE_CONTENT_HASH__";
 
-    static final SigningApi aws4Signer = new InternalAwsS3V4Signer();
+    static final SigningApi awsV4Signer = new InternalAwsV4Signer();
 
-    static final SigningApi legacyAws4Signer = new InternalLegacyAwsS3V4Signer();
+    static final SigningApi awsS3V4Signer = new InternalAwsS3V4Signer();
 
-    private static final URI DUMMY_URI = URI.create("https://local.gate0.net");
+    static final SigningApi legacyS3AwsV4Signer = new InternalLegacyAwsS3V4Signer();
 
     interface SigningApi
     {
@@ -45,6 +45,23 @@ class Signers
     }
 
     private Signers() {}
+
+    private static class InternalAwsV4Signer
+            extends BaseAws4Signer
+            implements SigningApi
+    {
+        @Override
+        public SdkHttpFullRequest sign(SdkHttpFullRequest request, AwsS3V4SignerParams signingParams)
+        {
+            return super.sign(request, signingParams);
+        }
+
+        @Override
+        public byte[] signingKey(AwsCredentials credentials, Aws4SignerRequestParams signerRequestParams)
+        {
+            return deriveSigningKey(credentials, signerRequestParams);
+        }
+    }
 
     private static class InternalAwsS3V4Signer
             extends AbstractAwsS3V4Signer
