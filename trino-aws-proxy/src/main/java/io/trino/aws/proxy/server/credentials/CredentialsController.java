@@ -18,8 +18,8 @@ import io.airlift.log.Logger;
 import io.trino.aws.proxy.spi.credentials.Credential;
 import io.trino.aws.proxy.spi.credentials.Credentials;
 import io.trino.aws.proxy.spi.credentials.CredentialsProvider;
-import io.trino.aws.proxy.spi.remote.RemoteS3Facade;
 import io.trino.aws.proxy.spi.remote.RemoteSessionRole;
+import io.trino.aws.proxy.spi.remote.RemoteUriFacade;
 import jakarta.annotation.PreDestroy;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.AwsCredentials;
@@ -31,7 +31,6 @@ import software.amazon.awssdk.services.sts.StsClient;
 import software.amazon.awssdk.services.sts.auth.StsAssumeRoleCredentialsProvider;
 
 import java.io.Closeable;
-import java.time.Instant;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
@@ -46,7 +45,7 @@ public class CredentialsController
 {
     private static final Logger log = Logger.get(CredentialsController.class);
 
-    private final RemoteS3Facade remoteS3Facade;
+    private final RemoteUriFacade remoteUriFacade;
     private final CredentialsProvider credentialsProvider;
     private final Map<String, Session> remoteSessions = new ConcurrentHashMap<>();
 
@@ -59,7 +58,6 @@ public class CredentialsController
 
         // TODO: use useCount and lastUsage to clean old sessions that haven't been used in a while
         private final AtomicLong useCount = new AtomicLong();
-        private volatile Instant lastUsage = Instant.now();
 
         private Session(String sessionName, StsClient stsClient, StsAssumeRoleCredentialsProvider credentialsProvider)
         {
@@ -93,7 +91,6 @@ public class CredentialsController
 
         private void incrementUsage()
         {
-            lastUsage = Instant.now();
             useCount.incrementAndGet();
         }
 
@@ -120,9 +117,9 @@ public class CredentialsController
     }
 
     @Inject
-    public CredentialsController(RemoteS3Facade remoteS3Facade, CredentialsProvider credentialsProvider)
+    public CredentialsController(RemoteUriFacade remoteUriFacade, CredentialsProvider credentialsProvider)
     {
-        this.remoteS3Facade = requireNonNull(remoteS3Facade, "remoteS3Facade is null");
+        this.remoteUriFacade = requireNonNull(remoteUriFacade, "remoteUriFacade is null");
         this.credentialsProvider = requireNonNull(credentialsProvider, "credentialsProvider is null");
     }
 
@@ -158,7 +155,7 @@ public class CredentialsController
         StsClient stsClient = StsClient.builder()
                 .region(Region.of(remoteSessionRole.region()))
                 .credentialsProvider(StaticCredentialsProvider.create(awsCredentials))
-                .endpointProvider(_ -> completedFuture(Endpoint.builder().url(remoteS3Facade.remoteUri(remoteSessionRole.region())).build()))
+                .endpointProvider(_ -> completedFuture(Endpoint.builder().url(remoteUriFacade.remoteUri(remoteSessionRole.region())).build()))
                 .build();
 
         StsAssumeRoleCredentialsProvider credentialsProvider = StsAssumeRoleCredentialsProvider.builder()

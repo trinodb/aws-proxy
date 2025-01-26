@@ -13,17 +13,9 @@
  */
 package io.trino.aws.proxy.spi.remote;
 
-import jakarta.ws.rs.core.UriBuilder;
-
 import java.net.URI;
 
-public interface RemoteS3Facade
-        extends RemoteUriFacade
+public interface RemoteUriFacade
 {
-    URI buildEndpoint(UriBuilder uriBuilder, String path, String bucket, String region);
-
-    default URI remoteUri(String region)
-    {
-        return buildEndpoint(UriBuilder.newInstance(), "/", "", region);
-    }
+    URI remoteUri(String region);
 }
