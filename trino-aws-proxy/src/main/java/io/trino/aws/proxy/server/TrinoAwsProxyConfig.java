@@ -18,7 +18,6 @@ import io.airlift.configuration.ConfigDescription;
 import io.airlift.units.DataSize;
 import io.airlift.units.Duration;
 import io.airlift.units.MinDuration;
-import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 
 import java.util.Optional;
@@ -34,7 +33,6 @@ public class TrinoAwsProxyConfig
     private Duration presignedUrlsDuration = new Duration(15, TimeUnit.MINUTES);
     private boolean generatePresignedUrlsOnHead = true;
     private String logsPath = "/api/v1/s3Proxy/logs";
-    private int requestLoggerSavedQty = 10000;
     private Optional<DataSize> maxPayloadSize = Optional.empty();
     private String statusPath = "/api/v1/s3Proxy/status";
 
@@ -119,20 +117,6 @@ public class TrinoAwsProxyConfig
     public String getLogsPath()
     {
         return logsPath;
-    }
-
-    @Min(0)
-    public int getRequestLoggerSavedQty()
-    {
-        return requestLoggerSavedQty;
-    }
-
-    @Config("aws.proxy.request.logger.saved-qty")
-    @ConfigDescription("Number of log entries to store")
-    public TrinoAwsProxyConfig setRequestLoggerSavedQty(int requestLoggerSavedQty)
-    {
-        this.requestLoggerSavedQty = requestLoggerSavedQty;
-        return this;
     }
 
     @NotNull

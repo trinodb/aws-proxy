@@ -37,6 +37,7 @@ import io.trino.aws.proxy.server.credentials.http.HttpCredentialsModule;
 import io.trino.aws.proxy.server.remote.DefaultRemoteS3Module;
 import io.trino.aws.proxy.server.rest.LimitStreamController;
 import io.trino.aws.proxy.server.rest.ParamProvider;
+import io.trino.aws.proxy.server.rest.RequestLoggerConfig;
 import io.trino.aws.proxy.server.rest.RequestLoggerController;
 import io.trino.aws.proxy.server.rest.ResourceSecurityDynamicFeature;
 import io.trino.aws.proxy.server.rest.S3PresignController;
@@ -95,6 +96,7 @@ public class TrinoAwsProxyServerModule
     @Override
     protected void setup(Binder binder)
     {
+        configBinder(binder).bindConfig(RequestLoggerConfig.class);
         configBinder(binder).bindConfig(SigningControllerConfig.class);
         TrinoAwsProxyConfig builtConfig = buildConfigObject(TrinoAwsProxyConfig.class);
 

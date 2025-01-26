@@ -14,7 +14,6 @@
 package io.trino.aws.proxy.server.rest;
 
 import com.google.common.collect.ImmutableSet;
-import io.trino.aws.proxy.server.TrinoAwsProxyConfig;
 import io.trino.aws.proxy.server.rest.RequestLoggerController.SaveEntry;
 import io.trino.aws.proxy.spi.rest.Request;
 import io.trino.aws.proxy.spi.rest.RequestContent;
@@ -38,7 +37,7 @@ public class TestRequestLoggerController
     @Test
     public void testSavedEntries()
     {
-        RequestLoggerController controller = new RequestLoggerController(new TrinoAwsProxyConfig());
+        RequestLoggerController controller = new RequestLoggerController(new RequestLoggerConfig());
         try (RequestLoggingSession session = controller.newRequestSession(dummyRequest(), SigningServiceType.S3)) {
             session.logProperty("one", 1);
             session.logProperty("two", 2);
@@ -59,8 +58,8 @@ public class TestRequestLoggerController
     @Test
     public void testSavedEntriesOverflow()
     {
-        TrinoAwsProxyConfig trinoAwsProxyConfig = new TrinoAwsProxyConfig().setRequestLoggerSavedQty(5);
-        RequestLoggerController controller = new RequestLoggerController(trinoAwsProxyConfig);
+        RequestLoggerConfig requestLoggerConfig = new RequestLoggerConfig().setRequestLoggerSavedQty(5);
+        RequestLoggerController controller = new RequestLoggerController(requestLoggerConfig);
         IntStream.range(0, 10).forEach(index -> {
             try (RequestLoggingSession session = controller.newRequestSession(dummyRequest(), SigningServiceType.S3)) {
                 session.logProperty("index", index);

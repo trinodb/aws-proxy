@@ -21,7 +21,6 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Queues;
 import com.google.inject.Inject;
 import io.airlift.log.Logger;
-import io.trino.aws.proxy.server.TrinoAwsProxyConfig;
 import io.trino.aws.proxy.spi.rest.Request;
 import io.trino.aws.proxy.spi.signing.SigningServiceType;
 import jakarta.annotation.PreDestroy;
@@ -144,11 +143,11 @@ public class RequestLoggerController
     private final boolean saveQueueEnabled;
 
     @Inject
-    public RequestLoggerController(TrinoAwsProxyConfig trinoAwsProxyConfig)
+    public RequestLoggerController(RequestLoggerConfig config)
     {
         // *2 because we log request/response
-        saveQueue = Queues.synchronizedQueue(EvictingQueue.create(trinoAwsProxyConfig.getRequestLoggerSavedQty() * 2));
-        saveQueueEnabled = (trinoAwsProxyConfig.getRequestLoggerSavedQty() > 0);
+        saveQueue = Queues.synchronizedQueue(EvictingQueue.create(config.getRequestLoggerSavedQty() * 2));
+        saveQueueEnabled = (config.getRequestLoggerSavedQty() > 0);
     }
 
     @PreDestroy

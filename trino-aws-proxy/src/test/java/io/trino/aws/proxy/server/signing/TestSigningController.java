@@ -14,8 +14,8 @@
 package io.trino.aws.proxy.server.signing;
 
 import io.airlift.units.Duration;
-import io.trino.aws.proxy.server.TrinoAwsProxyConfig;
 import io.trino.aws.proxy.server.credentials.CredentialsController;
+import io.trino.aws.proxy.server.rest.RequestLoggerConfig;
 import io.trino.aws.proxy.server.rest.RequestLoggerController;
 import io.trino.aws.proxy.server.testing.TestingRemoteS3Facade;
 import io.trino.aws.proxy.spi.credentials.Credential;
@@ -48,7 +48,7 @@ public class TestSigningController
     private static final Credentials CREDENTIALS = Credentials.build(new Credential("THIS_IS_AN_ACCESS_KEY", "THIS_IS_A_SECRET_KEY"));
     private static final CredentialsProvider CREDENTIALS_PROVIDER = (_, _) -> Optional.of(CREDENTIALS);
     private static final CredentialsController CREDENTIALS_CONTROLLER = new CredentialsController(new TestingRemoteS3Facade(), CREDENTIALS_PROVIDER);
-    private static final SigningController LARGE_DRIFT_SIGNING_CONTROLLER = new InternalSigningController(CREDENTIALS_CONTROLLER, new SigningControllerConfig().setMaxClockDrift(new Duration(99999, TimeUnit.DAYS)), new RequestLoggerController(new TrinoAwsProxyConfig()));
+    private static final SigningController LARGE_DRIFT_SIGNING_CONTROLLER = new InternalSigningController(CREDENTIALS_CONTROLLER, new SigningControllerConfig().setMaxClockDrift(new Duration(99999, TimeUnit.DAYS)), new RequestLoggerController(new RequestLoggerConfig()));
 
     @Test
     public void testRootLs()
@@ -177,7 +177,7 @@ public class TestSigningController
 
     private static void tryValidateRequestOfAgeAndExpiry(Instant requestDate, Optional<Instant> requestExpiry, Duration maxClockDrift)
     {
-        RequestLoggerController requestLoggerController = new RequestLoggerController(new TrinoAwsProxyConfig());
+        RequestLoggerController requestLoggerController = new RequestLoggerController(new RequestLoggerConfig());
         SigningController requestSigningController = new InternalSigningController(CREDENTIALS_CONTROLLER, new SigningControllerConfig().setMaxClockDrift(maxClockDrift), requestLoggerController);
 
         URI requestUri = URI.create("http://dummy-url");
