@@ -24,6 +24,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.inject.Binder;
 import com.google.inject.Provides;
 import com.google.inject.Scopes;
+import com.google.inject.Singleton;
 import com.google.inject.TypeLiteral;
 import io.airlift.configuration.AbstractConfigurationAwareModule;
 import io.airlift.http.server.HttpServerBinder;
@@ -61,6 +62,7 @@ import io.trino.aws.proxy.spi.plugin.config.RemoteS3Config;
 import io.trino.aws.proxy.spi.plugin.config.S3RequestRewriterConfig;
 import io.trino.aws.proxy.spi.plugin.config.S3SecurityFacadeProviderConfig;
 import io.trino.aws.proxy.spi.remote.RemoteS3Facade;
+import io.trino.aws.proxy.spi.remote.RemoteUriFacade;
 import io.trino.aws.proxy.spi.rest.S3RequestRewriter;
 import io.trino.aws.proxy.spi.security.S3SecurityFacadeProvider;
 import org.glassfish.jersey.server.model.Resource;
@@ -82,6 +84,13 @@ public class TrinoAwsProxyServerModule
         extends AbstractConfigurationAwareModule
 {
     private static final Logger log = Logger.get(TrinoAwsProxyServerModule.class);
+
+    @Provides
+    @Singleton
+    public RemoteUriFacade remoteUriFacade(RemoteS3Facade remoteS3Facade)
+    {
+        return remoteS3Facade;
+    }
 
     @Override
     protected void setup(Binder binder)
