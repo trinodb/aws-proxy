@@ -21,6 +21,7 @@ import io.airlift.http.client.StatusResponseHandler.StatusResponse;
 import io.airlift.http.server.testing.TestingHttpServer;
 import io.airlift.units.Duration;
 import io.trino.aws.proxy.server.credentials.CredentialsController;
+import io.trino.aws.proxy.server.rest.RequestLoggerConfig;
 import io.trino.aws.proxy.server.rest.RequestLoggerController;
 import io.trino.aws.proxy.server.signing.InternalSigningController;
 import io.trino.aws.proxy.server.signing.SigningControllerConfig;
@@ -115,7 +116,7 @@ public class TestGenericRestRequests
         this.signingController = new InternalSigningController(
                 new CredentialsController(new TestingRemoteS3Facade(), credentialsRolesProvider),
                 new SigningControllerConfig().setMaxClockDrift(new Duration(10, TimeUnit.SECONDS)),
-                new RequestLoggerController(new TrinoAwsProxyConfig()));
+                new RequestLoggerController(new RequestLoggerConfig()));
         this.httpClient = requireNonNull(httpClient, "httpClient is null");
         this.testingCredentials = requireNonNull(testingCredentials, "testingCredentials is null");
         this.storageClient = requireNonNull(storageClient, "storageClient is null");

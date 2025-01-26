@@ -19,6 +19,7 @@ import io.airlift.http.client.Request;
 import io.airlift.http.server.testing.TestingHttpServer;
 import io.airlift.units.Duration;
 import io.trino.aws.proxy.server.credentials.CredentialsController;
+import io.trino.aws.proxy.server.rest.RequestLoggerConfig;
 import io.trino.aws.proxy.server.rest.RequestLoggerController;
 import io.trino.aws.proxy.server.signing.InternalSigningController;
 import io.trino.aws.proxy.server.signing.SigningControllerConfig;
@@ -280,7 +281,7 @@ public class TestHttpChunked
         InternalSigningController signingController = new InternalSigningController(
                 new CredentialsController(new TestingRemoteS3Facade(), credentialsRolesProvider),
                 new SigningControllerConfig().setMaxClockDrift(new Duration(10, TimeUnit.SECONDS)),
-                new RequestLoggerController(new TrinoAwsProxyConfig()));
+                new RequestLoggerController(new RequestLoggerConfig()));
         RequestAuthorization requestAuthorization = signingController.signRequest(new SigningMetadata(SigningServiceType.S3, Credentials.build(VALID_CREDENTIAL, testingCredentials.requiredRemoteCredential()), Optional.empty()),
                 "us-east-1", requestDate, Optional.empty(), Credentials::emulated, requestUri, requestHeaderBuilder.build(), ImmutableMultiMap.empty(), "PUT").signingAuthorization();
 
