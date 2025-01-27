@@ -20,6 +20,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.inject.Inject;
 import io.trino.aws.proxy.server.rest.RequestLoggerController.SaveEntry;
+import io.trino.aws.proxy.server.rest.ResourceSecurity.Logs;
 import io.trino.aws.proxy.server.rest.TrinoLogsResource.GetLogEventsResponse.Event;
 import io.trino.aws.proxy.spi.rest.Request;
 import jakarta.ws.rs.HeaderParam;
@@ -38,13 +39,12 @@ import java.util.Set;
 import java.util.function.Predicate;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
-import static io.trino.aws.proxy.server.rest.ResourceSecurity.AccessType.LOGS;
 import static io.trino.aws.proxy.spi.signing.SigningServiceType.S3;
 import static io.trino.aws.proxy.spi.signing.SigningServiceType.STS;
 import static jakarta.ws.rs.core.Response.Status.BAD_REQUEST;
 import static java.util.Objects.requireNonNull;
 
-@ResourceSecurity(LOGS)
+@ResourceSecurity(Logs.class)
 public class TrinoLogsResource
 {
     private static final Set<String> DEFAULT_STREAMS = ImmutableSet.of(S3.serviceName(), STS.serviceName());

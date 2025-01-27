@@ -19,6 +19,7 @@ import com.google.inject.Inject;
 import io.airlift.log.Logger;
 import io.trino.aws.proxy.server.rest.AssumeRoleResponse.AssumeRoleResult;
 import io.trino.aws.proxy.server.rest.AssumeRoleResponse.AssumedRoleUser;
+import io.trino.aws.proxy.server.rest.ResourceSecurity.Sts;
 import io.trino.aws.proxy.spi.credentials.AssumedRoleProvider;
 import io.trino.aws.proxy.spi.credentials.EmulatedAssumedRole;
 import io.trino.aws.proxy.spi.rest.Request;
@@ -37,10 +38,9 @@ import java.util.Map;
 import java.util.Optional;
 
 import static com.google.common.collect.ImmutableMap.toImmutableMap;
-import static io.trino.aws.proxy.server.rest.ResourceSecurity.AccessType.STS;
 import static java.util.Objects.requireNonNull;
 
-@ResourceSecurity(STS)
+@ResourceSecurity(Sts.class)
 public class TrinoStsResource
 {
     private static final Logger log = Logger.get(TrinoStsResource.class);
