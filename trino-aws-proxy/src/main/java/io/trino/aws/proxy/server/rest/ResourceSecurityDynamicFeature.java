@@ -15,10 +15,9 @@ package io.trino.aws.proxy.server.rest;
 
 import com.google.inject.Inject;
 import io.trino.aws.proxy.server.rest.ResourceSecurity.AccessType;
-import io.trino.aws.proxy.server.rest.ResourceSecurity.AccessType.Access.PublicAccess;
-import io.trino.aws.proxy.server.rest.ResourceSecurity.AccessType.Access.SigV4Access;
+import io.trino.aws.proxy.server.rest.ResourceSecurity.Public;
+import io.trino.aws.proxy.server.rest.ResourceSecurity.SigV4AccessType;
 import io.trino.aws.proxy.spi.signing.SigningController;
-import io.trino.aws.proxy.spi.signing.SigningServiceType;
 import jakarta.ws.rs.container.DynamicFeature;
 import jakarta.ws.rs.container.ResourceInfo;
 import jakarta.ws.rs.core.FeatureContext;
@@ -46,10 +45,10 @@ public class ResourceSecurityDynamicFeature
     {
         if (resourceInfo.getResourceClass().getPackageName().startsWith("io.trino.aws")) {
             AccessType accessType = getAccessType(resourceInfo);
-            switch (accessType.access()) {
-                case PublicAccess _ -> {}
-                case SigV4Access(SigningServiceType signingServiceType) ->
-                        context.register(new SecurityFilter(signingController, signingServiceType, requestLoggerController));
+            switch (accessType) {
+                case Public _ -> {}
+                case SigV4AccessType sigV4AccessType ->
+                        context.register(new SecurityFilter(signingController, sigV4AccessType.signingServiceType(), requestLoggerController));
             }
         }
     }
@@ -64,6 +63,14 @@ public class ResourceSecurityDynamicFeature
     private static Optional<AccessType> getAccessTypeFromAnnotation(AnnotatedElement annotatedElement)
     {
         return Optional.ofNullable(annotatedElement.getAnnotation(ResourceSecurity.class))
-                .map(ResourceSecurity::value);
+                .map(ResourceSecurity::value)
+                .map(accessClass -> {
+                    try {
+                        return accessClass.getConstructor().newInstance();
+                    }
+                    catch (Exception e) {
+                        throw new IllegalArgumentException("Could not instantiate access type. Ensure it has a no-arg constructor. Class: " + accessClass, e);
+                    }
+                });
     }
 }

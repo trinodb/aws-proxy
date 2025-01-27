@@ -13,8 +13,6 @@
  */
 package io.trino.aws.proxy.server.rest;
 
-import io.trino.aws.proxy.server.rest.ResourceSecurity.AccessType.Access.PublicAccess;
-import io.trino.aws.proxy.server.rest.ResourceSecurity.AccessType.Access.SigV4Access;
 import io.trino.aws.proxy.spi.signing.SigningServiceType;
 
 import java.lang.annotation.Retention;
@@ -23,38 +21,59 @@ import java.lang.annotation.Target;
 import static java.lang.annotation.ElementType.METHOD;
 import static java.lang.annotation.ElementType.TYPE;
 import static java.lang.annotation.RetentionPolicy.RUNTIME;
-import static java.util.Objects.requireNonNull;
 
 @Retention(RUNTIME)
 @Target({TYPE, METHOD})
 public @interface ResourceSecurity
 {
-    enum AccessType
+    sealed interface AccessType
     {
-        PUBLIC(new PublicAccess()),
-        S3(new SigV4Access(SigningServiceType.S3)),
-        STS(new SigV4Access(SigningServiceType.STS)),
-        LOGS(new SigV4Access(SigningServiceType.LOGS));
+    }
 
-        public sealed interface Access
+    sealed interface PublicAccessType
+            extends AccessType
+            permits Public
+    {}
+
+    non-sealed interface SigV4AccessType
+            extends AccessType
+    {
+        SigningServiceType signingServiceType();
+    }
+
+    final class Public
+            implements PublicAccessType
+    {}
+
+    final class S3
+            implements SigV4AccessType
+    {
+        @Override
+        public SigningServiceType signingServiceType()
         {
-            record PublicAccess() implements Access {}
-
-            record SigV4Access(SigningServiceType signingServiceType) implements Access {}
-        }
-
-        private final Access access;
-
-        AccessType(Access access)
-        {
-            this.access = requireNonNull(access, "access is null");
-        }
-
-        public Access access()
-        {
-            return access;
+            return SigningServiceType.S3;
         }
     }
 
-    AccessType value();
+    final class Sts
+            implements SigV4AccessType
+    {
+        @Override
+        public SigningServiceType signingServiceType()
+        {
+            return SigningServiceType.STS;
+        }
+    }
+
+    final class Logs
+            implements SigV4AccessType
+    {
+        @Override
+        public SigningServiceType signingServiceType()
+        {
+            return SigningServiceType.LOGS;
+        }
+    }
+
+    Class<? extends AccessType> value();
 }

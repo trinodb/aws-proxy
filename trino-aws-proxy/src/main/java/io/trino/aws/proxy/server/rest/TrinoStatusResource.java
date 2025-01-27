@@ -16,6 +16,7 @@ package io.trino.aws.proxy.server.rest;
 import com.google.inject.Inject;
 import com.sun.management.OperatingSystemMXBean;
 import io.airlift.node.NodeInfo;
+import io.trino.aws.proxy.server.rest.ResourceSecurity.Public;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.HEAD;
 import jakarta.ws.rs.Produces;
@@ -25,11 +26,10 @@ import java.lang.management.ManagementFactory;
 import java.lang.management.MemoryMXBean;
 
 import static io.airlift.units.Duration.nanosSince;
-import static io.trino.aws.proxy.server.rest.ResourceSecurity.AccessType.PUBLIC;
 import static jakarta.ws.rs.core.MediaType.APPLICATION_JSON;
 import static java.util.Objects.requireNonNull;
 
-@ResourceSecurity(PUBLIC)
+@ResourceSecurity(Public.class)
 public class TrinoStatusResource
 {
     private final NodeInfo nodeInfo;
