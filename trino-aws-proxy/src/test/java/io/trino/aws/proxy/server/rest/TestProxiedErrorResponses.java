@@ -135,7 +135,7 @@ public class TestProxiedErrorResponses
         protected void doGet(HttpServletRequest req, HttpServletResponse resp)
                 throws IOException
         {
-            String path = req.getPathInfo();
+            String path = req.getRequestURI();
             if (PATH_STATUS_CODE_MAPPING.containsKey(path)) {
                 HttpStatus status = PATH_STATUS_CODE_MAPPING.get(path);
                 resp.setStatus(status.code());
