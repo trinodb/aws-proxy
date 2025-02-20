@@ -38,6 +38,7 @@ import software.amazon.awssdk.services.s3.model.S3Exception;
 import java.io.IOException;
 import java.lang.annotation.Retention;
 import java.lang.annotation.Target;
+import java.net.URI;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -102,7 +103,7 @@ public class TestProxiedErrorResponses
     @Inject
     public TestProxiedErrorResponses(TestingRemoteS3Facade delegatingFacade, @ForErrorResponseTest TestingHttpServer httpErrorResponseServer, @ForTesting Credentials testingCredentials)
     {
-        this.internalClient = clientBuilder(httpErrorResponseServer.getBaseUrl())
+        this.internalClient = clientBuilder(URI.create("http://0.0.0.0:" + httpErrorResponseServer.getBaseUrl().getPort()))
                 .credentialsProvider(() -> AwsSessionCredentials.create(testingCredentials.emulated().accessKey(), testingCredentials.emulated().secretKey(), ""))
                 .build();
         delegatingFacade.setDelegate(new PathStyleRemoteS3Facade((_, _) -> httpErrorResponseServer.getBaseUrl().getHost(), false, Optional.of(httpErrorResponseServer.getBaseUrl().getPort())));
