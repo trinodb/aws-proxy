@@ -100,6 +100,14 @@ public class TestProxiedErrorResponses
     {
         this.internalClient = requireNonNull(internalClient, "internal client is null");
         delegatingFacade.setDelegate(new PathStyleRemoteS3Facade((_, _) -> httpErrorResponseServer.getBaseUrl().getHost(), false, Optional.of(httpErrorResponseServer.getBaseUrl().getPort())));
+
+        System.err.println("=========================");
+        System.err.println("===== httpErrorResponseServer =====");
+        System.err.println("=========================");
+        System.err.println("HttpUri: " + httpErrorResponseServer.getHttpServerInfo().getHttpUri());
+        System.err.println("HttpExternalUri: " + httpErrorResponseServer.getHttpServerInfo().getHttpExternalUri());
+        System.err.println("HttpsUri: " + httpErrorResponseServer.getHttpServerInfo().getHttpsUri());
+        System.err.println("HttpsExternalUri: " + httpErrorResponseServer.getHttpServerInfo().getHttpsExternalUri());
     }
 
     @Test
