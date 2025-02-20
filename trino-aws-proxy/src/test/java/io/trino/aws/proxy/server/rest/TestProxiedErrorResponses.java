@@ -22,13 +22,16 @@ import io.airlift.http.server.testing.TestingHttpServer;
 import io.trino.aws.proxy.server.remote.PathStyleRemoteS3Facade;
 import io.trino.aws.proxy.server.testing.TestingRemoteS3Facade;
 import io.trino.aws.proxy.server.testing.TestingTrinoAwsProxyServer.Builder;
+import io.trino.aws.proxy.server.testing.TestingUtil.ForTesting;
 import io.trino.aws.proxy.server.testing.harness.BuilderFilter;
 import io.trino.aws.proxy.server.testing.harness.TrinoAwsProxyTest;
+import io.trino.aws.proxy.spi.credentials.Credentials;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Test;
+import software.amazon.awssdk.auth.credentials.AwsSessionCredentials;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.S3Exception;
 
@@ -97,9 +100,11 @@ public class TestProxiedErrorResponses
     }
 
     @Inject
-    public TestProxiedErrorResponses(TestingRemoteS3Facade delegatingFacade, @ForErrorResponseTest TestingHttpServer httpErrorResponseServer)
+    public TestProxiedErrorResponses(TestingRemoteS3Facade delegatingFacade, @ForErrorResponseTest TestingHttpServer httpErrorResponseServer, @ForTesting Credentials testingCredentials)
     {
-        this.internalClient = clientBuilder(httpErrorResponseServer.getBaseUrl()).build();
+        this.internalClient = clientBuilder(httpErrorResponseServer.getBaseUrl())
+                .credentialsProvider(() -> AwsSessionCredentials.create(testingCredentials.emulated().accessKey(), testingCredentials.emulated().secretKey(), ""))
+                .build();
         delegatingFacade.setDelegate(new PathStyleRemoteS3Facade((_, _) -> httpErrorResponseServer.getBaseUrl().getHost(), false, Optional.of(httpErrorResponseServer.getBaseUrl().getPort())));
 
         System.err.println("=========================");
