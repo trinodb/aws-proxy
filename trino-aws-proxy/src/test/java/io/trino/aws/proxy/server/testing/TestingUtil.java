@@ -19,6 +19,7 @@ import com.google.inject.BindingAnnotation;
 import io.airlift.http.server.HttpServerConfig;
 import io.airlift.http.server.HttpServerInfo;
 import io.airlift.http.server.testing.TestingHttpServer;
+import io.airlift.node.NodeConfig;
 import io.airlift.node.NodeInfo;
 import io.trino.aws.proxy.spi.credentials.Credential;
 import io.trino.aws.proxy.spi.credentials.Credentials;
@@ -157,7 +158,8 @@ public final class TestingUtil
     public static TestingHttpServer createTestingHttpServer(Servlet servlet)
             throws IOException
     {
-        NodeInfo nodeInfo = new NodeInfo("test");
+        NodeConfig nodeConfig = new NodeConfig().setNodeBindIp("0.0.0.0").setEnvironment("test");
+        NodeInfo nodeInfo = new NodeInfo(nodeConfig);
         HttpServerConfig config = new HttpServerConfig().setHttpPort(0);
         HttpServerInfo httpServerInfo = new HttpServerInfo(config, nodeInfo);
         return new TestingHttpServer(httpServerInfo, nodeInfo, config, servlet);
