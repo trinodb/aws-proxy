@@ -22,12 +22,16 @@ import io.airlift.http.server.testing.TestingHttpServer;
 import io.trino.aws.proxy.server.remote.PathStyleRemoteS3Facade;
 import io.trino.aws.proxy.server.testing.TestingRemoteS3Facade;
 import io.trino.aws.proxy.server.testing.TestingTrinoAwsProxyServer.Builder;
+import io.trino.aws.proxy.server.testing.TestingUtil.ForTesting;
 import io.trino.aws.proxy.server.testing.harness.BuilderFilter;
 import io.trino.aws.proxy.server.testing.harness.TrinoAwsProxyTest;
+import io.trino.aws.proxy.spi.credentials.Credentials;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import software.amazon.awssdk.auth.credentials.AwsSessionCredentials;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.S3Exception;
 
@@ -39,13 +43,13 @@ import java.util.Map;
 import java.util.Optional;
 
 import static com.google.common.collect.ImmutableMap.toImmutableMap;
+import static io.trino.aws.proxy.server.testing.TestingUtil.clientBuilder;
 import static io.trino.aws.proxy.server.testing.TestingUtil.createTestingHttpServer;
 import static io.trino.aws.proxy.server.testing.TestingUtil.getFileFromStorage;
 import static java.lang.annotation.ElementType.FIELD;
 import static java.lang.annotation.ElementType.METHOD;
 import static java.lang.annotation.ElementType.PARAMETER;
 import static java.lang.annotation.RetentionPolicy.RUNTIME;
-import static java.util.Objects.requireNonNull;
 import static java.util.function.Function.identity;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
@@ -95,10 +99,19 @@ public class TestProxiedErrorResponses
     }
 
     @Inject
-    public TestProxiedErrorResponses(S3Client internalClient, TestingRemoteS3Facade delegatingFacade, @ForErrorResponseTest TestingHttpServer httpErrorResponseServer)
+    public TestProxiedErrorResponses(TestingRemoteS3Facade delegatingFacade, @ForErrorResponseTest TestingHttpServer httpErrorResponseServer, @ForTesting Credentials testingCredentials)
     {
-        this.internalClient = requireNonNull(internalClient, "internal client is null");
+        internalClient = clientBuilder(httpErrorResponseServer.getBaseUrl())
+                .forcePathStyle(true)
+                .credentialsProvider(() -> AwsSessionCredentials.create(testingCredentials.emulated().accessKey(), testingCredentials.emulated().secretKey(), testingCredentials.emulated().session().orElse("")))
+                .build();
         delegatingFacade.setDelegate(new PathStyleRemoteS3Facade((_, _) -> httpErrorResponseServer.getBaseUrl().getHost(), false, Optional.of(httpErrorResponseServer.getBaseUrl().getPort())));
+    }
+
+    @AfterEach
+    public void shutdown()
+    {
+        internalClient.close();
     }
 
     @Test
@@ -121,13 +134,13 @@ public class TestProxiedErrorResponses
             extends HttpServlet
     {
         private static final String RESPONSE_TEMPLATE = """
-<?xml version="1.0" encoding="UTF-8"?>
-<Error>
-  <Code>%s</Code>
-  <Message>Error Message</Message>
-  <Resource>%s</Resource>
-  <RequestId>123</RequestId>
-</Error>""";
+                <?xml version="1.0" encoding="UTF-8"?>
+                <Error>
+                  <Code>%s</Code>
+                  <Message>Error Message</Message>
+                  <Resource>%s</Resource>
+                  <RequestId>123</RequestId>
+                </Error>""";
 
         private static final Map<String, HttpStatus> PATH_STATUS_CODE_MAPPING = STATUS_CODES.stream().collect(toImmutableMap(status -> "/status/%d".formatted(status.code()), identity()));
 
