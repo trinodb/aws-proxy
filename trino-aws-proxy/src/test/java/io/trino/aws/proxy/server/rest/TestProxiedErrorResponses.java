@@ -38,6 +38,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+import static com.google.common.base.MoreObjects.firstNonNull;
 import static com.google.common.collect.ImmutableMap.toImmutableMap;
 import static io.trino.aws.proxy.server.testing.TestingUtil.createTestingHttpServer;
 import static io.trino.aws.proxy.server.testing.TestingUtil.getFileFromStorage;
@@ -135,7 +136,7 @@ public class TestProxiedErrorResponses
         protected void doGet(HttpServletRequest req, HttpServletResponse resp)
                 throws IOException
         {
-            String path = req.getPathInfo();
+            String path = firstNonNull(req.getRequestURI(), req.getPathInfo());
             if (PATH_STATUS_CODE_MAPPING.containsKey(path)) {
                 HttpStatus status = PATH_STATUS_CODE_MAPPING.get(path);
                 resp.setStatus(status.code());
