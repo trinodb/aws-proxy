@@ -27,6 +27,7 @@ import io.trino.aws.proxy.server.testing.harness.TrinoAwsProxyTest;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Test;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.S3Exception;
@@ -40,13 +41,13 @@ import java.util.Optional;
 
 import static com.google.common.base.MoreObjects.firstNonNull;
 import static com.google.common.collect.ImmutableMap.toImmutableMap;
+import static io.trino.aws.proxy.server.testing.TestingUtil.clientBuilder;
 import static io.trino.aws.proxy.server.testing.TestingUtil.createTestingHttpServer;
 import static io.trino.aws.proxy.server.testing.TestingUtil.getFileFromStorage;
 import static java.lang.annotation.ElementType.FIELD;
 import static java.lang.annotation.ElementType.METHOD;
 import static java.lang.annotation.ElementType.PARAMETER;
 import static java.lang.annotation.RetentionPolicy.RUNTIME;
-import static java.util.Objects.requireNonNull;
 import static java.util.function.Function.identity;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
@@ -96,9 +97,9 @@ public class TestProxiedErrorResponses
     }
 
     @Inject
-    public TestProxiedErrorResponses(S3Client internalClient, TestingRemoteS3Facade delegatingFacade, @ForErrorResponseTest TestingHttpServer httpErrorResponseServer)
+    public TestProxiedErrorResponses(TestingRemoteS3Facade delegatingFacade, @ForErrorResponseTest TestingHttpServer httpErrorResponseServer)
     {
-        this.internalClient = requireNonNull(internalClient, "internal client is null");
+        this.internalClient = clientBuilder(httpErrorResponseServer.getBaseUrl()).build();
         delegatingFacade.setDelegate(new PathStyleRemoteS3Facade((_, _) -> httpErrorResponseServer.getBaseUrl().getHost(), false, Optional.of(httpErrorResponseServer.getBaseUrl().getPort())));
 
         System.err.println("=========================");
@@ -108,6 +109,12 @@ public class TestProxiedErrorResponses
         System.err.println("HttpExternalUri: " + httpErrorResponseServer.getHttpServerInfo().getHttpExternalUri());
         System.err.println("HttpsUri: " + httpErrorResponseServer.getHttpServerInfo().getHttpsUri());
         System.err.println("HttpsExternalUri: " + httpErrorResponseServer.getHttpServerInfo().getHttpsExternalUri());
+    }
+
+    @AfterAll
+    public void shutdown()
+    {
+        internalClient.close();
     }
 
     @Test
