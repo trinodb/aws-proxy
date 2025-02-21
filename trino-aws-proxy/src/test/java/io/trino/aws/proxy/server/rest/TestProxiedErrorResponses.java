@@ -19,6 +19,8 @@ import com.google.inject.Inject;
 import com.google.inject.Key;
 import io.airlift.http.client.HttpStatus;
 import io.airlift.http.server.testing.TestingHttpServer;
+import io.airlift.log.Level;
+import io.airlift.log.Logging;
 import io.trino.aws.proxy.server.remote.PathStyleRemoteS3Facade;
 import io.trino.aws.proxy.server.testing.TestingRemoteS3Facade;
 import io.trino.aws.proxy.server.testing.TestingTrinoAwsProxyServer.Builder;
@@ -99,6 +101,10 @@ public class TestProxiedErrorResponses
     {
         this.internalClient = requireNonNull(internalClient, "internal client is null");
         delegatingFacade.setDelegate(new PathStyleRemoteS3Facade((_, _) -> httpErrorResponseServer.getBaseUrl().getHost(), false, Optional.of(httpErrorResponseServer.getBaseUrl().getPort())));
+
+        // Temporary
+        Logging.initialize().setLevel("io.trino", Level.DEBUG);
+        Logging.initialize().setLevel("org", Level.DEBUG);
     }
 
     @Test
