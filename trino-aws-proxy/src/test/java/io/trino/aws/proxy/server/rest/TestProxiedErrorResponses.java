@@ -22,16 +22,12 @@ import io.airlift.http.server.testing.TestingHttpServer;
 import io.trino.aws.proxy.server.remote.PathStyleRemoteS3Facade;
 import io.trino.aws.proxy.server.testing.TestingRemoteS3Facade;
 import io.trino.aws.proxy.server.testing.TestingTrinoAwsProxyServer.Builder;
-import io.trino.aws.proxy.server.testing.TestingUtil.ForTesting;
 import io.trino.aws.proxy.server.testing.harness.BuilderFilter;
 import io.trino.aws.proxy.server.testing.harness.TrinoAwsProxyTest;
-import io.trino.aws.proxy.spi.credentials.Credentials;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Test;
-import software.amazon.awssdk.auth.credentials.AwsSessionCredentials;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.S3Exception;
 
@@ -43,13 +39,13 @@ import java.util.Map;
 import java.util.Optional;
 
 import static com.google.common.collect.ImmutableMap.toImmutableMap;
-import static io.trino.aws.proxy.server.testing.TestingUtil.clientBuilder;
 import static io.trino.aws.proxy.server.testing.TestingUtil.createTestingHttpServer;
 import static io.trino.aws.proxy.server.testing.TestingUtil.getFileFromStorage;
 import static java.lang.annotation.ElementType.FIELD;
 import static java.lang.annotation.ElementType.METHOD;
 import static java.lang.annotation.ElementType.PARAMETER;
 import static java.lang.annotation.RetentionPolicy.RUNTIME;
+import static java.util.Objects.requireNonNull;
 import static java.util.function.Function.identity;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
@@ -99,19 +95,10 @@ public class TestProxiedErrorResponses
     }
 
     @Inject
-    public TestProxiedErrorResponses(TestingRemoteS3Facade delegatingFacade, @ForErrorResponseTest TestingHttpServer httpErrorResponseServer, @ForTesting Credentials testingCredentials)
+    public TestProxiedErrorResponses(S3Client internalClient, TestingRemoteS3Facade delegatingFacade, @ForErrorResponseTest TestingHttpServer httpErrorResponseServer)
     {
-        internalClient = clientBuilder(httpErrorResponseServer.getBaseUrl())
-                .forcePathStyle(true)
-                .credentialsProvider(() -> AwsSessionCredentials.create(testingCredentials.emulated().accessKey(), testingCredentials.emulated().secretKey(), testingCredentials.emulated().session().orElse("")))
-                .build();
+        this.internalClient = requireNonNull(internalClient, "internal client is null");
         delegatingFacade.setDelegate(new PathStyleRemoteS3Facade((_, _) -> httpErrorResponseServer.getBaseUrl().getHost(), false, Optional.of(httpErrorResponseServer.getBaseUrl().getPort())));
-    }
-
-    @AfterAll
-    public void shutdown()
-    {
-        internalClient.close();
     }
 
     @Test
