@@ -158,7 +158,7 @@ public final class TestingUtil
     public static TestingHttpServer createTestingHttpServer(Servlet servlet)
             throws IOException
     {
-        NodeConfig nodeConfig = new NodeConfig().setNodeBindIp("0.0.0.0").setEnvironment("test");
+        NodeConfig nodeConfig = new NodeConfig().setNodeBindIp("127.0.0.1").setNodeInternalAddress("127.0.0.1").setEnvironment("test");
         NodeInfo nodeInfo = new NodeInfo(nodeConfig);
         HttpServerConfig config = new HttpServerConfig().setHttpPort(0);
         HttpServerInfo httpServerInfo = new HttpServerInfo(config, nodeInfo);
