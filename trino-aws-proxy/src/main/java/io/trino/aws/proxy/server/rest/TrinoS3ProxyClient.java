@@ -112,14 +112,6 @@ public class TrinoS3ProxyClient
 
     public void proxyRequest(SigningMetadata signingMetadata, ParsedS3Request request, AsyncResponse asyncResponse, RequestLoggingSession requestLoggingSession)
     {
-        Optional<S3RewriteResult> rewriteResult = s3RequestRewriter.rewrite(signingMetadata.credentials(), request);
-        String targetBucket = rewriteResult.map(S3RewriteResult::finalRequestBucket).orElse(request.bucketName());
-        String targetKey = rewriteResult
-                .map(S3RewriteResult::finalRequestKey)
-                .map(SdkHttpUtils::urlEncodeIgnoreSlashes)
-                .orElse(request.rawPath());
-        URI remoteUri = remoteS3Facade.buildEndpoint(uriBuilder(request.queryParameters()), targetKey, targetBucket, request.requestAuthorization().region());
-
         SecurityResponse securityResponse = s3SecurityController.apply(request, signingMetadata.credentials().identity());
         if (securityResponse instanceof Failure(var error)) {
             log.debug("SecurityController check failed. AccessKey: %s, Request: %s, SecurityResponse: %s", signingMetadata.credentials().emulated().accessKey(), request, securityResponse);
@@ -129,6 +121,14 @@ public class TrinoS3ProxyClient
 
             throw new WebApplicationException(Response.Status.UNAUTHORIZED);
         }
+
+        Optional<S3RewriteResult> rewriteResult = s3RequestRewriter.rewrite(signingMetadata.credentials(), request);
+        String targetBucket = rewriteResult.map(S3RewriteResult::finalRequestBucket).orElse(request.bucketName());
+        String targetKey = rewriteResult
+                .map(S3RewriteResult::finalRequestKey)
+                .map(SdkHttpUtils::urlEncodeIgnoreSlashes)
+                .orElse(request.rawPath());
+        URI remoteUri = remoteS3Facade.buildEndpoint(uriBuilder(request.queryParameters()), targetKey, targetBucket, request.requestAuthorization().region());
 
         Request.Builder remoteRequestBuilder = new Request.Builder()
                 .setMethod(request.httpVerb())
