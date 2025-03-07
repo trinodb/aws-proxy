@@ -25,6 +25,7 @@ import software.amazon.awssdk.services.s3.S3Client;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static com.google.inject.multibindings.OptionalBinder.newOptionalBinder;
 import static io.trino.aws.proxy.spi.plugin.TrinoAwsProxyServerBinding.s3RequestRewriterModule;
@@ -70,9 +71,17 @@ public final class RequestRewriteUtil
     public static class Rewriter
             implements TestingS3RequestRewriter
     {
+        private final AtomicInteger callCount = new AtomicInteger();
+
+        public int getCallCount()
+        {
+            return callCount.get();
+        }
+
         @Override
         public Optional<S3RewriteResult> testRewrite(Credentials credentials, String bucketName, String keyName)
         {
+            callCount.incrementAndGet();
             boolean redirectForTestCredential = credentials.emulated().accessKey().equalsIgnoreCase(CREDENTIAL_TO_REDIRECT.accessKey());
             if (redirectForTestCredential) {
                 return Optional.of(new S3RewriteResult(TEST_CREDENTIAL_REDIRECT_BUCKET, keyName.isEmpty() ? "" : TEST_CREDENTIAL_REDIRECT_KEY));
