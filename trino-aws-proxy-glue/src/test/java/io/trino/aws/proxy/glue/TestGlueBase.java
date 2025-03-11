@@ -21,7 +21,11 @@ import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.glue.GlueClient;
+import software.amazon.awssdk.services.glue.model.CreateDatabaseRequest;
 import software.amazon.awssdk.services.glue.model.Database;
+import software.amazon.awssdk.services.glue.model.DatabaseIdentifier;
+import software.amazon.awssdk.services.glue.model.DatabaseInput;
+import software.amazon.awssdk.services.glue.model.FederatedDatabase;
 import software.amazon.awssdk.services.glue.model.GetDatabasesRequest;
 import software.amazon.awssdk.services.glue.model.GetDatabasesResponse;
 import software.amazon.awssdk.services.glue.model.GetResourcePoliciesRequest;
@@ -29,6 +33,7 @@ import software.amazon.awssdk.services.glue.model.GetResourcePoliciesResponse;
 import software.amazon.awssdk.services.glue.model.GluePolicy;
 
 import java.net.URI;
+import java.util.Map;
 
 import static io.trino.aws.proxy.glue.TestingGlueRequestHandler.DATABASE_1;
 import static io.trino.aws.proxy.glue.TestingGlueRequestHandler.DATABASE_2;
@@ -79,5 +84,30 @@ public abstract class TestGlueBase<T extends TestingGlueContext>
         assertThat(resourcePolicies.getResourcePoliciesResponseList())
                 .extracting(GluePolicy::policyInJson)
                 .containsExactlyInAnyOrder(POLICY_A, POLICY_B);
+    }
+
+    @Test
+    public void testComplexSerialization()
+    {
+        // CreateDatabaseRequest has nested models
+
+        String catalogId = "1";
+        String databaseName = "database1";
+        glueClient.createDatabase(
+                CreateDatabaseRequest.builder()
+                        .catalogId(catalogId)
+                        .databaseInput(DatabaseInput.builder()
+                                .name(databaseName)
+                                .description("just another description for a test db")
+                                .locationUri("dummy locationUri")
+                                .parameters(Map.of("k1", "v1"))
+                                .targetDatabase(DatabaseIdentifier.builder()
+                                        .catalogId(catalogId)
+                                        .databaseName(databaseName)
+                                        .region("us-east-1")
+                                        .build())
+                                .federatedDatabase(FederatedDatabase.builder().identifier("iden1").build())
+                                .build())
+                        .build());
     }
 }

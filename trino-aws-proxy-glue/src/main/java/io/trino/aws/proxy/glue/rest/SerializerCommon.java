@@ -19,16 +19,20 @@ import software.amazon.awssdk.core.SdkResponse;
 import software.amazon.awssdk.utils.builder.Buildable;
 
 import java.lang.reflect.Method;
+import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
+import static com.google.common.collect.ImmutableMap.toImmutableMap;
 import static java.util.Objects.requireNonNull;
+import static java.util.function.Function.identity;
 
 class SerializerCommon
 {
     private final Supplier<SdkPojo> builderSupplier;
-    private final List<SdkField<?>> sdkFields;
+    private final Map<String, SdkField<?>> sdkFields;
     private final Function<Object, Object> builder;
 
     SerializerCommon(Class<?> clazz)
@@ -47,7 +51,7 @@ class SerializerCommon
             };
 
             SdkPojo builderAndPojo = builderSupplier.get();
-            sdkFields = builderAndPojo.sdkFields();
+            List<SdkField<?>> sdkFields = builderAndPojo.sdkFields();
 
             // different AWS models have different builders. There's no common base.
             // So, find the right builder
@@ -56,6 +60,9 @@ class SerializerCommon
                 case SdkResponse.Builder _ -> o -> ((SdkResponse.Builder) o).build();
                 default -> throw new RuntimeException("Unexpected builder type: " + builderAndPojo);
             };
+
+            this.sdkFields = sdkFields.stream()
+                    .collect(toImmutableMap(SdkField::memberName, identity()));
         }
         catch (Exception e) {
             // TODO
@@ -68,7 +75,12 @@ class SerializerCommon
         return builderSupplier.get();
     }
 
-    List<SdkField<?>> sdkFields()
+    Collection<SdkField<?>> sdkFields()
+    {
+        return sdkFields.values();
+    }
+
+    Map<String, SdkField<?>> sdkFieldsMap()
     {
         return sdkFields;
     }

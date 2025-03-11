@@ -19,6 +19,8 @@ import io.trino.aws.proxy.glue.rest.ParsedGlueRequest;
 import io.trino.aws.proxy.server.rest.RequestLoggingSession;
 import io.trino.aws.proxy.spi.signing.SigningMetadata;
 import jakarta.ws.rs.WebApplicationException;
+import software.amazon.awssdk.services.glue.model.CreateDatabaseRequest;
+import software.amazon.awssdk.services.glue.model.CreateDatabaseResponse;
 import software.amazon.awssdk.services.glue.model.Database;
 import software.amazon.awssdk.services.glue.model.GetDatabasesRequest;
 import software.amazon.awssdk.services.glue.model.GetDatabasesResponse;
@@ -28,8 +30,10 @@ import software.amazon.awssdk.services.glue.model.GluePolicy;
 import software.amazon.awssdk.services.glue.model.GlueResponse;
 
 import java.util.Collection;
+import java.util.Map;
 
 import static jakarta.ws.rs.core.Response.Status.NOT_FOUND;
+import static org.assertj.core.api.Assertions.assertThat;
 
 public class TestingGlueRequestHandler
         implements GlueRequestHandler
@@ -80,6 +84,15 @@ public class TestingGlueRequestHandler
             case GetResourcePoliciesRequest _ -> GetResourcePoliciesResponse.builder()
                     .getResourcePoliciesResponseList(gluePolicies())
                     .build();
+
+            case CreateDatabaseRequest databaseRequest -> {
+                assertThat(databaseRequest.catalogId()).isEqualTo("1");
+                assertThat(databaseRequest.databaseInput().name()).isEqualTo("database1");
+                assertThat(databaseRequest.databaseInput().description()).isEqualTo("just another description for a test db");
+                assertThat(databaseRequest.databaseInput().locationUri()).isEqualTo("dummy locationUri");
+                assertThat(databaseRequest.databaseInput().parameters()).isEqualTo(Map.of("k1", "v1"));
+                yield CreateDatabaseResponse.builder().build();
+            }
 
             default -> throw new WebApplicationException(NOT_FOUND);
         };
