@@ -182,7 +182,7 @@ public class TestGenericRestRequests
 
         // Final chunk has an invalid size
         Function<String, String> changeSizeOfFinalChunk = chunked -> chunked.replaceFirst("\\r\\n0;chunk-signature=(\\w+)", "\r\n1;chunk-signature=$1");
-        assertThat(doAwsChunkedUpload(bucket, fileKey, LOREM_IPSUM, 2, validCredential, changeSizeOfFinalChunk).getStatusCode()).isEqualTo(500);
+        assertThat(doAwsChunkedUpload(bucket, fileKey, LOREM_IPSUM, 2, validCredential, changeSizeOfFinalChunk).getStatusCode()).isEqualTo(400);
         assertFileNotInS3(storageClient, bucket, fileKey);
 
         // First chunk has an invalid size
@@ -198,7 +198,7 @@ public class TestGenericRestRequests
             }
             return "%s%s".formatted(newSizeAsString, chunked.substring(firstChunkIdx));
         };
-        assertThat(doAwsChunkedUpload(bucket, fileKey, LOREM_IPSUM, 2, validCredential, changeSizeOfFirstChunk).getStatusCode()).isEqualTo(500);
+        assertThat(doAwsChunkedUpload(bucket, fileKey, LOREM_IPSUM, 2, validCredential, changeSizeOfFirstChunk).getStatusCode()).isEqualTo(400);
         assertFileNotInS3(storageClient, bucket, fileKey);
 
         // Change the signature of each of the chunks
@@ -269,24 +269,24 @@ public class TestGenericRestRequests
         storageClient.createBucket(r -> r.bucket(bucket).build());
 
         // Illegal signature and no final chunk
-        testAwsChunkedIllegalChunks(bucket, "no-final-chunk", buildFakeChunk(longDummyContent, longDummyContent.length()), longDummyContent.length(), 500);
+        testAwsChunkedIllegalChunks(bucket, "no-final-chunk", buildFakeChunk(longDummyContent, longDummyContent.length()), longDummyContent.length(), 400);
         // Illegal signature with a final chunk
         testAwsChunkedIllegalChunks(bucket, "with-final-chunk", "%s%s".formatted(buildFakeChunk(longDummyContent, longDummyContent.length()), buildFakeChunk("", 0)), longDummyContent.length(), 401);
         // Illegal signature and no final chunk - more chunked data than we report in the x-amz-decoded-content-length header
-        testAwsChunkedIllegalChunks(bucket, "no-final-chunk-more-data-than-headers-indicate", buildFakeChunk(longDummyContent, longDummyContent.length()), 4096, 500);
+        testAwsChunkedIllegalChunks(bucket, "no-final-chunk-more-data-than-headers-indicate", buildFakeChunk(longDummyContent, longDummyContent.length()), 4096, 400);
 
         // Illegal signature with a final chunk - more chunked data than we report in the x-amz-decoded-content-length header
-        testAwsChunkedIllegalChunks(bucket, "with-final-chunk-more-data-than-headers-indicate", "%s%s".formatted(buildFakeChunk(longDummyContent, longDummyContent.length()), buildFakeChunk("", 0)), 4096, 500);
+        testAwsChunkedIllegalChunks(bucket, "with-final-chunk-more-data-than-headers-indicate", "%s%s".formatted(buildFakeChunk(longDummyContent, longDummyContent.length()), buildFakeChunk("", 0)), 4096, 400);
 
         // Illegal signature and no final chunk - chunk misreports its size
-        testAwsChunkedIllegalChunks(bucket, "no-final-chunk-chunk-underreports-size", buildFakeChunk(longDummyContent, 4096), 4096, 500);
+        testAwsChunkedIllegalChunks(bucket, "no-final-chunk-chunk-underreports-size", buildFakeChunk(longDummyContent, 4096), 4096, 400);
         // Illegal signature with a final chunk - chunk misreports its size
-        testAwsChunkedIllegalChunks(bucket, "with-final-chunk-chunk-underreports-size", "%s%s".formatted(buildFakeChunk(longDummyContent, 4096), buildFakeChunk("", 0)), 4096, 500);
+        testAwsChunkedIllegalChunks(bucket, "with-final-chunk-chunk-underreports-size", "%s%s".formatted(buildFakeChunk(longDummyContent, 4096), buildFakeChunk("", 0)), 4096, 400);
 
         // Illegal signature and no final chunk - chunk misreports its size
-        testAwsChunkedIllegalChunks(bucket, "no-final-chunk-chunk-overreports-size", buildFakeChunk(longDummyContent, 9_000_000), 4096, 500);
+        testAwsChunkedIllegalChunks(bucket, "no-final-chunk-chunk-overreports-size", buildFakeChunk(longDummyContent, 9_000_000), 4096, 400);
         // Illegal signature with a final chunk - chunk misreports its size
-        testAwsChunkedIllegalChunks(bucket, "with-final-chunk-chunk-overreports-size", "%s%s".formatted(buildFakeChunk(longDummyContent, 9_000_000), buildFakeChunk("", 0)), 4096, 500);
+        testAwsChunkedIllegalChunks(bucket, "with-final-chunk-chunk-overreports-size", "%s%s".formatted(buildFakeChunk(longDummyContent, 9_000_000), buildFakeChunk("", 0)), 4096, 400);
         Thread.sleep(1000);
         assertThat(listFilesInS3Bucket(storageClient, bucket)).isEmpty();
     }
