@@ -29,6 +29,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import static jakarta.ws.rs.core.Response.Status.BAD_REQUEST;
 import static jakarta.ws.rs.core.Response.Status.INTERNAL_SERVER_ERROR;
 import static java.util.Objects.requireNonNull;
 
@@ -102,6 +103,7 @@ class StreamingResponseHandler
         switch (result) {
             case WebApplicationException exception -> resume(exception.getResponse());
             case Throwable exception when Throwables.getRootCause(exception) instanceof WebApplicationException webApplicationException -> resume(webApplicationException.getResponse());
+            case AwsProxyStreamException awsProxyStreamException -> resume(jakarta.ws.rs.core.Response.status(BAD_REQUEST.getStatusCode(), Optional.ofNullable(awsProxyStreamException.getMessage()).orElse("Unknown error")).build());
             case Throwable exception -> resume(jakarta.ws.rs.core.Response.status(INTERNAL_SERVER_ERROR.getStatusCode(), Optional.ofNullable(exception.getMessage()).orElse("Unknown error")).build());
             default -> {
                 if (hasBeenResumed.compareAndSet(false, true)) {

@@ -106,8 +106,7 @@ class HashCheckInputStream
         bytesRead += count;
         expectedLength.ifPresent(expected -> {
             if (bytesRead > expected) {
-                log.debug("More bytes read than expected. Expected: %s, Actual: %s", expected, bytesRead);
-                throw new WebApplicationException(UNAUTHORIZED);
+                throw new AwsProxyStreamException("More bytes read than expected. Expected: %s, Actual: %s".formatted(expected, bytesRead));
             }
 
             if (bytesRead == expected) {

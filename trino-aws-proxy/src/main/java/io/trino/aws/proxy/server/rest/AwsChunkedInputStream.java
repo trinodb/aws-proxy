@@ -16,7 +16,6 @@ package io.trino.aws.proxy.server.rest;
 import com.google.common.base.Splitter;
 import io.trino.aws.proxy.spi.signing.ChunkSigningSession;
 
-import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.List;
@@ -61,7 +60,7 @@ class AwsChunkedInputStream
 
         int i = delegate.read();
         if (i < 0) {
-            throw new EOFException("Unexpected end of stream");
+            throw new AwsProxyStreamException("Unexpected end of stream");
         }
 
         chunkSigningSession.write((byte) (i & 0xff));
@@ -82,7 +81,7 @@ class AwsChunkedInputStream
 
         int count = delegate.read(b, off, len);
         if (count < 0) {
-            throw new EOFException("Unexpected end of stream");
+            throw new AwsProxyStreamException("Unexpected end of stream");
         }
 
         chunkSigningSession.write(b, off, count);
@@ -116,7 +115,7 @@ class AwsChunkedInputStream
             nextChunk();
         }
         else if (bytesRemainingInChunk < 0) {
-            throw new IllegalStateException("bytesRemainingInChunk has gone negative: " + bytesRemainingInChunk);
+            throw new AwsProxyStreamException("bytesRemainingInChunk has gone negative: " + bytesRemainingInChunk);
         }
     }
 
@@ -195,10 +194,10 @@ class AwsChunkedInputStream
         while (false);
 
         if (!success) {
-            throw new IOException("Invalid chunk header: " + header);
+            throw new AwsProxyStreamException("Invalid chunk header: " + header);
         }
         if (bytesAccountedFor > decodedContentLength) {
-            throw new IllegalStateException("chunked data headers report a larger size than originally declared in the request: declared %s sent %s".formatted(decodedContentLength, bytesAccountedFor));
+            throw new AwsProxyStreamException("chunked data headers report a larger size than originally declared in the request: declared %s sent %s".formatted(decodedContentLength, bytesAccountedFor));
         }
     }
 
@@ -207,7 +206,7 @@ class AwsChunkedInputStream
     {
         String crLf = readLine();
         if (!crLf.isEmpty()) {
-            throw new IOException("Expected CR/LF. Instead read: " + crLf);
+            throw new AwsProxyStreamException("Expected CR/LF. Instead read: " + crLf);
         }
     }
 
@@ -219,7 +218,7 @@ class AwsChunkedInputStream
             int i = delegate.read();
             if (i < 0) {
                 delegateIsDone = true;
-                throw new EOFException("Unexpected end of stream");
+                throw new AwsProxyStreamException("Unexpected end of stream");
             }
             if (i == '\r') {
                 break;
@@ -229,7 +228,7 @@ class AwsChunkedInputStream
 
         int i = delegate.read();
         if (i != '\n') {
-            throw new IOException("Expected LF. Instead read: " + i);
+            throw new AwsProxyStreamException("Expected LF. Instead read: " + i);
         }
 
         return line.toString();
