@@ -282,7 +282,7 @@ public class TestAwsChunkedInputStream
     private static void testIllegalAwsChunkedData(String chunkedData, int decodedContentLength, TestingChunkSigningSession signingSession, ChunkReader readerMethod)
     {
         ByteArrayOutputStream testOutput = new ByteArrayOutputStream();
-        assertThatThrownBy(() -> readerMethod.read(chunkedData, decodedContentLength, signingSession, testOutput)).isInstanceOfAny(IllegalStateException.class, WebApplicationException.class, IOException.class);
+        assertThatThrownBy(() -> readerMethod.read(chunkedData, decodedContentLength, signingSession, testOutput)).isInstanceOfAny(WebApplicationException.class, IOException.class);
         assertThat(testOutput.toByteArray().length).isLessThan(decodedContentLength);
     }
 
@@ -377,7 +377,7 @@ public class TestAwsChunkedInputStream
         InputStream in = new AwsChunkedInputStream(inputStream, new DummyChunkSigningSession(), rawBytes.length);
         byte[] tmp = new byte[5];
         // altered from original test. Our AwsChunkedInputStream is improved and throws when the final chunk is missing or bad
-        assertThrows(IOException.class, () -> in.read(tmp));
+        assertThrows(WebApplicationException.class, () -> in.read(tmp));
     }
 
     // Truncated stream (missing closing CRLF)
@@ -393,7 +393,7 @@ public class TestAwsChunkedInputStream
                     InputStream in = new AwsChunkedInputStream(inputStream, new DummyChunkSigningSession(), rawBytes.length);
                     byte[] tmp = new byte[5];
                     // altered from original test. Our AwsChunkedInputStream is improved and throws when the final chunk is missing or bad
-                    assertThrows(IOException.class, () -> in.read(tmp));
+                    assertThrows(WebApplicationException.class, () -> in.read(tmp));
                     try {
                         in.close();
                     }
@@ -413,7 +413,7 @@ public class TestAwsChunkedInputStream
         InputStream in = new AwsChunkedInputStream(inputStream, new DummyChunkSigningSession(), rawBytes.length);
         byte[] buffer = new byte[300];
         ByteArrayOutputStream out = new ByteArrayOutputStream();
-        assertThrows(IOException.class, () -> {
+        assertThrows(WebApplicationException.class, () -> {
             int len;
             while ((len = in.read(buffer)) > 0) {
                 out.write(buffer, 0, len);
@@ -431,7 +431,7 @@ public class TestAwsChunkedInputStream
         byte[] rawBytes = s.getBytes(UTF_8);
         ByteArrayInputStream inputStream = new ByteArrayInputStream(rawBytes);
         InputStream in = new AwsChunkedInputStream(inputStream, new DummyChunkSigningSession(), rawBytes.length);
-        assertThrows(IOException.class, in::read);
+        assertThrows(WebApplicationException.class, in::read);
         in.close();
     }
 
@@ -444,7 +444,7 @@ public class TestAwsChunkedInputStream
         byte[] rawBytes = s.getBytes(UTF_8);
         ByteArrayInputStream inputStream = new ByteArrayInputStream(rawBytes);
         InputStream in = new AwsChunkedInputStream(inputStream, new DummyChunkSigningSession(), rawBytes.length);
-        assertThrows(IOException.class, in::read);
+        assertThrows(WebApplicationException.class, in::read);
         in.close();
     }
 
@@ -457,7 +457,7 @@ public class TestAwsChunkedInputStream
         byte[] rawBytes = s.getBytes(UTF_8);
         ByteArrayInputStream inputStream = new ByteArrayInputStream(rawBytes);
         InputStream in = new AwsChunkedInputStream(inputStream, new DummyChunkSigningSession(), rawBytes.length);
-        assertThrows(IOException.class, in::read);
+        assertThrows(WebApplicationException.class, in::read);
         in.close();
     }
 
@@ -472,20 +472,18 @@ public class TestAwsChunkedInputStream
         InputStream in = new AwsChunkedInputStream(inputStream, new DummyChunkSigningSession(), rawBytes.length);
         byte[] buffer = new byte[300];
         assertEquals(2, in.read(buffer));
-        assertThrows(IOException.class, () -> in.read(buffer));
+        assertThrows(WebApplicationException.class, () -> in.read(buffer));
         in.close();
     }
 
     @Test
     public void testCorruptChunkedInputStreamClose()
-            throws IOException
     {
         String s = "whatever;chunk-signature=0\r\n01234\r\n5;chunk-signature=0\r\n56789\r\n0;chunk-signature=0\r\n\r\n";
         byte[] rawBytes = s.getBytes(UTF_8);
         ByteArrayInputStream inputStream = new ByteArrayInputStream(rawBytes);
-        try (InputStream in = new AwsChunkedInputStream(inputStream, new DummyChunkSigningSession(), rawBytes.length)) {
-            assertThrows(IOException.class, in::read);
-        }
+        InputStream in = new AwsChunkedInputStream(inputStream, new DummyChunkSigningSession(), rawBytes.length);
+        assertThrows(WebApplicationException.class, in::read);
     }
 
     @Test
