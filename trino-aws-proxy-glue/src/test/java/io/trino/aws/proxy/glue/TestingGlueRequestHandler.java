@@ -21,6 +21,7 @@ import io.trino.aws.proxy.spi.signing.SigningMetadata;
 import jakarta.ws.rs.WebApplicationException;
 import software.amazon.awssdk.services.glue.model.CreateDatabaseRequest;
 import software.amazon.awssdk.services.glue.model.CreateDatabaseResponse;
+import software.amazon.awssdk.services.glue.model.CreateTableRequest;
 import software.amazon.awssdk.services.glue.model.Database;
 import software.amazon.awssdk.services.glue.model.GetDatabasesRequest;
 import software.amazon.awssdk.services.glue.model.GetDatabasesResponse;
@@ -91,6 +92,15 @@ public class TestingGlueRequestHandler
                 assertThat(databaseRequest.databaseInput().description()).isEqualTo("just another description for a test db");
                 assertThat(databaseRequest.databaseInput().locationUri()).isEqualTo("dummy locationUri");
                 assertThat(databaseRequest.databaseInput().parameters()).isEqualTo(Map.of("k1", "v1"));
+                yield CreateDatabaseResponse.builder().build();
+            }
+
+            case CreateTableRequest tableRequest -> {
+                assertThat(tableRequest.catalogId()).isEqualTo("1");
+                assertThat(tableRequest.databaseName()).isEqualTo("database1");
+                assertThat(tableRequest.tableInput().description()).isEqualTo("desc1");
+                assertThat(tableRequest.tableInput().name()).isEqualTo("tableName");
+                assertThat(tableRequest.tableInput().parameters()).isEqualTo(Map.of("k1", "v1"));
                 yield CreateDatabaseResponse.builder().build();
             }
 

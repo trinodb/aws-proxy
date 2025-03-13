@@ -15,6 +15,7 @@ package io.trino.aws.proxy.glue.rest;
 
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.databind.DeserializationContext;
+import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.JsonDeserializer;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -22,6 +23,7 @@ import software.amazon.awssdk.core.SdkField;
 
 import java.io.IOException;
 import java.lang.reflect.Field;
+import java.lang.reflect.Type;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.stream.Stream;
@@ -34,14 +36,14 @@ class GlueDeserializer<T>
         extends JsonDeserializer<T>
 {
     private final SerializerCommon serializerCommon;
-    private final Map<String, ? extends Class<?>> fieldTypeMap;
+    private final Map<String, Type> fieldTypeMap;
 
     GlueDeserializer(Class<T> requestClass)
     {
         serializerCommon = new SerializerCommon(requestClass);
 
         fieldTypeMap = Stream.of(requestClass.getDeclaredFields())
-                .collect(toImmutableMap(field -> capitalize(field.getName()), Field::getType));
+                .collect(toImmutableMap(field -> capitalize(field.getName()), Field::getGenericType));
     }
 
     @SuppressWarnings("unchecked")
@@ -63,12 +65,13 @@ class GlueDeserializer<T>
             SdkField<?> sdkField = serializerCommon.sdkFieldsMap().get(fieldName);
             // ignore fields that are not part of the model
             if (sdkField != null) {
-                Class<?> type = fieldTypeMap.get(fieldName);
+                Type type = fieldTypeMap.get(fieldName);
                 if (type == null) {
                     return (T) context.handleUnexpectedToken(context.getContextualType(), parser);
                 }
                 else {
-                    sdkField.set(builder, mapper.convertValue(fieldValue, type));
+                    JavaType javaType = context.getTypeFactory().constructType(type);
+                    sdkField.set(builder, mapper.convertValue(fieldValue, javaType));
                 }
             }
         }

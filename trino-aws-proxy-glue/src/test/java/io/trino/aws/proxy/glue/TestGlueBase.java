@@ -19,9 +19,13 @@ import jakarta.ws.rs.core.UriBuilder;
 import org.junit.jupiter.api.Test;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
+import software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration;
+import software.amazon.awssdk.core.CompressionConfiguration;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.glue.GlueClient;
+import software.amazon.awssdk.services.glue.model.Column;
 import software.amazon.awssdk.services.glue.model.CreateDatabaseRequest;
+import software.amazon.awssdk.services.glue.model.CreateTableRequest;
 import software.amazon.awssdk.services.glue.model.Database;
 import software.amazon.awssdk.services.glue.model.DatabaseIdentifier;
 import software.amazon.awssdk.services.glue.model.DatabaseInput;
@@ -31,6 +35,13 @@ import software.amazon.awssdk.services.glue.model.GetDatabasesResponse;
 import software.amazon.awssdk.services.glue.model.GetResourcePoliciesRequest;
 import software.amazon.awssdk.services.glue.model.GetResourcePoliciesResponse;
 import software.amazon.awssdk.services.glue.model.GluePolicy;
+import software.amazon.awssdk.services.glue.model.IcebergInput;
+import software.amazon.awssdk.services.glue.model.MetadataOperation;
+import software.amazon.awssdk.services.glue.model.OpenTableFormatInput;
+import software.amazon.awssdk.services.glue.model.PartitionIndex;
+import software.amazon.awssdk.services.glue.model.StorageDescriptor;
+import software.amazon.awssdk.services.glue.model.TableIdentifier;
+import software.amazon.awssdk.services.glue.model.TableInput;
 
 import java.net.URI;
 import java.util.Map;
@@ -89,10 +100,9 @@ public abstract class TestGlueBase<T extends TestingGlueContext>
     @Test
     public void testComplexSerialization()
     {
-        // CreateDatabaseRequest has nested models
-
         String catalogId = "1";
         String databaseName = "database1";
+
         glueClient.createDatabase(
                 CreateDatabaseRequest.builder()
                         .catalogId(catalogId)
@@ -109,5 +119,37 @@ public abstract class TestGlueBase<T extends TestingGlueContext>
                                 .federatedDatabase(FederatedDatabase.builder().identifier("iden1").build())
                                 .build())
                         .build());
+
+        glueClient.createTable(CreateTableRequest.builder()
+                .catalogId(catalogId)
+                .databaseName(databaseName)
+                .tableInput(TableInput.builder()
+                        .description("desc1")
+                        .name("tableName")
+                        .parameters(Map.of("k1", "v1"))
+                        .owner("user1")
+                        .partitionKeys(Column.builder().name("col1").type("type1").build())
+                        .storageDescriptor(StorageDescriptor.builder().build())
+                        .retention(1)
+                        .targetTable(TableIdentifier.builder()
+                                .catalogId(catalogId)
+                                .databaseName(databaseName)
+                                .name("targetTable1")
+                                .build())
+                        .build())
+                .openTableFormatInput(OpenTableFormatInput.builder()
+                        .icebergInput(IcebergInput.builder()
+                                .metadataOperation(MetadataOperation.CREATE)
+                                .version("1")
+                                .build())
+                        .build())
+                .overrideConfiguration(AwsRequestOverrideConfiguration.builder()
+                        .compressionConfiguration(CompressionConfiguration.builder()
+                                .requestCompressionEnabled(true)
+                                .build())
+                        .build())
+                .partitionIndexes(PartitionIndex.builder().indexName("i1").keys("k1").build())
+                .transactionId("t1")
+                .build());
     }
 }
