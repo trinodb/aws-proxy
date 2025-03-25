@@ -29,7 +29,9 @@ import software.amazon.awssdk.services.glue.model.CreateTableRequest;
 import software.amazon.awssdk.services.glue.model.Database;
 import software.amazon.awssdk.services.glue.model.DatabaseIdentifier;
 import software.amazon.awssdk.services.glue.model.DatabaseInput;
+import software.amazon.awssdk.services.glue.model.EntityNotFoundException;
 import software.amazon.awssdk.services.glue.model.FederatedDatabase;
+import software.amazon.awssdk.services.glue.model.GetDatabaseRequest;
 import software.amazon.awssdk.services.glue.model.GetDatabasesRequest;
 import software.amazon.awssdk.services.glue.model.GetDatabasesResponse;
 import software.amazon.awssdk.services.glue.model.GetResourcePoliciesRequest;
@@ -52,6 +54,7 @@ import static io.trino.aws.proxy.glue.TestingGlueRequestHandler.POLICY_A;
 import static io.trino.aws.proxy.glue.TestingGlueRequestHandler.POLICY_B;
 import static java.util.Objects.requireNonNull;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 public abstract class TestGlueBase<T extends TestingGlueContext>
 {
@@ -151,5 +154,16 @@ public abstract class TestGlueBase<T extends TestingGlueContext>
                 .partitionIndexes(PartitionIndex.builder().indexName("i1").keys("k1").build())
                 .transactionId("t1")
                 .build());
+    }
+
+    @Test
+    public void testNotFoundException()
+    {
+        assertThatThrownBy(() -> glueClient.getDatabase(
+                GetDatabaseRequest.builder()
+                        .catalogId("1")
+                        .name("blahblah")
+                        .build()))
+                .isInstanceOf(EntityNotFoundException.class);
     }
 }

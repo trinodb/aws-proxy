@@ -26,14 +26,18 @@ import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
+import software.amazon.awssdk.services.glue.model.GlueException;
 import software.amazon.awssdk.services.glue.model.GlueRequest;
 import software.amazon.awssdk.services.glue.model.GlueResponse;
+import software.amazon.awssdk.services.glue.model.InternalServiceException;
 
 import java.io.InputStream;
 
 import static jakarta.ws.rs.core.Response.Status.BAD_REQUEST;
+import static jakarta.ws.rs.core.Response.Status.INTERNAL_SERVER_ERROR;
 import static jakarta.ws.rs.core.Response.Status.NOT_FOUND;
 import static java.util.Objects.requireNonNull;
+import static software.amazon.awssdk.protocols.json.internal.unmarshall.JsonErrorCodeParser.X_AMZN_ERROR_TYPE;
 
 @ResourceSecurity(GlueResourceSecurity.class)
 public class TrinoGlueResource
@@ -78,9 +82,18 @@ public class TrinoGlueResource
         try {
             glueResponse = requestHandler.handleRequest(parsedGlueRequest, signingMetadata, requestLoggingSession);
         }
+        catch (GlueException e) {
+            requestLoggingSession.logException(e);
+
+            return Response.status(BAD_REQUEST)
+                    .header(X_AMZN_ERROR_TYPE, e.getClass().getSimpleName() + ":" + e.getMessage())
+                    .build();
+        }
         catch (Exception e) {
             requestLoggingSession.logException(e);
-            throw e;
+            return Response.status(INTERNAL_SERVER_ERROR)
+                    .header(X_AMZN_ERROR_TYPE, InternalServiceException.class.getSimpleName() + ":" + e.getMessage())
+                    .build();
         }
 
         return Response.ok(glueResponse).build();

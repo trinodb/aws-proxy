@@ -23,6 +23,8 @@ import software.amazon.awssdk.services.glue.model.CreateDatabaseRequest;
 import software.amazon.awssdk.services.glue.model.CreateDatabaseResponse;
 import software.amazon.awssdk.services.glue.model.CreateTableRequest;
 import software.amazon.awssdk.services.glue.model.Database;
+import software.amazon.awssdk.services.glue.model.EntityNotFoundException;
+import software.amazon.awssdk.services.glue.model.GetDatabaseRequest;
 import software.amazon.awssdk.services.glue.model.GetDatabasesRequest;
 import software.amazon.awssdk.services.glue.model.GetDatabasesResponse;
 import software.amazon.awssdk.services.glue.model.GetResourcePoliciesRequest;
@@ -80,6 +82,11 @@ public class TestingGlueRequestHandler
         return switch (request.glueRequest()) {
             case GetDatabasesRequest _ -> GetDatabasesResponse.builder()
                     .databaseList(Database.builder().name(DATABASE_1).build(), Database.builder().name(DATABASE_2).build())
+                    .build();
+
+            // TODO: add more cases
+            case GetDatabaseRequest getDatabaseRequest -> throw EntityNotFoundException.builder()
+                    .message("'%s.%s' not found".formatted(getDatabaseRequest.catalogId(), getDatabaseRequest.name()))
                     .build();
 
             case GetResourcePoliciesRequest _ -> GetResourcePoliciesResponse.builder()
