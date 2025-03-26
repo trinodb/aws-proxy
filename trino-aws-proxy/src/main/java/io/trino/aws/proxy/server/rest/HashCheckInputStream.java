@@ -22,6 +22,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.Optional;
 
+import static jakarta.ws.rs.core.Response.Status.BAD_REQUEST;
 import static jakarta.ws.rs.core.Response.Status.UNAUTHORIZED;
 import static java.util.Objects.requireNonNull;
 
@@ -106,8 +107,7 @@ class HashCheckInputStream
         bytesRead += count;
         expectedLength.ifPresent(expected -> {
             if (bytesRead > expected) {
-                log.debug("More bytes read than expected. Expected: %s, Actual: %s", expected, bytesRead);
-                throw new WebApplicationException(UNAUTHORIZED);
+                throw new WebApplicationException("More bytes read than expected. Expected: %s, Actual: %s".formatted(expected, bytesRead), BAD_REQUEST);
             }
 
             if (bytesRead == expected) {

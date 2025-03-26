@@ -101,8 +101,10 @@ class StreamingResponseHandler
     {
         switch (result) {
             case WebApplicationException exception -> resume(exception.getResponse());
-            case Throwable exception when Throwables.getRootCause(exception) instanceof WebApplicationException webApplicationException -> resume(webApplicationException.getResponse());
-            case Throwable exception -> resume(jakarta.ws.rs.core.Response.status(INTERNAL_SERVER_ERROR.getStatusCode(), Optional.ofNullable(exception.getMessage()).orElse("Unknown error")).build());
+            case Throwable exception when Throwables.getRootCause(exception) instanceof WebApplicationException webApplicationException ->
+                    resume(webApplicationException.getResponse());
+            case Throwable exception ->
+                    resume(jakarta.ws.rs.core.Response.status(INTERNAL_SERVER_ERROR.getStatusCode(), Optional.ofNullable(exception.getMessage()).orElse("Unknown error")).build());
             default -> {
                 if (hasBeenResumed.compareAndSet(false, true)) {
                     asyncResponse.resume(result);
