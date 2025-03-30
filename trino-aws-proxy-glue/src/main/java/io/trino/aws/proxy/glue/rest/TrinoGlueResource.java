@@ -30,6 +30,7 @@ import software.amazon.awssdk.services.glue.model.GlueException;
 import software.amazon.awssdk.services.glue.model.GlueRequest;
 import software.amazon.awssdk.services.glue.model.GlueResponse;
 import software.amazon.awssdk.services.glue.model.InternalServiceException;
+import software.amazon.awssdk.services.glue.model.InvalidInputException;
 
 import java.io.InputStream;
 
@@ -61,7 +62,7 @@ public class TrinoGlueResource
         requestLoggingSession.logProperty("request.glue.emulated.key", signingMetadata.credentials().emulated().secretKey());
 
         String target = request.requestHeaders().unmodifiedHeaders().getFirst("x-amz-target")
-                .orElseThrow(() -> new WebApplicationException(BAD_REQUEST));
+                .orElseThrow(() -> InvalidInputException.builder().statusCode(BAD_REQUEST.getStatusCode()).build());
 
         requestLoggingSession.logProperty("request.glue.target", target);
 
@@ -102,7 +103,9 @@ public class TrinoGlueResource
     private GlueRequest unmarshal(Request request, Class<?> clazz, ObjectMapper objectMapper)
     {
         try {
-            InputStream inputStream = request.requestContent().inputStream().orElseThrow(() -> new WebApplicationException(BAD_REQUEST));
+            InputStream inputStream = request.requestContent()
+                    .inputStream()
+                    .orElseThrow(() -> InvalidInputException.builder().statusCode(BAD_REQUEST.getStatusCode()).build());
             return (GlueRequest) objectMapper.readValue(inputStream, clazz);
         }
         catch (Exception e) {
