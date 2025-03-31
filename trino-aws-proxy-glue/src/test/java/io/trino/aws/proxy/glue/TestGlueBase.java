@@ -46,15 +46,18 @@ import software.amazon.awssdk.services.glue.model.TableIdentifier;
 import software.amazon.awssdk.services.glue.model.TableInput;
 
 import java.net.URI;
+import java.time.temporal.ChronoUnit;
 import java.util.Map;
 
 import static io.trino.aws.proxy.glue.TestingGlueRequestHandler.DATABASE_1;
 import static io.trino.aws.proxy.glue.TestingGlueRequestHandler.DATABASE_2;
+import static io.trino.aws.proxy.glue.TestingGlueRequestHandler.NOW;
 import static io.trino.aws.proxy.glue.TestingGlueRequestHandler.POLICY_A;
 import static io.trino.aws.proxy.glue.TestingGlueRequestHandler.POLICY_B;
 import static java.util.Objects.requireNonNull;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.within;
 
 public abstract class TestGlueBase<T extends TestingGlueContext>
 {
@@ -93,6 +96,8 @@ public abstract class TestGlueBase<T extends TestingGlueContext>
         assertThat(databases.databaseList())
                 .extracting(Database::name)
                 .containsExactlyInAnyOrder(DATABASE_1, DATABASE_2);
+        assertThat(databases.databaseList().getFirst().createTime())
+                .isCloseTo(NOW, within(1, ChronoUnit.SECONDS));
 
         GetResourcePoliciesResponse resourcePolicies = glueClient.getResourcePolicies(GetResourcePoliciesRequest.builder().build());
         assertThat(resourcePolicies.getResourcePoliciesResponseList())
