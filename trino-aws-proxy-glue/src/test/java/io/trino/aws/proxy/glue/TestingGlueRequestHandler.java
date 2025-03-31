@@ -32,6 +32,7 @@ import software.amazon.awssdk.services.glue.model.GetResourcePoliciesResponse;
 import software.amazon.awssdk.services.glue.model.GluePolicy;
 import software.amazon.awssdk.services.glue.model.GlueResponse;
 
+import java.time.Instant;
 import java.util.Collection;
 import java.util.Map;
 
@@ -76,12 +77,16 @@ public class TestingGlueRequestHandler
     public static final String DATABASE_1 = "db1";
     public static final String DATABASE_2 = "db2";
 
+    public static final Instant NOW = Instant.now();
+
     @Override
     public GlueResponse handleRequest(ParsedGlueRequest request, SigningMetadata signingMetadata, RequestLoggingSession requestLoggingSession)
     {
         return switch (request.glueRequest()) {
             case GetDatabasesRequest _ -> GetDatabasesResponse.builder()
-                    .databaseList(Database.builder().name(DATABASE_1).build(), Database.builder().name(DATABASE_2).build())
+                    .databaseList(
+                            Database.builder().createTime(NOW).name(DATABASE_1).build(),
+                            Database.builder().createTime(NOW).name(DATABASE_2).build())
                     .build();
 
             // TODO: add more cases

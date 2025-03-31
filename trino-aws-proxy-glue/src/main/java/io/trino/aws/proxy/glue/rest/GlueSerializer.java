@@ -19,6 +19,9 @@ import com.fasterxml.jackson.databind.SerializerProvider;
 import software.amazon.awssdk.core.SdkField;
 
 import java.io.IOException;
+import java.time.Instant;
+
+import static software.amazon.awssdk.utils.DateUtils.formatUnixTimestampInstant;
 
 class GlueSerializer<T>
         extends JsonSerializer<T>
@@ -38,8 +41,10 @@ class GlueSerializer<T>
 
         for (SdkField<?> sdkField : serializerCommon.sdkFields()) {
             Object fieldValue = sdkField.getValueOrDefault(value);
-            if (fieldValue != null) {
-                generator.writePOJOField(sdkField.memberName(), fieldValue);
+            switch (fieldValue) {
+                case Instant instant -> generator.writePOJOField(sdkField.memberName(), formatUnixTimestampInstant(instant));  // per AWS spec
+                case null -> {} // do nothing
+                default -> generator.writePOJOField(sdkField.memberName(), fieldValue);
             }
         }
 
