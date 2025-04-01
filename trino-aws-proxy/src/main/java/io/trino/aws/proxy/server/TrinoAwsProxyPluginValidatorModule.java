@@ -19,6 +19,8 @@ import io.trino.aws.proxy.spi.credentials.AssumedRoleProvider;
 import io.trino.aws.proxy.spi.credentials.CredentialsProvider;
 import io.trino.aws.proxy.spi.plugin.config.AssumedRoleProviderConfig;
 import io.trino.aws.proxy.spi.plugin.config.CredentialsProviderConfig;
+import io.trino.aws.proxy.spi.plugin.config.RemoteS3ConnectionProviderConfig;
+import io.trino.aws.proxy.spi.remote.RemoteS3ConnectionProvider;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
@@ -32,7 +34,9 @@ public class TrinoAwsProxyPluginValidatorModule
                 CredentialsProviderConfig credentialsProviderConfig,
                 CredentialsProvider credentialsProvider,
                 AssumedRoleProviderConfig assumedRoleProviderConfig,
-                AssumedRoleProvider assumedRoleProvider)
+                AssumedRoleProvider assumedRoleProvider,
+                RemoteS3ConnectionProvider remoteS3ConnectionProvider,
+                RemoteS3ConnectionProviderConfig remoteS3ConnectionProviderConfig)
         {
             boolean credentialsProviderIsNoop = credentialsProvider.equals(CredentialsProvider.NOOP);
             boolean credentialsProviderIsConfigured = credentialsProviderConfig.getPluginIdentifier().isPresent();
@@ -47,6 +51,13 @@ public class TrinoAwsProxyPluginValidatorModule
                     "%s of type \"%s\" is not registered",
                     AssumedRoleProvider.class.getSimpleName(),
                     assumedRoleProviderConfig.getPluginIdentifier().orElse("<empty>"));
+
+            boolean remoteS3ConnectionProviderIsNoop = remoteS3ConnectionProvider.equals(RemoteS3ConnectionProvider.NOOP);
+            boolean remoteS3ConnectionProviderIsConfigured = remoteS3ConnectionProviderConfig.getPluginIdentifier().isPresent();
+            checkArgument(!(remoteS3ConnectionProviderIsNoop && remoteS3ConnectionProviderIsConfigured),
+                    "%s of type \"%s\" is not registered",
+                    RemoteS3ConnectionProvider.class.getSimpleName(),
+                    remoteS3ConnectionProviderConfig.getPluginIdentifier().orElse("<empty>"));
         }
     }
 

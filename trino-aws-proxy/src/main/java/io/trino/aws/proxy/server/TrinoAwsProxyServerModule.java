@@ -33,7 +33,9 @@ import io.trino.aws.proxy.server.credentials.CredentialsModule;
 import io.trino.aws.proxy.server.credentials.file.FileBasedCredentialsModule;
 import io.trino.aws.proxy.server.credentials.http.HttpCredentialsModule;
 import io.trino.aws.proxy.server.remote.DefaultRemoteS3Module;
+import io.trino.aws.proxy.server.remote.RemoteS3ConnectionController;
 import io.trino.aws.proxy.server.rest.LimitStreamController;
+import io.trino.aws.proxy.server.rest.ResourceSecurityDynamicFeature;
 import io.trino.aws.proxy.server.rest.RestModule;
 import io.trino.aws.proxy.server.rest.S3PresignController;
 import io.trino.aws.proxy.server.rest.ThrowableMapper;
@@ -49,8 +51,10 @@ import io.trino.aws.proxy.server.signing.SigningControllerConfig;
 import io.trino.aws.proxy.server.signing.SigningModule;
 import io.trino.aws.proxy.spi.plugin.TrinoAwsProxyServerPlugin;
 import io.trino.aws.proxy.spi.plugin.config.RemoteS3Config;
+import io.trino.aws.proxy.spi.plugin.config.RemoteS3ConnectionProviderConfig;
 import io.trino.aws.proxy.spi.plugin.config.S3RequestRewriterConfig;
 import io.trino.aws.proxy.spi.plugin.config.S3SecurityFacadeProviderConfig;
+import io.trino.aws.proxy.spi.remote.RemoteS3ConnectionProvider;
 import io.trino.aws.proxy.spi.remote.RemoteS3Facade;
 import io.trino.aws.proxy.spi.remote.RemoteUriFacade;
 import io.trino.aws.proxy.spi.rest.S3RequestRewriter;
@@ -69,6 +73,7 @@ import static io.airlift.configuration.ConfigBinder.configBinder;
 import static io.airlift.http.client.HttpClientBinder.httpClientBinder;
 import static io.airlift.http.server.HttpServerBinder.httpServerBinder;
 import static io.airlift.jaxrs.JaxrsBinder.jaxrsBinder;
+import static org.weakref.jmx.guice.ExportBinder.newExporter;
 
 public class TrinoAwsProxyServerModule
         extends AbstractConfigurationAwareModule
@@ -105,10 +110,17 @@ public class TrinoAwsProxyServerModule
         // TODO config, etc.
         httpClientBinder(binder).bindHttpClient("ProxyClient", ForProxyClient.class);
         binder.bind(TrinoS3ProxyClient.class).in(Scopes.SINGLETON);
+        binder.bind(RemoteS3ConnectionController.class).in(Scopes.SINGLETON);
 
         HttpServerBinder httpServerBinder = httpServerBinder(binder);
         httpServerBinder.enableLegacyUriCompliance();
         httpServerBinder.enableCaseSensitiveHeaderCache();
+
+        configBinder(binder).bindConfig(RemoteS3ConnectionProviderConfig.class);
+        newOptionalBinder(binder, RemoteS3ConnectionProvider.class).setDefault().toProvider(() -> {
+            log.info("Using default %s NOOP implementation", RemoteS3ConnectionProvider.class.getSimpleName());
+            return RemoteS3ConnectionProvider.NOOP;
+        });
 
         // S3SecurityFacadeProvider binder
         configBinder(binder).bindConfig(S3SecurityFacadeProviderConfig.class);
@@ -144,6 +156,10 @@ public class TrinoAwsProxyServerModule
         install(new TrinoAwsProxyPluginValidatorModule());
 
         addNullCollectionModule(binder);
+
+        newExporter(binder).export(RemoteS3ConnectionController.class).withGeneratedName();
+        newExporter(binder).export(ResourceSecurityDynamicFeature.class).withGeneratedName();
+        newExporter(binder).export(TrinoS3ProxyClient.class).withGeneratedName();
     }
 
     @Provides

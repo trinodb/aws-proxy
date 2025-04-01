@@ -18,7 +18,7 @@ import io.airlift.http.server.testing.TestingHttpServer;
 import io.airlift.log.Logger;
 import io.trino.aws.proxy.server.testing.TestingTrinoAwsProxyServer;
 import io.trino.aws.proxy.server.testing.TestingUtil.ForTesting;
-import io.trino.aws.proxy.spi.credentials.Credentials;
+import io.trino.aws.proxy.spi.credentials.IdentityCredential;
 
 public final class LocalServer
 {
@@ -38,7 +38,7 @@ public final class LocalServer
         log.info("======== TESTING SERVER STARTED ========");
 
         TestingHttpServer httpServer = trinoS3ProxyServer.getInjector().getInstance(TestingHttpServer.class);
-        Credentials testingCredentials = trinoS3ProxyServer.getInjector().getInstance(Key.get(Credentials.class, ForTesting.class));
+        IdentityCredential testingCredentials = trinoS3ProxyServer.getInjector().getInstance(Key.get(IdentityCredential.class, ForTesting.class));
         TrinoAwsProxyConfig s3ProxyConfig = trinoS3ProxyServer.getInjector().getInstance(TrinoAwsProxyConfig.class);
 
         log.info("");
