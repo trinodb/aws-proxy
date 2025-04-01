@@ -11,19 +11,27 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.trino.aws.proxy.spi.remote;
+package io.trino.aws.proxy.spi.credentials;
 
-import java.net.URI;
 import java.util.Optional;
 
 import static java.util.Objects.requireNonNull;
 
-public record RemoteSessionRole(String region, String roleArn, Optional<String> externalId, Optional<URI> stsEndpoint)
+public record IdentityCredential(Credential emulated, Optional<Identity> identity)
 {
-    public RemoteSessionRole
+    public IdentityCredential
     {
-        requireNonNull(region, "region is null");
-        requireNonNull(roleArn, "roleArn is null");
-        requireNonNull(externalId, "externalId is null");
+        requireNonNull(emulated, "emulated is null");
+        requireNonNull(identity, "identity is null");
+    }
+
+    public IdentityCredential(Credential emulatedCredential, Identity identity)
+    {
+        this(emulatedCredential, Optional.of(identity));
+    }
+
+    public IdentityCredential(Credential emulatedCredential)
+    {
+        this(emulatedCredential, Optional.empty());
     }
 }

@@ -11,15 +11,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.trino.aws.proxy.server.credentials;
+package io.trino.aws.proxy.server.remote;
 
 import com.google.inject.Inject;
+import com.google.inject.Injector;
+import io.airlift.bootstrap.Bootstrap;
 import io.airlift.log.Logger;
 import io.trino.aws.proxy.spi.credentials.Credential;
-import io.trino.aws.proxy.spi.credentials.Credentials;
-import io.trino.aws.proxy.spi.credentials.CredentialsProvider;
+import io.trino.aws.proxy.spi.credentials.Identity;
+import io.trino.aws.proxy.spi.remote.RemoteS3ConnectionProvider;
+import io.trino.aws.proxy.spi.remote.RemoteS3Facade;
 import io.trino.aws.proxy.spi.remote.RemoteSessionRole;
-import io.trino.aws.proxy.spi.remote.RemoteUriFacade;
+import io.trino.aws.proxy.spi.rest.ParsedS3Request;
+import io.trino.aws.proxy.spi.signing.SigningMetadata;
 import jakarta.annotation.PreDestroy;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.AwsCredentials;
@@ -31,22 +35,24 @@ import software.amazon.awssdk.services.sts.StsClient;
 import software.amazon.awssdk.services.sts.auth.StsAssumeRoleCredentialsProvider;
 
 import java.io.Closeable;
+import java.net.URI;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.BiFunction;
 import java.util.function.Function;
 
 import static com.google.common.base.Preconditions.checkState;
 import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.CompletableFuture.completedFuture;
 
-public class CredentialsController
+public class RemoteS3ConnectionController
 {
-    private static final Logger log = Logger.get(CredentialsController.class);
+    private static final Logger log = Logger.get(RemoteS3ConnectionController.class);
 
-    private final RemoteUriFacade remoteUriFacade;
-    private final CredentialsProvider credentialsProvider;
+    private final RemoteS3Facade defaultS3Facade;
+    private final RemoteS3ConnectionProvider remoteS3ConnectionProvider;
     private final Map<String, Session> remoteSessions = new ConcurrentHashMap<>();
 
     private final class Session
@@ -77,12 +83,11 @@ public class CredentialsController
             stsClient.close();
         }
 
-        private <T> Optional<T> withUsage(Credentials credentials, Function<Credentials, Optional<T>> credentialsConsumer)
+        private <T> T withUsage(Function<Credential, T> credentialsConsumer)
         {
             incrementUsage();
             try {
-                Credentials remoteSessionCredentials = Credentials.build(credentials.emulated(), currentCredential());
-                return credentialsConsumer.apply(remoteSessionCredentials);
+                return credentialsConsumer.apply(currentCredential());
             }
             finally {
                 decrementUsage();
@@ -117,10 +122,10 @@ public class CredentialsController
     }
 
     @Inject
-    public CredentialsController(RemoteUriFacade remoteUriFacade, CredentialsProvider credentialsProvider)
+    public RemoteS3ConnectionController(RemoteS3Facade defaultS3Facade, RemoteS3ConnectionProvider remoteS3ConnectionProvider)
     {
-        this.remoteUriFacade = requireNonNull(remoteUriFacade, "remoteUriFacade is null");
-        this.credentialsProvider = requireNonNull(credentialsProvider, "credentialsProvider is null");
+        this.defaultS3Facade = requireNonNull(defaultS3Facade, "defaultS3Facade is null");
+        this.remoteS3ConnectionProvider = requireNonNull(remoteS3ConnectionProvider, "remoteS3ConnectionProvider is null");
     }
 
     @PreDestroy
@@ -130,20 +135,29 @@ public class CredentialsController
     }
 
     @SuppressWarnings("resource")
-    public <T> Optional<T> withCredentials(String emulatedAccessKey, Optional<String> emulatedSessionToken, Function<Credentials, Optional<T>> credentialsConsumer)
+    public <T> Optional<T> withRemoteConnection(SigningMetadata signingMetadata, Optional<Identity> identity, ParsedS3Request request,
+            BiFunction<Credential, RemoteS3Facade, T> credentialsConsumer)
     {
-        Optional<Credentials> retrievedCredentials = credentialsProvider.credentials(emulatedAccessKey, emulatedSessionToken);
-        retrievedCredentials.ifPresentOrElse(_ -> log.debug("Credentials found. EmulatedAccessKey: %s", emulatedAccessKey),
-                () -> log.debug("Credentials not found. EmulatedAccessKey: %s", emulatedAccessKey));
-        return retrievedCredentials.flatMap(credentials -> credentials.remoteSessionRole()
-                .flatMap(remoteSessionRole -> internalRemoteSession(remoteSessionRole, credentials).withUsage(credentials, credentialsConsumer))
-                .or(() -> credentialsConsumer.apply(credentials)));
+        return remoteS3ConnectionProvider.remoteConnection(signingMetadata, identity, request)
+                .flatMap(remoteConnection -> {
+                    RemoteS3Facade contextRemoteS3Facade = remoteConnection.remoteS3FacadeConfiguration().map(config -> {
+                        // TODO: This should respect the plugin installed for the RemoteS3Facade somehow
+                        Injector subInjector = new Bootstrap(new DefaultRemoteS3Module()).doNotInitializeLogging().quiet().setRequiredConfigurationProperties(config).initialize();
+                        return subInjector.getInstance(RemoteS3Facade.class);
+                    }).orElse(defaultS3Facade);
+
+                    return remoteConnection.remoteSessionRole()
+                            .map(remoteSessionRole ->
+                                    internalRemoteSession(remoteSessionRole, remoteConnection.remoteCredential())
+                                            .withUsage(credentials -> credentialsConsumer.apply(credentials, contextRemoteS3Facade)))
+                            .or(() -> Optional.of(credentialsConsumer.apply(remoteConnection.remoteCredential(), contextRemoteS3Facade)));
+                });
     }
 
-    private Session internalRemoteSession(RemoteSessionRole remoteSessionRole, Credentials credentials)
+    private Session internalRemoteSession(RemoteSessionRole remoteSessionRole, Credential remoteCredential)
     {
-        String emulatedAccessKey = credentials.emulated().accessKey();
-        return remoteSessions.computeIfAbsent(emulatedAccessKey, _ -> internalStartRemoteSession(remoteSessionRole, credentials.requiredRemoteCredential(), emulatedAccessKey));
+        String remoteAccessKey = remoteCredential.accessKey();
+        return remoteSessions.computeIfAbsent(remoteAccessKey, _ -> internalStartRemoteSession(remoteSessionRole, remoteCredential, remoteAccessKey));
     }
 
     private Session internalStartRemoteSession(RemoteSessionRole remoteSessionRole, Credential remoteCredential, String sessionName)
@@ -152,10 +166,12 @@ public class CredentialsController
                 .map(session -> (AwsCredentials) AwsSessionCredentials.create(remoteCredential.accessKey(), remoteCredential.secretKey(), session))
                 .orElseGet(() -> AwsBasicCredentials.create(remoteCredential.accessKey(), remoteCredential.secretKey()));
 
+        URI stsEndpoint = remoteSessionRole.stsEndpoint().orElseGet(() -> defaultS3Facade.remoteUri(remoteSessionRole.region()));
+
         StsClient stsClient = StsClient.builder()
                 .region(Region.of(remoteSessionRole.region()))
                 .credentialsProvider(StaticCredentialsProvider.create(awsCredentials))
-                .endpointProvider(_ -> completedFuture(Endpoint.builder().url(remoteUriFacade.remoteUri(remoteSessionRole.region())).build()))
+                .endpointProvider(_ -> completedFuture(Endpoint.builder().url(stsEndpoint).build()))
                 .build();
 
         StsAssumeRoleCredentialsProvider credentialsProvider = StsAssumeRoleCredentialsProvider.builder()

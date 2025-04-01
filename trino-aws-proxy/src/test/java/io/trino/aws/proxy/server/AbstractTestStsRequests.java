@@ -15,8 +15,8 @@ package io.trino.aws.proxy.server;
 
 import io.airlift.http.server.testing.TestingHttpServer;
 import io.trino.aws.proxy.spi.credentials.Credential;
-import io.trino.aws.proxy.spi.credentials.Credentials;
 import io.trino.aws.proxy.spi.credentials.CredentialsProvider;
+import io.trino.aws.proxy.spi.credentials.IdentityCredential;
 import org.junit.jupiter.api.Test;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.endpoints.Endpoint;
@@ -37,7 +37,7 @@ public abstract class AbstractTestStsRequests
     private final StsClient stsClient;
     private final CredentialsProvider credentialsProvider;
 
-    public AbstractTestStsRequests(Credentials testingCredentials, TestingHttpServer httpServer, CredentialsProvider credentialsProvider, TrinoAwsProxyConfig s3ProxyConfig)
+    public AbstractTestStsRequests(IdentityCredential testingCredentials, TestingHttpServer httpServer, CredentialsProvider credentialsProvider, TrinoAwsProxyConfig s3ProxyConfig)
     {
         this.credentialsProvider = requireNonNull(credentialsProvider, "credentialsProvider is null");
 
@@ -59,8 +59,9 @@ public abstract class AbstractTestStsRequests
 
         software.amazon.awssdk.services.sts.model.Credentials awsCredentials = assumeRoleResponse.credentials();
 
-        Optional<Credentials> credentials = credentialsProvider.credentials(awsCredentials.accessKeyId(), Optional.of(awsCredentials.sessionToken()));
+        Optional<IdentityCredential> credentials = credentialsProvider.credentials(awsCredentials.accessKeyId(), Optional.of(awsCredentials.sessionToken()));
         assertThat(credentials).isNotEmpty();
-        assertThat(credentials.map(Credentials::emulated)).contains(new Credential(awsCredentials.accessKeyId(), awsCredentials.secretAccessKey(), Optional.of(awsCredentials.sessionToken())));
+        assertThat(credentials.map(IdentityCredential::emulated)).contains(new Credential(awsCredentials.accessKeyId(), awsCredentials.secretAccessKey(),
+                Optional.of(awsCredentials.sessionToken())));
     }
 }

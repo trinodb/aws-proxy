@@ -25,8 +25,10 @@ import io.trino.aws.proxy.spi.plugin.config.AssumedRoleProviderConfig;
 import io.trino.aws.proxy.spi.plugin.config.CredentialsProviderConfig;
 import io.trino.aws.proxy.spi.plugin.config.PluginIdentifierConfig;
 import io.trino.aws.proxy.spi.plugin.config.RemoteS3Config;
+import io.trino.aws.proxy.spi.plugin.config.RemoteS3ConnectionProviderConfig;
 import io.trino.aws.proxy.spi.plugin.config.S3RequestRewriterConfig;
 import io.trino.aws.proxy.spi.plugin.config.S3SecurityFacadeProviderConfig;
+import io.trino.aws.proxy.spi.remote.RemoteS3ConnectionProvider;
 import io.trino.aws.proxy.spi.remote.RemoteS3Facade;
 import io.trino.aws.proxy.spi.rest.S3RequestRewriter;
 import io.trino.aws.proxy.spi.security.S3SecurityFacadeProvider;
@@ -47,6 +49,11 @@ public interface TrinoAwsProxyServerBinding
     static Module assumedRoleProviderModule(String identifier, Class<? extends AssumedRoleProvider> implementationClass, Module module)
     {
         return optionalPluginModule(AssumedRoleProviderConfig.class, identifier, AssumedRoleProvider.class, implementationClass, module);
+    }
+
+    static Module remoteS3ConnectionProviderModule(String identifier, Class<? extends RemoteS3ConnectionProvider> implementationClass, Module module)
+    {
+        return optionalPluginModule(RemoteS3ConnectionProviderConfig.class, identifier, RemoteS3ConnectionProvider.class, implementationClass, module);
     }
 
     static Module s3SecurityFacadeProviderModule(String identifier, Class<? extends S3SecurityFacadeProvider> implementationClass, Module module)

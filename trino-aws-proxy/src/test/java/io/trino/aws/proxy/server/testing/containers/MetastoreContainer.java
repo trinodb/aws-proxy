@@ -18,8 +18,7 @@ import com.google.inject.Inject;
 import io.airlift.http.server.testing.TestingHttpServer;
 import io.airlift.log.Logger;
 import io.trino.aws.proxy.server.testing.TestingUtil;
-import io.trino.aws.proxy.server.testing.TestingUtil.ForTesting;
-import io.trino.aws.proxy.spi.credentials.Credentials;
+import io.trino.aws.proxy.spi.credentials.Credential;
 import jakarta.annotation.PreDestroy;
 import org.testcontainers.containers.BindMode;
 import org.testcontainers.containers.GenericContainer;
@@ -47,7 +46,7 @@ public class MetastoreContainer
 
     @SuppressWarnings("resource")
     @Inject
-    public MetastoreContainer(PostgresContainer postgresContainer, TestingHttpServer httpServer, @ForTesting Credentials testingCredentials, S3Container s3Container)
+    public MetastoreContainer(PostgresContainer postgresContainer, TestingHttpServer httpServer, @S3Container.ForS3Container Credential remoteCredential, S3Container s3Container)
             throws IOException
     {
         String s3Endpoint = asHostUrl(s3Container.endpoint().toString());
@@ -58,8 +57,8 @@ public class MetastoreContainer
 
         String hiveSiteXml = Resources.toString(Resources.getResource("hive-site.xml"), StandardCharsets.UTF_8)
                 .replace("$ENDPOINT$", s3Endpoint)
-                .replace("$ACCESS_KEY$", testingCredentials.requiredRemoteCredential().accessKey())
-                .replace("$SECRET_KEY$", testingCredentials.requiredRemoteCredential().secretKey());
+                .replace("$ACCESS_KEY$", remoteCredential.accessKey())
+                .replace("$SECRET_KEY$", remoteCredential.secretKey());
 
         // need to disable SSL to postgres otherwise HMS throws an exception and quits
         String serviceOpts = "-Djavax.jdo.option.ConnectionDriverName=org.postgresql.Driver -Djavax.jdo.option.ConnectionURL=%s -Djavax.jdo.option.ConnectionUserName=%s -Djavax.jdo.option.ConnectionPassword=%s"

@@ -20,21 +20,19 @@ import io.airlift.http.client.Request;
 import io.airlift.http.client.StatusResponseHandler.StatusResponse;
 import io.airlift.http.server.testing.TestingHttpServer;
 import io.airlift.units.Duration;
-import io.trino.aws.proxy.server.credentials.CredentialsController;
 import io.trino.aws.proxy.server.rest.RequestLoggerConfig;
 import io.trino.aws.proxy.server.rest.RequestLoggerController;
 import io.trino.aws.proxy.server.signing.InternalSigningController;
 import io.trino.aws.proxy.server.signing.SigningControllerConfig;
 import io.trino.aws.proxy.server.signing.TestingChunkSigningSession;
 import io.trino.aws.proxy.server.testing.TestingCredentialsRolesProvider;
-import io.trino.aws.proxy.server.testing.TestingRemoteS3Facade;
 import io.trino.aws.proxy.server.testing.TestingTrinoAwsProxyServer;
 import io.trino.aws.proxy.server.testing.TestingUtil.ForTesting;
 import io.trino.aws.proxy.server.testing.containers.S3Container.ForS3Container;
 import io.trino.aws.proxy.server.testing.harness.TrinoAwsProxyTest;
 import io.trino.aws.proxy.server.testing.harness.TrinoAwsProxyTestCommonModules.WithTestingHttpClient;
 import io.trino.aws.proxy.spi.credentials.Credential;
-import io.trino.aws.proxy.spi.credentials.Credentials;
+import io.trino.aws.proxy.spi.credentials.IdentityCredential;
 import io.trino.aws.proxy.spi.signing.RequestAuthorization;
 import io.trino.aws.proxy.spi.signing.SigningMetadata;
 import io.trino.aws.proxy.spi.signing.SigningServiceType;
@@ -79,7 +77,7 @@ public class TestGenericRestRequests
     private final TestingCredentialsRolesProvider credentialsRolesProvider;
     private final InternalSigningController signingController;
     private final HttpClient httpClient;
-    private final Credentials testingCredentials;
+    private final IdentityCredential testingCredentials;
     private final S3Client storageClient;
 
     private static final String TEST_CONTENT_TYPE = "text/plain;charset=utf-8";
@@ -107,14 +105,14 @@ public class TestGenericRestRequests
             TestingHttpServer httpServer,
             TestingCredentialsRolesProvider credentialsRolesProvider,
             @ForTesting HttpClient httpClient,
-            @ForTesting Credentials testingCredentials,
+            @ForTesting IdentityCredential testingCredentials,
             @ForS3Container S3Client storageClient,
             TrinoAwsProxyConfig trinoAwsProxyConfig)
     {
         baseUri = httpServer.getBaseUrl().resolve(trinoAwsProxyConfig.getS3Path());
         this.credentialsRolesProvider = requireNonNull(credentialsRolesProvider, "credentialsRolesProvider is null");
         this.signingController = new InternalSigningController(
-                new CredentialsController(new TestingRemoteS3Facade(), credentialsRolesProvider),
+                credentialsRolesProvider,
                 new SigningControllerConfig().setMaxClockDrift(new Duration(10, TimeUnit.SECONDS)),
                 new RequestLoggerController(new RequestLoggerConfig()));
         this.httpClient = requireNonNull(httpClient, "httpClient is null");
@@ -136,7 +134,7 @@ public class TestGenericRestRequests
         storageClient.createBucket(r -> r.bucket(bucket).build());
 
         Credential validCredential = new Credential(UUID.randomUUID().toString(), UUID.randomUUID().toString());
-        credentialsRolesProvider.addCredentials(Credentials.build(validCredential, testingCredentials.requiredRemoteCredential()));
+        credentialsRolesProvider.addCredentials(new IdentityCredential(validCredential));
 
         // Upload in 2 chunks
         assertThat(doAwsChunkedUpload(bucket, "aws-chunked-2-partitions", LOREM_IPSUM, 2, validCredential).getStatusCode()).isEqualTo(200);
@@ -167,9 +165,9 @@ public class TestGenericRestRequests
         storageClient.createBucket(r -> r.bucket(bucket).build());
 
         Credential validCredential = new Credential(UUID.randomUUID().toString(), UUID.randomUUID().toString());
-        credentialsRolesProvider.addCredentials(Credentials.build(validCredential, testingCredentials.requiredRemoteCredential()));
+        credentialsRolesProvider.addCredentials(new IdentityCredential(validCredential));
         Credential validCredentialTwo = new Credential(UUID.randomUUID().toString(), UUID.randomUUID().toString());
-        credentialsRolesProvider.addCredentials(Credentials.build(validCredentialTwo, testingCredentials.requiredRemoteCredential()));
+        credentialsRolesProvider.addCredentials(new IdentityCredential(validCredentialTwo));
         Credential unknownCredential = new Credential(UUID.randomUUID().toString(), UUID.randomUUID().toString());
 
         // Credential is not known to the credential controller
@@ -300,7 +298,7 @@ public class TestGenericRestRequests
     {
         Instant requestDate = Instant.now();
         Credential validCredential = new Credential(UUID.randomUUID().toString(), UUID.randomUUID().toString());
-        credentialsRolesProvider.addCredentials(Credentials.build(validCredential, testingCredentials.requiredRemoteCredential()));
+        credentialsRolesProvider.addCredentials(new IdentityCredential(validCredential));
 
         ImmutableMultiMap.Builder requestHeaderBuilder = ImmutableMultiMap.builder(false);
         requestHeaderBuilder
@@ -379,8 +377,8 @@ public class TestGenericRestRequests
 
     private RequestAuthorization signRequest(Credential signingCredential, URI uri, Instant requestDate, String method, MultiMap headers)
     {
-        return signingController.signRequest(new SigningMetadata(SigningServiceType.S3, Credentials.build(signingCredential, testingCredentials.requiredRemoteCredential()), Optional.empty()),
-                "us-east-1", requestDate, Optional.empty(), Credentials::emulated, uri, headers, ImmutableMultiMap.empty(), method).signingAuthorization();
+        return signingController.signRequest(new SigningMetadata(SigningServiceType.S3, signingCredential, Optional.empty()),
+                "us-east-1", requestDate, Optional.empty(), uri, headers, ImmutableMultiMap.empty(), method).signingAuthorization();
     }
 
     private static Function<String, String> getMutatorToBreakSignatureForChunk(int chunkNumber)

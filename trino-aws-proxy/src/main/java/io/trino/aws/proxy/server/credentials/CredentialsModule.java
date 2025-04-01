@@ -37,8 +37,6 @@ public class CredentialsModule
     @Override
     protected void setup(Binder binder)
     {
-        binder.bind(CredentialsController.class).in(Scopes.SINGLETON);
-
         // CredentialsProvider binder
         configBinder(binder).bindConfig(CredentialsProviderConfig.class);
         newOptionalBinder(binder, CredentialsProvider.class).setDefault().toProvider(() -> {

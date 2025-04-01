@@ -17,10 +17,9 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.inject.Inject;
 import io.airlift.log.Logger;
-import io.trino.aws.proxy.server.credentials.CredentialsController;
 import io.trino.aws.proxy.server.rest.RequestLoggerController;
 import io.trino.aws.proxy.spi.credentials.Credential;
-import io.trino.aws.proxy.spi.credentials.Credentials;
+import io.trino.aws.proxy.spi.credentials.CredentialsProvider;
 import io.trino.aws.proxy.spi.rest.Request;
 import io.trino.aws.proxy.spi.rest.RequestContent;
 import io.trino.aws.proxy.spi.signing.SigningContext;
@@ -36,7 +35,6 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.Optional;
 import java.util.Set;
-import java.util.function.Function;
 
 import static java.util.Objects.requireNonNull;
 
@@ -47,14 +45,14 @@ public class InternalSigningController
 
     private final Duration maxClockDrift;
     private final RequestLoggerController requestLoggerController;
-    private final CredentialsController credentialsController;
+    private final CredentialsProvider credentialsProvider;
 
     private static final Set<String> LOWERCASE_HEADERS = ImmutableSet.of("content-type");
 
     @Inject
-    public InternalSigningController(CredentialsController credentialsController, SigningControllerConfig signingControllerConfig, RequestLoggerController requestLoggerController)
+    public InternalSigningController(CredentialsProvider credentialsProvider, SigningControllerConfig signingControllerConfig, RequestLoggerController requestLoggerController)
     {
-        this.credentialsController = requireNonNull(credentialsController, "credentialsController is null");
+        this.credentialsProvider = requireNonNull(credentialsProvider, "credentialsProvider is null");
         this.requestLoggerController = requireNonNull(requestLoggerController, "requestLoggerController is null");
 
         maxClockDrift = signingControllerConfig.getMaxClockDrift().toJavaTime();
@@ -66,7 +64,6 @@ public class InternalSigningController
             String region,
             Instant requestDate,
             Optional<Instant> signatureExpiry,
-            Function<Credentials, Credential> credentialsSupplier,
             URI requestURI,
             MultiMap requestHeaders,
             MultiMap queryParameters,
@@ -78,7 +75,6 @@ public class InternalSigningController
                 requestDate,
                 signatureExpiry,
                 RequestContent.EMPTY,
-                credentialsSupplier,
                 requestURI,
                 SigningHeaders.build(requestHeaders),
                 queryParameters,
@@ -91,7 +87,6 @@ public class InternalSigningController
             String region,
             Instant requestDate,
             Optional<Instant> signatureExpiry,
-            Function<Credentials, Credential> credentialsSupplier,
             URI requestURI,
             MultiMap queryParameters,
             String httpMethod)
@@ -102,7 +97,6 @@ public class InternalSigningController
                 requestDate,
                 signatureExpiry,
                 RequestContent.EMPTY,
-                credentialsSupplier,
                 requestURI,
                 SigningHeaders.EMPTY,
                 queryParameters,
@@ -110,20 +104,21 @@ public class InternalSigningController
     }
 
     @Override
-    public SigningMetadata validateAndParseAuthorization(Request request, SigningServiceType signingServiceType)
+    public SigningIdentity validateAndParseAuthorization(Request request, SigningServiceType signingServiceType)
     {
         if (!request.requestAuthorization().isValid()) {
             log.debug("Invalid requestAuthorization. Request: %s, SigningServiceType: %s", request, signingServiceType);
             throw new WebApplicationException(Response.Status.UNAUTHORIZED);
         }
 
-        return credentialsController.withCredentials(request.requestAuthorization().accessKey(), request.requestAuthorization().securityToken(), credentials -> {
-            SigningMetadata metadata = new SigningMetadata(signingServiceType, credentials, Optional.empty());
-            return isValidAuthorization(metadata, request, Credentials::emulated);
-        }).orElseThrow(() -> {
-            log.debug("ValidateAndParseAuthorization failed. Request: %s, SigningServiceType: %s", request, signingServiceType);
-            return new WebApplicationException(Response.Status.UNAUTHORIZED);
-        });
+        return credentialsProvider.credentials(request.requestAuthorization().accessKey(), request.requestAuthorization().securityToken())
+                .flatMap(identityCredential ->
+                        isValidAuthorization(new SigningMetadata(signingServiceType, identityCredential.emulated(), Optional.empty()), request)
+                                .map(signingMetadata -> new SigningIdentity(signingMetadata, identityCredential.identity())))
+                .orElseThrow(() -> {
+                    log.debug("ValidateAndParseAuthorization failed. Request: %s, SigningServiceType: %s", request, signingServiceType);
+                    return new WebApplicationException(Response.Status.UNAUTHORIZED);
+                });
     }
 
     private SigningContext internalSignRequest(
@@ -132,13 +127,12 @@ public class InternalSigningController
             Instant requestDate,
             Optional<Instant> signatureExpiry,
             RequestContent requestContent,
-            Function<Credentials, Credential> credentialsSupplier,
             URI requestURI,
             SigningHeaders signingHeaders,
             MultiMap queryParameters,
             String httpMethod)
     {
-        Credential credential = credentialsSupplier.apply(metadata.credentials());
+        Credential credential = metadata.credential();
 
         return signatureExpiry.map(expiry -> Signer.presign(
                 metadata.signingServiceType(),
@@ -168,8 +162,7 @@ public class InternalSigningController
     @SuppressWarnings("resource")
     private Optional<SigningMetadata> isValidAuthorization(
             SigningMetadata metadata,
-            Request request,
-            Function<Credentials, Credential> credentialsSupplier)
+            Request request)
     {
         SigningHeaders signingHeaders = SigningHeaders.build(request.requestHeaders().unmodifiedHeaders(), request.requestAuthorization().lowercaseSignedHeaders());
         SigningContext signingContext = internalSignRequest(
@@ -178,7 +171,6 @@ public class InternalSigningController
                 request.requestDate(),
                 request.requestAuthorization().expiry(),
                 request.requestContent(),
-                credentialsSupplier,
                 request.requestUri(),
                 signingHeaders,
                 request.requestQueryParameters(),
@@ -190,7 +182,8 @@ public class InternalSigningController
         }
 
         requestLoggerController.currentRequestSession(request.requestId())
-                .logError("request.security.authorization.mismatch", ImmutableMap.of("request", request.requestAuthorization(), "generated", signingContext.signingAuthorization()));
+                .logError("request.security.authorization.mismatch", ImmutableMap.of("request", request.requestAuthorization(), "generated",
+                        signingContext.signingAuthorization()));
         return Optional.empty();
     }
 }

@@ -14,13 +14,11 @@
 package io.trino.aws.proxy.server.signing;
 
 import io.airlift.units.Duration;
-import io.trino.aws.proxy.server.credentials.CredentialsController;
 import io.trino.aws.proxy.server.rest.RequestLoggerConfig;
 import io.trino.aws.proxy.server.rest.RequestLoggerController;
-import io.trino.aws.proxy.server.testing.TestingRemoteS3Facade;
 import io.trino.aws.proxy.spi.credentials.Credential;
-import io.trino.aws.proxy.spi.credentials.Credentials;
 import io.trino.aws.proxy.spi.credentials.CredentialsProvider;
+import io.trino.aws.proxy.spi.credentials.IdentityCredential;
 import io.trino.aws.proxy.spi.rest.Request;
 import io.trino.aws.proxy.spi.rest.RequestContent;
 import io.trino.aws.proxy.spi.rest.RequestHeaders;
@@ -45,10 +43,10 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 public class TestSigningController
 {
-    private static final Credentials CREDENTIALS = Credentials.build(new Credential("THIS_IS_AN_ACCESS_KEY", "THIS_IS_A_SECRET_KEY"));
-    private static final CredentialsProvider CREDENTIALS_PROVIDER = (_, _) -> Optional.of(CREDENTIALS);
-    private static final CredentialsController CREDENTIALS_CONTROLLER = new CredentialsController(new TestingRemoteS3Facade(), CREDENTIALS_PROVIDER);
-    private static final SigningController LARGE_DRIFT_SIGNING_CONTROLLER = new InternalSigningController(CREDENTIALS_CONTROLLER, new SigningControllerConfig().setMaxClockDrift(new Duration(99999, TimeUnit.DAYS)), new RequestLoggerController(new RequestLoggerConfig()));
+    private static final Credential CREDENTIAL = new Credential("THIS_IS_AN_ACCESS_KEY", "THIS_IS_A_SECRET_KEY");
+    private static final CredentialsProvider CREDENTIALS_PROVIDER = (_, _) -> Optional.of(new IdentityCredential(CREDENTIAL));
+    private static final SigningController LARGE_DRIFT_SIGNING_CONTROLLER = new InternalSigningController(CREDENTIALS_PROVIDER,
+            new SigningControllerConfig().setMaxClockDrift(new Duration(99999, TimeUnit.DAYS)), new RequestLoggerController(new RequestLoggerConfig()));
 
     @Test
     public void testRootLs()
@@ -63,11 +61,10 @@ public class TestSigningController
         requestHeadersBuilder.putOrReplaceSingle("Host", "localhost:10064");
 
         String signature = LARGE_DRIFT_SIGNING_CONTROLLER.signRequest(
-                new SigningMetadata(SigningServiceType.S3, CREDENTIALS, Optional.empty()),
+                new SigningMetadata(SigningServiceType.S3, CREDENTIAL, Optional.empty()),
                 "us-east-1",
                 parsedXAmzDate,
                 Optional.empty(),
-                Credentials::emulated,
                 URI.create("http://localhost:10064/"),
                 requestHeadersBuilder.build(),
                 ImmutableMultiMap.empty(),
@@ -95,11 +92,10 @@ public class TestSigningController
         queryParametersBuilder.putOrReplaceSingle("encoding-type", "url");
 
         String signature = LARGE_DRIFT_SIGNING_CONTROLLER.signRequest(
-                new SigningMetadata(SigningServiceType.S3, CREDENTIALS, Optional.empty()),
+                new SigningMetadata(SigningServiceType.S3, CREDENTIAL, Optional.empty()),
                 "us-east-1",
                 parsedXAmzDate,
                 Optional.empty(),
-                Credentials::emulated,
                 URI.create("http://localhost:10064/mybucket"),
                 requestHeadersBuilder.build(),
                 queryParametersBuilder.build(),
@@ -178,7 +174,8 @@ public class TestSigningController
     private static void tryValidateRequestOfAgeAndExpiry(Instant requestDate, Optional<Instant> requestExpiry, Duration maxClockDrift)
     {
         RequestLoggerController requestLoggerController = new RequestLoggerController(new RequestLoggerConfig());
-        SigningController requestSigningController = new InternalSigningController(CREDENTIALS_CONTROLLER, new SigningControllerConfig().setMaxClockDrift(maxClockDrift), requestLoggerController);
+        SigningController requestSigningController = new InternalSigningController(CREDENTIALS_PROVIDER, new SigningControllerConfig().setMaxClockDrift(maxClockDrift),
+                requestLoggerController);
 
         URI requestUri = URI.create("http://dummy-url");
         MultiMap requestHeaderValues = ImmutableMultiMap.builder(false).putOrReplaceSingle("Host", "http://127.0.0.1:8888").build();
@@ -186,11 +183,10 @@ public class TestSigningController
         MultiMap requestQueryParams = ImmutableMultiMap.empty();
 
         RequestAuthorization authorization = requestSigningController.signRequest(
-                new SigningMetadata(SigningServiceType.S3, CREDENTIALS, Optional.empty()),
+                new SigningMetadata(SigningServiceType.S3, CREDENTIAL, Optional.empty()),
                 "some-region",
                 requestDate,
                 requestExpiry,
-                Credentials::emulated,
                 requestUri,
                 requestHeaderValues,
                 requestQueryParams,

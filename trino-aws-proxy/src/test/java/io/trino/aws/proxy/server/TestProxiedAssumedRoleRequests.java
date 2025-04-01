@@ -21,7 +21,7 @@ import io.trino.aws.proxy.server.testing.TestingUtil.ForTesting;
 import io.trino.aws.proxy.server.testing.containers.S3Container.ForS3Container;
 import io.trino.aws.proxy.server.testing.harness.TrinoAwsProxyTest;
 import io.trino.aws.proxy.server.testing.harness.TrinoAwsProxyTestCommonModules.WithConfiguredBuckets;
-import io.trino.aws.proxy.spi.credentials.Credentials;
+import io.trino.aws.proxy.spi.credentials.Credential;
 import org.junit.jupiter.api.AfterAll;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
@@ -47,13 +47,14 @@ public class TestProxiedAssumedRoleRequests
     @Inject
     public TestProxiedAssumedRoleRequests(
             TestingHttpServer httpServer,
-            @ForTesting Credentials testingCredentials,
+            @ForTesting Credential testingCredential,
             TestingCredentialsRolesProvider credentialsController,
             @ForS3Container S3Client storageClient,
             TrinoAwsProxyConfig trinoAwsProxyConfig,
             TestingS3RequestRewriteController requestRewriteController)
     {
-        this(buildClient(httpServer, testingCredentials, trinoAwsProxyConfig.getS3Path(), trinoAwsProxyConfig.getStsPath()), credentialsController, storageClient, requestRewriteController);
+        this(buildClient(httpServer, testingCredential, trinoAwsProxyConfig.getS3Path(), trinoAwsProxyConfig.getStsPath()), credentialsController, storageClient,
+                requestRewriteController);
     }
 
     protected TestProxiedAssumedRoleRequests(
@@ -74,13 +75,13 @@ public class TestProxiedAssumedRoleRequests
         credentialsController.resetAssumedRoles();
     }
 
-    protected static S3Client buildClient(TestingHttpServer httpServer, Credentials credentials, String s3Path, String stsPath)
+    protected static S3Client buildClient(TestingHttpServer httpServer, Credential credential, String s3Path, String stsPath)
     {
         URI baseUrl = httpServer.getBaseUrl();
         URI localProxyServerUri = baseUrl.resolve(s3Path);
         URI localStsServerUri = baseUrl.resolve(stsPath);
 
-        AwsBasicCredentials awsBasicCredentials = AwsBasicCredentials.create(credentials.emulated().accessKey(), credentials.emulated().secretKey());
+        AwsBasicCredentials awsBasicCredentials = AwsBasicCredentials.create(credential.accessKey(), credential.secretKey());
 
         StsClient stsClient = StsClient.builder()
                 .region(Region.US_EAST_1)

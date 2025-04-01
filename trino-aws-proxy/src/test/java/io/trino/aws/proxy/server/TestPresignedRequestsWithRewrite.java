@@ -25,7 +25,7 @@ import io.trino.aws.proxy.server.testing.containers.S3Container.ForS3Container;
 import io.trino.aws.proxy.server.testing.harness.TrinoAwsProxyTest;
 import io.trino.aws.proxy.server.testing.harness.TrinoAwsProxyTestCommonModules.WithConfiguredBuckets;
 import io.trino.aws.proxy.server.testing.harness.TrinoAwsProxyTestCommonModules.WithTestingHttpClient;
-import io.trino.aws.proxy.spi.credentials.Credentials;
+import io.trino.aws.proxy.spi.credentials.IdentityCredential;
 import org.junit.jupiter.api.Test;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
@@ -53,7 +53,7 @@ public class TestPresignedRequestsWithRewrite
             @ForTesting HttpClient httpClient,
             S3Client internalClient,
             @ForS3Container S3Client storageClient,
-            @ForTesting Credentials testingCredentials,
+            @ForTesting IdentityCredential testingCredentials,
             TestingHttpServer httpServer,
             TrinoAwsProxyConfig s3ProxyConfig,
             XmlMapper xmlMapper,

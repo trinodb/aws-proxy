@@ -14,8 +14,8 @@
 package io.trino.aws.proxy.glue;
 
 import io.trino.aws.proxy.spi.credentials.Credential;
-import io.trino.aws.proxy.spi.credentials.Credentials;
 import io.trino.aws.proxy.spi.credentials.CredentialsProvider;
+import io.trino.aws.proxy.spi.credentials.IdentityCredential;
 
 import java.util.Optional;
 import java.util.UUID;
@@ -23,10 +23,10 @@ import java.util.UUID;
 public class TestingCredentialsProvider
         implements CredentialsProvider
 {
-    public static final Credentials CREDENTIALS = Credentials.build(new Credential(UUID.randomUUID().toString(), UUID.randomUUID().toString()));
+    public static final IdentityCredential CREDENTIALS = new IdentityCredential(new Credential(UUID.randomUUID().toString(), UUID.randomUUID().toString()));
 
     @Override
-    public Optional<Credentials> credentials(String emulatedAccessKey, Optional<String> session)
+    public Optional<IdentityCredential> credentials(String emulatedAccessKey, Optional<String> session)
     {
         return Optional.of(CREDENTIALS);
     }
