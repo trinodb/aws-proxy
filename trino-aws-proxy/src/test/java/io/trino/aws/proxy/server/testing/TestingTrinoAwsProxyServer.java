@@ -16,7 +16,6 @@ package io.trino.aws.proxy.server.testing;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
-import com.google.inject.Inject;
 import com.google.inject.Injector;
 import com.google.inject.Key;
 import com.google.inject.Module;
@@ -41,7 +40,6 @@ import io.trino.aws.proxy.server.testing.containers.S3Container;
 import io.trino.aws.proxy.server.testing.containers.S3Container.ForS3Container;
 import io.trino.aws.proxy.spi.credentials.Credential;
 import io.trino.aws.proxy.spi.credentials.IdentityCredential;
-import io.trino.aws.proxy.spi.remote.RemoteS3Connection.StaticRemoteS3Connection;
 
 import java.io.Closeable;
 import java.util.Collection;
@@ -98,6 +96,7 @@ public final class TestingTrinoAwsProxyServer
         private boolean v4PySparkContainerAdded;
         private boolean opaContainerAdded;
         private boolean addTestingCredentialsRoleProviders = true;
+        private boolean addTestingRemoteS3CredentialsProvider = true;
 
         public Builder addModule(Module module)
         {
@@ -200,6 +199,12 @@ public final class TestingTrinoAwsProxyServer
             return this;
         }
 
+        public Builder withoutTestingRemoteS3ConnectionProvider()
+        {
+            addTestingRemoteS3CredentialsProvider = false;
+            return this;
+        }
+
         public Builder withOpaContainer()
         {
             if (opaContainerAdded) {
@@ -214,30 +219,19 @@ public final class TestingTrinoAwsProxyServer
         public TestingTrinoAwsProxyServer buildAndStart()
         {
             if (addTestingCredentialsRoleProviders) {
-                if (mockS3ContainerAdded) {
-                    modules.add(binder -> binder.bind(TestingCredentialsInitializer.class).asEagerSingleton());
-                }
-
                 addModule(credentialsProviderModule("testing", TestingCredentialsRolesProvider.class, (binder) -> binder.bind(TestingCredentialsRolesProvider.class).in(Scopes.SINGLETON)));
                 withProperty("credentials-provider.type", "testing");
                 addModule(assumedRoleProviderModule("testing", TestingCredentialsRolesProvider.class, (binder) -> binder.bind(TestingCredentialsRolesProvider.class).in(Scopes.SINGLETON)));
                 withProperty("assumed-role-provider.type", "testing");
+            }
+
+            if (addTestingRemoteS3CredentialsProvider) {
                 addModule(remoteS3ConnectionProviderModule("testing", TestingCredentialsRolesProvider.class,
-                        binder -> binder.bind(TestingCredentialsInitializer.class).in(Scopes.SINGLETON)));
+                        binder -> binder.bind(TestingCredentialsRolesProvider.class).in(Scopes.SINGLETON)));
                 withProperty("remote-s3-connection-provider.type", "testing");
             }
 
             return start(modules.build(), properties.buildKeepingLast());
-        }
-    }
-
-    static class TestingCredentialsInitializer
-    {
-        @Inject
-        TestingCredentialsInitializer(TestingCredentialsRolesProvider credentialsController)
-        {
-            credentialsController.addCredentials(TESTING_IDENTITY_CREDENTIAL);
-            credentialsController.setDefaultRemoteConnection(new StaticRemoteS3Connection(TESTING_REMOTE_CREDENTIAL));
         }
     }
 

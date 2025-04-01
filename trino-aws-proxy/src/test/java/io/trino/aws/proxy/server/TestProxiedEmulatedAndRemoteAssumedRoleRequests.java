@@ -17,7 +17,6 @@ import com.google.inject.Inject;
 import io.airlift.http.server.testing.TestingHttpServer;
 import io.trino.aws.proxy.server.testing.TestingCredentialsRolesProvider;
 import io.trino.aws.proxy.server.testing.TestingS3RequestRewriteController;
-import io.trino.aws.proxy.server.testing.containers.S3Container;
 import io.trino.aws.proxy.server.testing.containers.S3Container.ForS3Container;
 import io.trino.aws.proxy.spi.credentials.Credential;
 import io.trino.aws.proxy.spi.credentials.IdentityCredential;
@@ -29,6 +28,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 import static io.trino.aws.proxy.server.testing.TestingUtil.TESTING_IDENTITY_CREDENTIAL;
+import static io.trino.aws.proxy.server.testing.containers.S3Container.POLICY_USER_CREDENTIAL;
 
 public class TestProxiedEmulatedAndRemoteAssumedRoleRequests
         extends TestProxiedAssumedRoleRequests
@@ -41,15 +41,13 @@ public class TestProxiedEmulatedAndRemoteAssumedRoleRequests
             TestingCredentialsRolesProvider credentialsController,
             @ForS3Container S3Client storageClient,
             TrinoAwsProxyConfig trinoAwsProxyConfig,
-            S3Container s3Container,
             TestingS3RequestRewriteController requestRewriteController)
     {
         super(buildClient(httpServer, CREDENTIAL, trinoAwsProxyConfig.getS3Path(), trinoAwsProxyConfig.getStsPath()), credentialsController, storageClient,
                 requestRewriteController);
 
-        Credential policyUserCredential = s3Container.policyUserCredential();
         RemoteSessionRole remoteSessionRole = new RemoteSessionRole("us-east-1", "minio-doesnt-care", Optional.empty(), Optional.empty());
         IdentityCredential identityCredential = new IdentityCredential(CREDENTIAL, TESTING_IDENTITY_CREDENTIAL.identity());
-        credentialsController.addCredentials(identityCredential, new StaticRemoteS3Connection(policyUserCredential, remoteSessionRole));
+        credentialsController.addCredentials(identityCredential, new StaticRemoteS3Connection(POLICY_USER_CREDENTIAL, remoteSessionRole));
     }
 }
