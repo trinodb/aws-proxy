@@ -19,8 +19,8 @@ import io.trino.aws.proxy.server.testing.TestingTrinoAwsProxyServer;
 import io.trino.aws.proxy.server.testing.TestingUtil.ForTesting;
 import io.trino.aws.proxy.server.testing.harness.BuilderFilter;
 import io.trino.aws.proxy.server.testing.harness.TrinoAwsProxyTest;
-import io.trino.aws.proxy.spi.credentials.Credentials;
 import io.trino.aws.proxy.spi.credentials.CredentialsProvider;
+import io.trino.aws.proxy.spi.credentials.IdentityCredential;
 
 @TrinoAwsProxyTest(filters = TestStsRequestsWithEmptyPath.Filter.class)
 public class TestStsRequestsWithEmptyPath
@@ -37,7 +37,8 @@ public class TestStsRequestsWithEmptyPath
     }
 
     @Inject
-    public TestStsRequestsWithEmptyPath(@ForTesting Credentials testingCredentials, TestingHttpServer httpServer, CredentialsProvider credentialsProvider, TrinoAwsProxyConfig s3ProxyConfig)
+    public TestStsRequestsWithEmptyPath(@ForTesting IdentityCredential testingCredentials, TestingHttpServer httpServer, CredentialsProvider credentialsProvider,
+            TrinoAwsProxyConfig s3ProxyConfig)
     {
         super(testingCredentials, httpServer, credentialsProvider, s3ProxyConfig);
     }

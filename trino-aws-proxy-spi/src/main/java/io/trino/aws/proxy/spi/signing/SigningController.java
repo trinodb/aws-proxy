@@ -13,15 +13,15 @@
  */
 package io.trino.aws.proxy.spi.signing;
 
-import io.trino.aws.proxy.spi.credentials.Credential;
-import io.trino.aws.proxy.spi.credentials.Credentials;
+import io.trino.aws.proxy.spi.credentials.Identity;
 import io.trino.aws.proxy.spi.rest.Request;
 import io.trino.aws.proxy.spi.util.MultiMap;
 
 import java.net.URI;
 import java.time.Instant;
 import java.util.Optional;
-import java.util.function.Function;
+
+import static java.util.Objects.requireNonNull;
 
 public interface SigningController
 {
@@ -30,7 +30,6 @@ public interface SigningController
             String region,
             Instant requestDate,
             Optional<Instant> signatureExpiry,
-            Function<Credentials, Credential> credentialsSupplier,
             URI requestURI,
             MultiMap requestHeaders,
             MultiMap queryParameters,
@@ -41,10 +40,18 @@ public interface SigningController
             String region,
             Instant requestDate,
             Optional<Instant> signatureExpiry,
-            Function<Credentials, Credential> credentialsSupplier,
             URI requestURI,
             MultiMap queryParameters,
             String httpMethod);
 
-    SigningMetadata validateAndParseAuthorization(Request request, SigningServiceType signingServiceType);
+    SigningIdentity validateAndParseAuthorization(Request request, SigningServiceType signingServiceType);
+
+    record SigningIdentity(SigningMetadata signingMetadata, Optional<Identity> identity)
+    {
+        public SigningIdentity
+        {
+            requireNonNull(signingMetadata, "signingMetadata is null");
+            requireNonNull(identity, "identity is null");
+        }
+    }
 }

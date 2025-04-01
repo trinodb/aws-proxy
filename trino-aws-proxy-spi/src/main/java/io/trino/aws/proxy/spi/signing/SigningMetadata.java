@@ -13,24 +13,36 @@
  */
 package io.trino.aws.proxy.spi.signing;
 
-import io.trino.aws.proxy.spi.credentials.Credentials;
+import io.trino.aws.proxy.spi.credentials.Credential;
 
 import java.util.Optional;
 
 import static java.util.Objects.requireNonNull;
 
-public record SigningMetadata(SigningServiceType signingServiceType, Credentials credentials, Optional<SigningContext> signingContext)
+// TODO: This can be in two states - with or without a signing context. The only time its ok for it not to have a signing context is when we pass it to `isValidAuthorization`.
+//  We should refactor this class always have a SigningContext and pass something else to `SigningController`.
+public record SigningMetadata(SigningServiceType signingServiceType, Credential credential, Optional<SigningContext> signingContext)
 {
     public SigningMetadata
     {
         requireNonNull(signingServiceType, "signingService is null");
-        requireNonNull(credentials, "credentials is null");
+        requireNonNull(credential, "credential is null");
         requireNonNull(signingContext, "signingContext is null");
+    }
+
+    public SigningMetadata(SigningServiceType signingServiceType, Credential credential)
+    {
+        this(signingServiceType, credential, Optional.empty());
     }
 
     public SigningMetadata withSigningContext(SigningContext signingContext)
     {
-        return new SigningMetadata(signingServiceType, credentials, Optional.of(signingContext));
+        return new SigningMetadata(signingServiceType, credential, Optional.of(signingContext));
+    }
+
+    public SigningMetadata withCredential(Credential credential)
+    {
+        return new SigningMetadata(signingServiceType, credential, signingContext);
     }
 
     public SigningContext requiredSigningContext()

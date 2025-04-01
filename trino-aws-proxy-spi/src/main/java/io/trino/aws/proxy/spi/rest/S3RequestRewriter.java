@@ -13,7 +13,8 @@
  */
 package io.trino.aws.proxy.spi.rest;
 
-import io.trino.aws.proxy.spi.credentials.Credentials;
+import io.trino.aws.proxy.spi.credentials.Identity;
+import io.trino.aws.proxy.spi.signing.SigningMetadata;
 
 import java.util.Optional;
 
@@ -21,15 +22,16 @@ import static java.util.Objects.requireNonNull;
 
 public interface S3RequestRewriter
 {
-    S3RequestRewriter NOOP = (_, _) -> Optional.empty();
+    S3RequestRewriter NOOP = (_, _, _) -> Optional.empty();
 
     record S3RewriteResult(String finalRequestBucket, String finalRequestKey)
     {
-        public S3RewriteResult {
+        public S3RewriteResult
+        {
             requireNonNull(finalRequestBucket, "finalRequestBucket is null");
             requireNonNull(finalRequestKey, "finalRequestKey is null");
         }
     }
 
-    Optional<S3RewriteResult> rewrite(Credentials credentials, ParsedS3Request request);
+    Optional<S3RewriteResult> rewrite(Optional<Identity> identity, SigningMetadata signingMetadata, ParsedS3Request request);
 }

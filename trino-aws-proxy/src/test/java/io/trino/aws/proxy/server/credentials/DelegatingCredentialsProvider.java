@@ -13,8 +13,8 @@
  */
 package io.trino.aws.proxy.server.credentials;
 
-import io.trino.aws.proxy.spi.credentials.Credentials;
 import io.trino.aws.proxy.spi.credentials.CredentialsProvider;
+import io.trino.aws.proxy.spi.credentials.IdentityCredential;
 
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
@@ -32,7 +32,7 @@ public class DelegatingCredentialsProvider
     }
 
     @Override
-    public Optional<Credentials> credentials(String emulatedAccessKey, Optional<String> session)
+    public Optional<IdentityCredential> credentials(String emulatedAccessKey, Optional<String> session)
     {
         return delegate.get().credentials(emulatedAccessKey, session);
     }
