@@ -32,4 +32,9 @@ public record RemoteS3Connection(
         requireNonNull(remoteSessionRole, "remoteSessionRole is null");
         remoteS3FacadeConfiguration = remoteS3FacadeConfiguration.map(ImmutableMap::copyOf);
     }
+
+    public RemoteS3Connection(Credential remoteCredential)
+    {
+        this(remoteCredential, Optional.empty(), Optional.empty());
+    }
 }

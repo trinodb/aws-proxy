@@ -13,6 +13,7 @@
  */
 package io.trino.aws.proxy.server.testing;
 
+import com.google.inject.Inject;
 import io.trino.aws.proxy.spi.credentials.AssumedRoleProvider;
 import io.trino.aws.proxy.spi.credentials.Credential;
 import io.trino.aws.proxy.spi.credentials.CredentialsProvider;
@@ -33,6 +34,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static com.google.common.base.Preconditions.checkState;
+import static io.trino.aws.proxy.server.testing.TestingUtil.TESTING_IDENTITY_CREDENTIAL;
+import static io.trino.aws.proxy.server.testing.TestingUtil.TESTING_REMOTE_CREDENTIAL;
 import static java.util.Objects.requireNonNull;
 
 /**
@@ -58,6 +61,13 @@ public class TestingCredentialsRolesProvider
             requireNonNull(originalEmulatedAccessKey, "originalEmulatedAccessKey is null");
             requireNonNull(expiration, "expiration is null");
         }
+    }
+
+    @Inject
+    public TestingCredentialsRolesProvider()
+    {
+        addCredentials(TESTING_IDENTITY_CREDENTIAL);
+        setDefaultRemoteConnection(new RemoteS3Connection(TESTING_REMOTE_CREDENTIAL, Optional.empty(), Optional.empty()));
     }
 
     @Override
