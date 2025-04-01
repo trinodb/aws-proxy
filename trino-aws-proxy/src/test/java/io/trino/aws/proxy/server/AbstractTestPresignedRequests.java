@@ -28,7 +28,7 @@ import io.airlift.http.server.testing.TestingHttpServer;
 import io.trino.aws.proxy.server.testing.TestingS3RequestRewriteController;
 import io.trino.aws.proxy.server.testing.TestingUtil;
 import io.trino.aws.proxy.spi.credentials.Credential;
-import io.trino.aws.proxy.spi.credentials.Credentials;
+import io.trino.aws.proxy.spi.credentials.IdentityCredential;
 import org.junit.jupiter.api.Test;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
@@ -85,7 +85,7 @@ public abstract class AbstractTestPresignedRequests
     private final HttpClient httpClient;
     private final S3Client internalClient;
     private final S3Client storageClient;
-    private final Credentials testingCredentials;
+    private final IdentityCredential testingCredentials;
     private final URI s3ProxyUrl;
     private final XmlMapper xmlMapper;
     private final TestingS3RequestRewriteController requestRewriteController;
@@ -96,7 +96,7 @@ public abstract class AbstractTestPresignedRequests
             HttpClient httpClient,
             S3Client internalClient,
             S3Client storageClient,
-            Credentials testingCredentials,
+            IdentityCredential testingCredentials,
             TestingHttpServer httpServer,
             TrinoAwsProxyConfig s3ProxyConfig,
             XmlMapper xmlMapper,

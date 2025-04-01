@@ -21,7 +21,7 @@ public record EmulatedAssumedRole(Credential emulatedCredential, String arn, Str
 {
     public EmulatedAssumedRole
     {
-        requireNonNull(emulatedCredential, "emulatedCredential is null");
+        requireNonNull(emulatedCredential, "credential is null");
         requireNonNull(arn, "arn is null");
         requireNonNull(roleId, "roleId is null");
         requireNonNull(expiration, "expiration is null");

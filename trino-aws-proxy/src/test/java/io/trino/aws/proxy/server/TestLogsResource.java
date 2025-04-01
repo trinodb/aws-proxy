@@ -26,7 +26,7 @@ import io.trino.aws.proxy.server.rest.RequestLoggerController.EventType;
 import io.trino.aws.proxy.server.rest.RequestLoggingSession;
 import io.trino.aws.proxy.server.testing.TestingUtil.ForTesting;
 import io.trino.aws.proxy.server.testing.harness.TrinoAwsProxyTest;
-import io.trino.aws.proxy.spi.credentials.Credentials;
+import io.trino.aws.proxy.spi.credentials.IdentityCredential;
 import io.trino.aws.proxy.spi.rest.Request;
 import io.trino.aws.proxy.spi.rest.RequestContent;
 import io.trino.aws.proxy.spi.rest.RequestHeaders;
@@ -68,7 +68,12 @@ public class TestLogsResource
     private final CloudWatchLogsClient cloudWatchClient;
 
     @Inject
-    public TestLogsResource(TestingHttpServer httpServer, RequestLoggerController loggerController, TrinoAwsProxyConfig config, @ForTesting Credentials testingCredentials, ObjectMapper objectMapper)
+    public TestLogsResource(
+            TestingHttpServer httpServer,
+            RequestLoggerController loggerController,
+            TrinoAwsProxyConfig config,
+            @ForTesting IdentityCredential testingCredentials,
+            ObjectMapper objectMapper)
     {
         this.loggerController = requireNonNull(loggerController, "loggerController is null");
         this.objectMapper = requireNonNull(objectMapper, "objectMapper is null");

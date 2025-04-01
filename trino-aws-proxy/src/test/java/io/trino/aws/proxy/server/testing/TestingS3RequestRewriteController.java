@@ -15,7 +15,7 @@ package io.trino.aws.proxy.server.testing;
 
 import com.google.inject.Inject;
 import io.trino.aws.proxy.server.testing.TestingUtil.ForTesting;
-import io.trino.aws.proxy.spi.credentials.Credentials;
+import io.trino.aws.proxy.spi.credentials.Credential;
 import io.trino.aws.proxy.spi.rest.S3RequestRewriter.S3RewriteResult;
 
 import static java.util.Objects.requireNonNull;
@@ -23,37 +23,37 @@ import static java.util.Objects.requireNonNull;
 public class TestingS3RequestRewriteController
 {
     private final TestingS3RequestRewriter s3RequestRewriter;
-    private final Credentials defaultCredentials;
+    private final Credential defaultCredential;
 
     @Inject
-    public TestingS3RequestRewriteController(TestingS3RequestRewriter rewriter, @ForTesting Credentials defaultCredentials)
+    public TestingS3RequestRewriteController(TestingS3RequestRewriter rewriter, @ForTesting Credential defaultCredential)
     {
         this.s3RequestRewriter = requireNonNull(rewriter, "rewriter is null");
-        this.defaultCredentials = requireNonNull(defaultCredentials, "defaultCredentials is null");
+        this.defaultCredential = requireNonNull(defaultCredential, "defaultCredentials is null");
     }
 
-    private S3RewriteResult rewriteOrNoop(Credentials credentials, String bucket, String key)
+    private S3RewriteResult rewriteOrNoop(String accessKey, String bucket, String key)
     {
-        return s3RequestRewriter.testRewrite(credentials, bucket, key).orElseGet(() -> new S3RewriteResult(bucket, key));
+        return s3RequestRewriter.testRewrite(accessKey, bucket, key).orElseGet(() -> new S3RewriteResult(bucket, key));
     }
 
-    public String getTargetBucket(Credentials credentials, String bucket, String key)
+    public String getTargetBucket(String accessKey, String bucket, String key)
     {
-        return rewriteOrNoop(credentials, bucket, key).finalRequestBucket();
+        return rewriteOrNoop(accessKey, bucket, key).finalRequestBucket();
     }
 
     public String getTargetBucket(String bucket, String key)
     {
-        return getTargetBucket(defaultCredentials, bucket, key);
+        return getTargetBucket(defaultCredential.accessKey(), bucket, key);
     }
 
-    public String getTargetKey(Credentials credentials, String bucket, String key)
+    public String getTargetKey(String accessKey, String bucket, String key)
     {
-        return rewriteOrNoop(credentials, bucket, key).finalRequestKey();
+        return rewriteOrNoop(accessKey, bucket, key).finalRequestKey();
     }
 
     public String getTargetKey(String bucket, String key)
     {
-        return getTargetKey(defaultCredentials, bucket, key);
+        return getTargetKey(defaultCredential.accessKey(), bucket, key);
     }
 }

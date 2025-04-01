@@ -24,8 +24,8 @@ import io.airlift.http.client.HttpClient;
 import io.airlift.http.client.HttpStatus;
 import io.airlift.http.client.Request;
 import io.airlift.json.JsonCodec;
-import io.trino.aws.proxy.spi.credentials.Credentials;
 import io.trino.aws.proxy.spi.credentials.CredentialsProvider;
+import io.trino.aws.proxy.spi.credentials.IdentityCredential;
 import jakarta.ws.rs.core.UriBuilder;
 
 import java.net.URI;
@@ -49,21 +49,21 @@ public class HttpCredentialsProvider
     }
 
     private final HttpClient httpClient;
-    private final JsonCodec<Credentials> jsonCodec;
+    private final JsonCodec<IdentityCredential> jsonCodec;
     private final URI httpCredentialsProviderEndpoint;
     private final Map<String, String> httpHeaders;
-    private final Optional<LoadingCache<CredentialsKey, Optional<Credentials>>> credentialsCache;
-    private final Function<CredentialsKey, Optional<Credentials>> credentialsFetcher;
+    private final Optional<LoadingCache<CredentialsKey, Optional<IdentityCredential>>> credentialsCache;
+    private final Function<CredentialsKey, Optional<IdentityCredential>> credentialsFetcher;
 
     @Inject
-    public HttpCredentialsProvider(@ForHttpCredentialsProvider HttpClient httpClient, HttpCredentialsProviderConfig config, JsonCodec<Credentials> jsonCodec)
+    public HttpCredentialsProvider(@ForHttpCredentialsProvider HttpClient httpClient, HttpCredentialsProviderConfig config, JsonCodec<IdentityCredential> jsonCodec)
     {
         this.httpClient = requireNonNull(httpClient, "httpClient is null");
         this.jsonCodec = requireNonNull(jsonCodec, "jsonCodec is null");
         this.httpCredentialsProviderEndpoint = config.getEndpoint();
         this.httpHeaders = ImmutableMap.copyOf(config.getHttpHeaders());
         if (config.getCacheSize() > 0 && config.getCacheTtl().toMillis() > 0) {
-            LoadingCache<CredentialsKey, Optional<Credentials>> cache = Caffeine.newBuilder()
+            LoadingCache<CredentialsKey, Optional<IdentityCredential>> cache = Caffeine.newBuilder()
                     .maximumSize(config.getCacheSize())
                     .expireAfterWrite(config.getCacheTtl().toJavaTime())
                     .build(this::fetchCredentials);
@@ -77,7 +77,7 @@ public class HttpCredentialsProvider
     }
 
     @Override
-    public Optional<Credentials> credentials(String emulatedAccessKey, Optional<String> session)
+    public Optional<IdentityCredential> credentials(String emulatedAccessKey, Optional<String> session)
     {
         return credentialsFetcher.apply(new CredentialsKey(emulatedAccessKey, session));
     }
@@ -91,14 +91,14 @@ public class HttpCredentialsProvider
         });
     }
 
-    private Optional<Credentials> fetchCredentials(CredentialsKey credentialsKey)
+    private Optional<IdentityCredential> fetchCredentials(CredentialsKey credentialsKey)
     {
         UriBuilder uriBuilder = UriBuilder.fromUri(httpCredentialsProviderEndpoint).path(credentialsKey.emulatedAccessKey());
         credentialsKey.session().ifPresent(sessionToken -> uriBuilder.queryParam("sessionToken", sessionToken));
         Request.Builder requestBuilder = prepareGet()
                 .addHeaders(Multimaps.forMap(httpHeaders))
                 .setUri(uriBuilder.build());
-        JsonResponse<Credentials> response = httpClient.execute(requestBuilder.build(), createFullJsonResponseHandler(jsonCodec));
+        JsonResponse<IdentityCredential> response = httpClient.execute(requestBuilder.build(), createFullJsonResponseHandler(jsonCodec));
         if (response.getStatusCode() == HttpStatus.NOT_FOUND.code() || !response.hasValue()) {
             return Optional.empty();
         }

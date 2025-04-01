@@ -13,7 +13,7 @@
  */
 package io.trino.aws.proxy.glue;
 
-import io.trino.aws.proxy.spi.credentials.Credentials;
+import io.trino.aws.proxy.spi.credentials.IdentityCredential;
 import jakarta.annotation.PreDestroy;
 import jakarta.ws.rs.core.UriBuilder;
 import org.junit.jupiter.api.Test;
@@ -64,7 +64,7 @@ public abstract class TestGlueBase<T extends TestingGlueContext>
     protected final GlueClient glueClient;
     protected final T context;
 
-    protected TestGlueBase(TrinoGlueConfig config, Credentials testingCredentials, T context)
+    protected TestGlueBase(TrinoGlueConfig config, IdentityCredential testingCredentials, T context)
     {
         this.context = requireNonNull(context, "context is null");
 

@@ -15,6 +15,7 @@ package io.trino.aws.proxy.server.rest;
 
 import com.google.common.base.Throwables;
 import io.airlift.log.Logger;
+import io.trino.aws.proxy.spi.credentials.Identity;
 import io.trino.aws.proxy.spi.rest.Request;
 import io.trino.aws.proxy.spi.signing.SigningController;
 import io.trino.aws.proxy.spi.signing.SigningMetadata;
@@ -30,6 +31,7 @@ import org.glassfish.jersey.server.ContainerResponse;
 import java.io.Closeable;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.lang.reflect.Type;
 import java.util.Optional;
 
 import static jakarta.ws.rs.core.Response.Status.INTERNAL_SERVER_ERROR;
@@ -68,10 +70,9 @@ public class SecurityFilter
             RequestLoggingSession requestLoggingSession = requestLoggerController.newRequestSession(request, signingServiceType);
             containerRequest.setProperty(RequestLoggingSession.class.getName(), requestLoggingSession);
 
-            SigningMetadata signingMetadata;
+            SigningController.SigningIdentity signingIdentity;
             try {
-                signingMetadata = signingController.validateAndParseAuthorization(request, signingServiceType);
-                containerRequest.setProperty(SigningMetadata.class.getName(), signingMetadata);
+                signingIdentity = signingController.validateAndParseAuthorization(request, signingServiceType);
             }
             catch (Exception e) {
                 requestLoggingSession.logException(e);
@@ -83,6 +84,9 @@ public class SecurityFilter
                     default -> throw new RuntimeException(e);
                 }
             }
+
+            containerRequest.setProperty(SigningMetadata.class.getName(), signingIdentity.signingMetadata());
+            signingIdentity.identity().ifPresent(identity -> containerRequest.setProperty(Identity.class.getName(), identity));
         }
         else {
             log.warn("%s is not a ContainerRequest", requestContext.getRequest().getClass().getName());
@@ -151,9 +155,14 @@ public class SecurityFilter
         };
     }
 
-    @SuppressWarnings("unchecked")
-    static <T> T unwrap(ContainerRequest containerRequest, Class<T> type)
+    static Object unwrapType(ContainerRequest containerRequest, Type type)
     {
-        return (T) containerRequest.getProperty(type.getName());
+        return containerRequest.getProperty(type.getTypeName());
+    }
+
+    @SuppressWarnings("unchecked")
+    static <T> T unwrap(ContainerRequest containerRequest, Class<T> clazz)
+    {
+        return (T) containerRequest.getProperty(clazz.getTypeName());
     }
 }

@@ -20,9 +20,9 @@ import io.airlift.http.client.HttpClient;
 import io.airlift.http.client.Request;
 import io.airlift.log.Logger;
 import io.trino.aws.proxy.server.TrinoAwsProxyConfig;
+import io.trino.aws.proxy.server.remote.RemoteS3ConnectionController;
 import io.trino.aws.proxy.server.security.S3SecurityController;
-import io.trino.aws.proxy.spi.credentials.Credentials;
-import io.trino.aws.proxy.spi.remote.RemoteS3Facade;
+import io.trino.aws.proxy.spi.credentials.Identity;
 import io.trino.aws.proxy.spi.rest.ParsedS3Request;
 import io.trino.aws.proxy.spi.rest.RequestContent;
 import io.trino.aws.proxy.spi.rest.S3RequestRewriter;
@@ -67,37 +67,39 @@ public class TrinoS3ProxyClient
 
     private final HttpClient httpClient;
     private final SigningController signingController;
-    private final RemoteS3Facade remoteS3Facade;
     private final S3SecurityController s3SecurityController;
     private final S3PresignController s3PresignController;
     private final LimitStreamController limitStreamController;
     private final S3RequestRewriter s3RequestRewriter;
+    private final RemoteS3ConnectionController remoteS3ConnectionController;
     private final ExecutorService executorService = Executors.newVirtualThreadPerTaskExecutor();
     private final boolean generatePresignedUrlsOnHead;
 
     @Retention(RUNTIME)
     @Target({FIELD, PARAMETER, METHOD})
     @BindingAnnotation
-    public @interface ForProxyClient {}
+    public @interface ForProxyClient
+    {
+    }
 
     @Inject
     public TrinoS3ProxyClient(
             @ForProxyClient HttpClient httpClient,
             SigningController signingController,
-            RemoteS3Facade remoteS3Facade,
             S3SecurityController s3SecurityController,
             TrinoAwsProxyConfig trinoAwsProxyConfig,
             S3PresignController s3PresignController,
             LimitStreamController limitStreamController,
-            S3RequestRewriter s3RequestRewriter)
+            S3RequestRewriter s3RequestRewriter,
+            RemoteS3ConnectionController credentialsProvider)
     {
         this.httpClient = requireNonNull(httpClient, "httpClient is null");
         this.signingController = requireNonNull(signingController, "signingController is null");
-        this.remoteS3Facade = requireNonNull(remoteS3Facade, "objectStore is null");
         this.s3SecurityController = requireNonNull(s3SecurityController, "securityController is null");
         this.s3PresignController = requireNonNull(s3PresignController, "presignController is null");
         this.limitStreamController = requireNonNull(limitStreamController, "quotaStreamController is null");
         this.s3RequestRewriter = requireNonNull(s3RequestRewriter, "s3RequestRewriter is null");
+        this.remoteS3ConnectionController = requireNonNull(credentialsProvider, "credentialsController is null");
 
         generatePresignedUrlsOnHead = trinoAwsProxyConfig.isGeneratePresignedUrlsOnHead();
     }
@@ -110,89 +112,98 @@ public class TrinoS3ProxyClient
         }
     }
 
-    public void proxyRequest(SigningMetadata signingMetadata, ParsedS3Request request, AsyncResponse asyncResponse, RequestLoggingSession requestLoggingSession)
+    public void proxyRequest(Optional<Identity> identity, SigningMetadata signingMetadata, ParsedS3Request request, AsyncResponse asyncResponse,
+            RequestLoggingSession requestLoggingSession)
     {
-        SecurityResponse securityResponse = s3SecurityController.apply(request, signingMetadata.credentials().identity());
+        SecurityResponse securityResponse = s3SecurityController.apply(request, identity);
         if (securityResponse instanceof Failure(var error)) {
-            log.debug("SecurityController check failed. AccessKey: %s, Request: %s, SecurityResponse: %s", signingMetadata.credentials().emulated().accessKey(), request, securityResponse);
-            requestLoggingSession.logError("request.security.fail.credentials", signingMetadata.credentials().emulated());
+            log.debug("SecurityController check failed. AccessKey: %s, Request: %s, SecurityResponse: %s", signingMetadata.credential().accessKey(), request, securityResponse);
+            requestLoggingSession.logError("request.security.fail.credentials", signingMetadata.credential());
             requestLoggingSession.logError("request.security.fail.request", request);
             requestLoggingSession.logError("request.security.fail.error", error);
 
             throw new WebApplicationException(Response.Status.UNAUTHORIZED);
         }
 
-        Optional<S3RewriteResult> rewriteResult = s3RequestRewriter.rewrite(signingMetadata.credentials(), request);
+        Optional<S3RewriteResult> rewriteResult = s3RequestRewriter.rewrite(identity, signingMetadata, request);
         String targetBucket = rewriteResult.map(S3RewriteResult::finalRequestBucket).orElse(request.bucketName());
         String targetKey = rewriteResult
                 .map(S3RewriteResult::finalRequestKey)
                 .map(SdkHttpUtils::urlEncodeIgnoreSlashes)
                 .orElse(request.rawPath());
-        URI remoteUri = remoteS3Facade.buildEndpoint(uriBuilder(request.queryParameters()), targetKey, targetBucket, request.requestAuthorization().region());
 
-        Request.Builder remoteRequestBuilder = new Request.Builder()
-                .setMethod(request.httpVerb())
-                .setUri(remoteUri)
-                .setFollowRedirects(true);
+        RemoteRequestWithPresignedURIs remoteRequest = remoteS3ConnectionController.withRemoteConnection(signingMetadata, identity, request, (remoteCredential, remoteS3Facade) -> {
+            URI remoteUri = remoteS3Facade.buildEndpoint(uriBuilder(request.queryParameters()), targetKey, targetBucket, request.requestAuthorization().region());
 
-        if (remoteUri.getHost() == null) {
-            log.debug("RemoteURI missing host. AccessKey: %s, Request: %s", signingMetadata.credentials().emulated().accessKey(), request);
-            throw new WebApplicationException(Response.Status.BAD_REQUEST);
-        }
+            Request.Builder remoteRequestBuilder = new Request.Builder()
+                    .setMethod(request.httpVerb())
+                    .setUri(remoteUri)
+                    .setFollowRedirects(true);
 
-        ImmutableMultiMap.Builder remoteRequestHeadersBuilder = ImmutableMultiMap.builder(false);
-        Instant targetRequestTimestamp = Instant.now();
-        request.requestHeaders().passthroughHeaders().forEach(remoteRequestHeadersBuilder::addAll);
-        remoteRequestHeadersBuilder.putOrReplaceSingle("Host", buildRemoteHost(remoteUri));
+            if (remoteUri.getHost() == null) {
+                log.debug("RemoteURI missing host. AccessKey: %s, Request: %s", signingMetadata.credential().accessKey(), request);
+                throw new WebApplicationException(Response.Status.BAD_REQUEST);
+            }
 
-        // Use now for the remote request
-        remoteRequestHeadersBuilder.putOrReplaceSingle("X-Amz-Date", AwsTimestamp.toRequestFormat(targetRequestTimestamp));
+            ImmutableMultiMap.Builder remoteRequestHeadersBuilder = ImmutableMultiMap.builder(false);
+            Instant targetRequestTimestamp = Instant.now();
+            request.requestHeaders().passthroughHeaders().forEach(remoteRequestHeadersBuilder::addAll);
+            remoteRequestHeadersBuilder.putOrReplaceSingle("Host", buildRemoteHost(remoteUri));
 
-        signingMetadata.credentials()
-                .requiredRemoteCredential()
-                .session()
-                .ifPresent(sessionToken -> remoteRequestHeadersBuilder.putOrReplaceSingle("x-amz-security-token", sessionToken));
+            // Use now for the remote request
+            remoteRequestHeadersBuilder.putOrReplaceSingle("X-Amz-Date", AwsTimestamp.toRequestFormat(targetRequestTimestamp));
 
-        request.requestContent().contentLength().ifPresent(length -> remoteRequestHeadersBuilder.putOrReplaceSingle("content-length", Integer.toString(length)));
+            request.requestContent().contentLength().ifPresent(length -> remoteRequestHeadersBuilder.putOrReplaceSingle("content-length", Integer.toString(length)));
+            // All SigV4 requests require an x-amz-content-sha256
+            remoteRequestHeadersBuilder.putOrReplaceSingle("x-amz-content-sha256", "UNSIGNED-PAYLOAD");
 
-        contentInputStream(request.requestContent(), signingMetadata).ifPresent(inputStream -> remoteRequestBuilder.setBodyGenerator(streamingBodyGenerator(inputStream)));
-        // All SigV4 requests require an x-amz-content-sha256
-        remoteRequestHeadersBuilder.putOrReplaceSingle("x-amz-content-sha256", "UNSIGNED-PAYLOAD");
+            SigningMetadata remoteSigningMetadata = signingMetadata.withCredential(remoteCredential);
 
-        Map<String, URI> presignedUrls;
-        if (generatePresignedUrlsOnHead && request.httpVerb().equalsIgnoreCase("HEAD")) {
-            presignedUrls = s3PresignController.buildPresignedRemoteUrls(signingMetadata, request, targetRequestTimestamp, remoteUri);
-        }
-        else {
-            presignedUrls = ImmutableMap.of();
-        }
+            Map<String, URI> presignedUrls;
+            if (generatePresignedUrlsOnHead && request.httpVerb().equalsIgnoreCase("HEAD")) {
+                presignedUrls = s3PresignController.buildPresignedRemoteUrls(identity, remoteSigningMetadata, request, targetRequestTimestamp, remoteUri);
+            }
+            else {
+                presignedUrls = ImmutableMap.of();
+            }
 
-        // set the new signed request auth header
-        MultiMap remoteRequestHeaders = remoteRequestHeadersBuilder.build();
-        String signature = signingController.signRequest(
-                signingMetadata,
-                request.requestAuthorization().region(),
-                targetRequestTimestamp,
-                Optional.empty(),
-                Credentials::requiredRemoteCredential,
-                remoteUri,
-                remoteRequestHeaders,
-                request.queryParameters(),
-                request.httpVerb()).signingAuthorization().authorization();
+            remoteCredential
+                    .session()
+                    .ifPresent(sessionToken -> remoteRequestHeadersBuilder.putOrReplaceSingle("x-amz-security-token", sessionToken));
 
-        // remoteRequestHeaders now has correct values, copy to the remote request
-        remoteRequestHeaders.forEachEntry(remoteRequestBuilder::addHeader);
-        remoteRequestBuilder.addHeader("Authorization", signature);
+            contentInputStream(request.requestContent(), remoteSigningMetadata).ifPresent(inputStream -> remoteRequestBuilder.setBodyGenerator(streamingBodyGenerator(inputStream)));
 
-        Request remoteRequest = remoteRequestBuilder.build();
+            // set the new signed request auth header
+            MultiMap remoteRequestHeaders = remoteRequestHeadersBuilder.build();
+            String signature = signingController.signRequest(
+                    remoteSigningMetadata,
+                    request.requestAuthorization().region(),
+                    targetRequestTimestamp,
+                    Optional.empty(),
+                    remoteUri,
+                    remoteRequestHeaders,
+                    request.queryParameters(),
+                    request.httpVerb()).signingAuthorization().authorization();
+
+            // remoteRequestHeaders now has correct values, copy to the remote request
+            remoteRequestHeaders.forEachEntry(remoteRequestBuilder::addHeader);
+            remoteRequestBuilder.addHeader("Authorization", signature);
+
+            return new RemoteRequestWithPresignedURIs(remoteRequestBuilder.build(), presignedUrls);
+        }).orElseThrow(() -> {
+            requestLoggingSession.logError("request.remote.fail.resolution", "Failed to resolve remote");
+            return new WebApplicationException(Response.Status.NOT_FOUND);
+        });
 
         executorService.submit(() -> {
-            StreamingResponseHandler responseHandler = new StreamingResponseHandler(asyncResponse, presignedUrls, requestLoggingSession, limitStreamController);
+            StreamingResponseHandler responseHandler = new StreamingResponseHandler(asyncResponse, remoteRequest.presignedUrls(), requestLoggingSession, limitStreamController);
             try {
-                httpClient.execute(remoteRequest, responseHandler);
+                httpClient.execute(remoteRequest.remoteRequest(), responseHandler);
             }
             catch (Throwable e) {
-                responseHandler.handleException(remoteRequest, new RuntimeException(e));
+                // TODO: if responseHandler is null this will throw an NPE inside a catch clause, so the request doesn't terminate properly; fix; also we should have a timeout
+                //  for request processing
+                responseHandler.handleException(remoteRequest.remoteRequest(), new RuntimeException(e));
             }
         });
     }
@@ -229,5 +240,14 @@ public class TrinoS3ProxyClient
         UriBuilder uriBuilder = UriBuilder.newInstance();
         queryParameters.forEachEntry(uriBuilder::queryParam);
         return uriBuilder;
+    }
+
+    private record RemoteRequestWithPresignedURIs(Request remoteRequest, Map<String, URI> presignedUrls)
+    {
+        private RemoteRequestWithPresignedURIs
+        {
+            requireNonNull(remoteRequest, "remoteRequest is null");
+            requireNonNull(presignedUrls, "presignedUrls is null");
+        }
     }
 }
