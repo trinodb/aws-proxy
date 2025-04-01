@@ -11,28 +11,29 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.trino.aws.proxy.spi.plugin.config;
+package io.trino.aws.proxy.server.remote.provider.file;
 
 import io.airlift.configuration.Config;
+import io.airlift.configuration.validation.FileExists;
 import jakarta.validation.constraints.NotNull;
 
-import java.util.Optional;
+import java.io.File;
 
-public class RemoteS3ConnectionProviderConfig
-        implements PluginIdentifierConfig
+public class FileBasedRemoteS3ConnectionProviderConfig
 {
-    private Optional<String> identifier = Optional.of("config");
+    private File connectionsFile;
 
     @NotNull
-    @Override
-    public Optional<String> getPluginIdentifier()
+    @FileExists
+    public File getConnectionsFile()
     {
-        return identifier;
+        return connectionsFile;
     }
 
-    @Config("remote-s3-connection-provider.type")
-    public void setPluginIdentifier(String identifier)
+    @Config("remote-s3.connections-file-path")
+    public FileBasedRemoteS3ConnectionProviderConfig setConnectionsFile(File connectionsFile)
     {
-        this.identifier = Optional.ofNullable(identifier);
+        this.connectionsFile = connectionsFile;
+        return this;
     }
 }

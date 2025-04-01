@@ -11,28 +11,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.trino.aws.proxy.spi.plugin.config;
+package io.trino.aws.proxy.server.remote.provider.http;
 
-import io.airlift.configuration.Config;
-import jakarta.validation.constraints.NotNull;
+import io.trino.aws.proxy.spi.credentials.Identity;
+import io.trino.aws.proxy.spi.rest.ParsedS3Request;
+import io.trino.aws.proxy.spi.signing.SigningMetadata;
 
 import java.util.Optional;
 
-public class RemoteS3ConnectionProviderConfig
-        implements PluginIdentifierConfig
+import static java.util.Objects.requireNonNull;
+
+public record RemoteS3ConnectionRequest(SigningMetadata signingMetadata, Optional<Identity> identity, ParsedS3Request request)
 {
-    private Optional<String> identifier = Optional.of("config");
-
-    @NotNull
-    @Override
-    public Optional<String> getPluginIdentifier()
+    public RemoteS3ConnectionRequest
     {
-        return identifier;
-    }
-
-    @Config("remote-s3-connection-provider.type")
-    public void setPluginIdentifier(String identifier)
-    {
-        this.identifier = Optional.ofNullable(identifier);
+        requireNonNull(signingMetadata, "signingMetadata is null");
+        requireNonNull(identity, "identity is null");
+        requireNonNull(request, "request is null");
     }
 }
