@@ -52,6 +52,8 @@ public class S3Container
     // Keep in sync with dep.minio.version in pom.xml
     private static final String IMAGE = "cgr.dev/chainguard/minio@sha256:f767919bd003062ac69713cdce920eb922c9fa3388efe96264e78b763342ca1a";
 
+    public static final Credential POLICY_USER_CREDENTIAL = new Credential(UUID.randomUUID().toString(), UUID.randomUUID().toString());
+
     private static final String CONFIG_TEMPLATE = """
             {
                 "version": "10",
@@ -89,7 +91,6 @@ public class S3Container
     private final S3Client storageClient;
     private final List<String> initialBuckets;
     private final Credential credential;
-    private final Credential policyUserCredential;
 
     @Override
     public S3Client get()
@@ -132,8 +133,6 @@ public class S3Container
                 .forcePathStyle(true)
                 .credentialsProvider(() -> AwsBasicCredentials.create(credential.accessKey(), credential.secretKey()))
                 .build();
-
-        policyUserCredential = new Credential(UUID.randomUUID().toString(), UUID.randomUUID().toString());
     }
 
     public URI endpoint()
@@ -146,20 +145,15 @@ public class S3Container
         return HostAndPort.fromParts(container.getHost(), container.getFirstMappedPort());
     }
 
-    public Credential policyUserCredential()
-    {
-        return policyUserCredential;
-    }
-
     @PostConstruct
     public void setUp()
     {
         initialBuckets.forEach(bucket -> storageClient.createBucket(request -> request.bucket(bucket)));
 
         // the Minio client does not have APIs for IAM or STS
-        execInContainer("Could not create user in container", "mc", "admin", "user", "add", "local", policyUserCredential.accessKey(), policyUserCredential.secretKey());
+        execInContainer("Could not create user in container", "mc", "admin", "user", "add", "local", POLICY_USER_CREDENTIAL.accessKey(), POLICY_USER_CREDENTIAL.secretKey());
         execInContainer("Could not create policy in container", "mc", "admin", "policy", "create", "local", POLICY_NAME, "/root/policy.json");
-        execInContainer("Could not attach policy in container", "mc", "admin", "policy", "attach", "local", POLICY_NAME, "--user", policyUserCredential.accessKey());
+        execInContainer("Could not attach policy in container", "mc", "admin", "policy", "attach", "local", POLICY_NAME, "--user", POLICY_USER_CREDENTIAL.accessKey());
     }
 
     @PreDestroy
