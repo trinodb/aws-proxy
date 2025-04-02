@@ -16,7 +16,7 @@ package io.trino.aws.proxy.server.rest;
 import com.google.inject.Inject;
 import io.trino.aws.proxy.server.TrinoAwsProxyConfig;
 import io.trino.aws.proxy.server.security.S3SecurityController;
-import io.trino.aws.proxy.spi.credentials.Credentials;
+import io.trino.aws.proxy.spi.credentials.Identity;
 import io.trino.aws.proxy.spi.rest.ParsedS3Request;
 import io.trino.aws.proxy.spi.security.SecurityResponse.Failure;
 import io.trino.aws.proxy.spi.security.SecurityResponse.Success;
@@ -49,23 +49,24 @@ public class S3PresignController
         presignUrlDuration = trinoAwsProxyConfig.getPresignedUrlsDuration().toJavaTime();
     }
 
-    public Map<String, URI> buildPresignedRemoteUrls(SigningMetadata signingMetadata, ParsedS3Request request, Instant targetRequestTimestamp, URI remoteUri)
+    public Map<String, URI> buildPresignedRemoteUrls(Optional<Identity> identity, SigningMetadata signingMetadata, ParsedS3Request request, Instant targetRequestTimestamp,
+            URI remoteUri)
     {
         Optional<Instant> signatureExpiry = Optional.of(Instant.now().plusMillis(presignUrlDuration.toMillis()));
 
         return Stream.of("GET", "PUT", "POST", "DELETE")
-                .flatMap(httpMethod -> buildPresignedRemoteUrl(httpMethod, signingMetadata, request, targetRequestTimestamp, remoteUri, signatureExpiry))
+                .flatMap(httpMethod -> buildPresignedRemoteUrl(httpMethod, signingMetadata, identity, request, targetRequestTimestamp, remoteUri, signatureExpiry))
                 .collect(toImmutableMap(Map.Entry::getKey, Map.Entry::getValue));
     }
 
-    private Stream<Map.Entry<String, URI>> buildPresignedRemoteUrl(String httpMethod, SigningMetadata signingMetadata, ParsedS3Request request, Instant targetRequestTimestamp, URI remoteUri, Optional<Instant> signatureExpiry)
+    private Stream<Map.Entry<String, URI>> buildPresignedRemoteUrl(String httpMethod, SigningMetadata signingMetadata, Optional<Identity> identity, ParsedS3Request request,
+            Instant targetRequestTimestamp, URI remoteUri, Optional<Instant> signatureExpiry)
     {
         SigningContext signingContext = signingController.presignRequest(
                 signingMetadata,
                 request.requestAuthorization().region(),
                 targetRequestTimestamp,
                 signatureExpiry,
-                Credentials::requiredRemoteCredential,
                 remoteUri,
                 request.queryParameters(),
                 httpMethod);
@@ -84,7 +85,7 @@ public class S3PresignController
                 request.rawQuery(),
                 request.requestContent());
 
-        return switch (s3SecurityController.apply(checkRequest, signingMetadata.credentials().identity())) {
+        return switch (s3SecurityController.apply(checkRequest, identity)) {
             case Success _ -> Stream.of(Map.entry(httpMethod, signingContext.signingUri()));
             case Failure _ -> Stream.empty();
         };

@@ -16,8 +16,8 @@ package io.trino.aws.proxy.server.credentials.file;
 import com.google.common.io.Files;
 import com.google.inject.Inject;
 import io.airlift.json.JsonCodec;
-import io.trino.aws.proxy.spi.credentials.Credentials;
 import io.trino.aws.proxy.spi.credentials.CredentialsProvider;
+import io.trino.aws.proxy.spi.credentials.IdentityCredential;
 
 import java.io.File;
 import java.io.IOException;
@@ -33,19 +33,19 @@ import static java.util.Objects.requireNonNull;
 public class FileBasedCredentialsProvider
         implements CredentialsProvider
 {
-    private final Map<String, Credentials> credentialsStore;
+    private final Map<String, IdentityCredential> credentialsStore;
 
     @Inject
-    public FileBasedCredentialsProvider(FileBasedCredentialsProviderConfig config, JsonCodec<List<Credentials>> jsonCodec)
+    public FileBasedCredentialsProvider(FileBasedCredentialsProviderConfig config, JsonCodec<List<IdentityCredential>> jsonCodec)
     {
         requireNonNull(config, "Config is null");
         requireNonNull(jsonCodec, "jsonCodec is null");
         this.credentialsStore = buildCredentialsMap(config.getCredentialsFile(), jsonCodec);
     }
 
-    private Map<String, Credentials> buildCredentialsMap(File credentialsFile, JsonCodec<List<Credentials>> jsonCodec)
+    private Map<String, IdentityCredential> buildCredentialsMap(File credentialsFile, JsonCodec<List<IdentityCredential>> jsonCodec)
     {
-        List<Credentials> credentialsList;
+        List<IdentityCredential> credentialsList;
         try {
             credentialsList = jsonCodec.fromJson(Files.toByteArray(credentialsFile));
         }
@@ -57,7 +57,7 @@ public class FileBasedCredentialsProvider
     }
 
     @Override
-    public Optional<Credentials> credentials(String emulatedAccessKey, Optional<String> session)
+    public Optional<IdentityCredential> credentials(String emulatedAccessKey, Optional<String> session)
     {
         return Optional.ofNullable(credentialsStore.get(emulatedAccessKey));
     }

@@ -13,17 +13,16 @@
  */
 package io.trino.aws.proxy.spi.remote;
 
-import java.net.URI;
+import io.trino.aws.proxy.spi.credentials.Identity;
+import io.trino.aws.proxy.spi.rest.ParsedS3Request;
+import io.trino.aws.proxy.spi.signing.SigningMetadata;
+
 import java.util.Optional;
 
-import static java.util.Objects.requireNonNull;
-
-public record RemoteSessionRole(String region, String roleArn, Optional<String> externalId, Optional<URI> stsEndpoint)
+// TODO: This should have a config implementation (hard-coding a single set of Remote Credentials) and an HTTP implementation
+public interface RemoteS3ConnectionProvider
 {
-    public RemoteSessionRole
-    {
-        requireNonNull(region, "region is null");
-        requireNonNull(roleArn, "roleArn is null");
-        requireNonNull(externalId, "externalId is null");
-    }
+    RemoteS3ConnectionProvider NOOP = (_, _, _) -> Optional.empty();
+
+    Optional<RemoteS3Connection> remoteConnection(SigningMetadata signingMetadata, Optional<Identity> identity, ParsedS3Request request);
 }

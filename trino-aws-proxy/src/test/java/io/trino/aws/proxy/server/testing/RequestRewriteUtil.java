@@ -15,11 +15,10 @@ package io.trino.aws.proxy.server.testing;
 
 import com.google.inject.Inject;
 import com.google.inject.Scopes;
-import io.trino.aws.proxy.server.testing.TestingUtil.ForTesting;
 import io.trino.aws.proxy.server.testing.containers.S3Container.ForS3Container;
 import io.trino.aws.proxy.server.testing.harness.BuilderFilter;
 import io.trino.aws.proxy.spi.credentials.Credential;
-import io.trino.aws.proxy.spi.credentials.Credentials;
+import io.trino.aws.proxy.spi.credentials.IdentityCredential;
 import software.amazon.awssdk.services.s3.S3Client;
 
 import java.util.List;
@@ -43,11 +42,10 @@ public final class RequestRewriteUtil
         @Inject
         public SetupRequestRewrites(
                 TestingCredentialsRolesProvider credentialsRolesProvider,
-                @ForTesting Credentials testingCredentials,
                 @ForS3Container List<String> configuredBuckets,
                 @ForS3Container S3Client storageClient)
         {
-            credentialsRolesProvider.addCredentials(Credentials.build(CREDENTIAL_TO_REDIRECT, testingCredentials.requiredRemoteCredential()));
+            credentialsRolesProvider.addCredentials(new IdentityCredential(CREDENTIAL_TO_REDIRECT));
             configuredBuckets.forEach(bucket -> storageClient.createBucket(r -> r.bucket(getTargetName(bucket))));
             storageClient.createBucket(r -> r.bucket(TEST_CREDENTIAL_REDIRECT_BUCKET));
         }
@@ -79,10 +77,10 @@ public final class RequestRewriteUtil
         }
 
         @Override
-        public Optional<S3RewriteResult> testRewrite(Credentials credentials, String bucketName, String keyName)
+        public Optional<S3RewriteResult> testRewrite(String accessKey, String bucketName, String keyName)
         {
             callCount.incrementAndGet();
-            boolean redirectForTestCredential = credentials.emulated().accessKey().equalsIgnoreCase(CREDENTIAL_TO_REDIRECT.accessKey());
+            boolean redirectForTestCredential = accessKey.equalsIgnoreCase(CREDENTIAL_TO_REDIRECT.accessKey());
             if (redirectForTestCredential) {
                 return Optional.of(new S3RewriteResult(TEST_CREDENTIAL_REDIRECT_BUCKET, keyName.isEmpty() ? "" : TEST_CREDENTIAL_REDIRECT_KEY));
             }

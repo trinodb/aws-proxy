@@ -18,6 +18,7 @@ import io.trino.aws.proxy.server.TrinoAwsProxyConfig;
 import io.trino.aws.proxy.server.rest.S3PresignController;
 import io.trino.aws.proxy.server.security.S3SecurityController;
 import io.trino.aws.proxy.server.testing.containers.TestContainerUtil;
+import io.trino.aws.proxy.spi.credentials.Identity;
 import io.trino.aws.proxy.spi.rest.ParsedS3Request;
 import io.trino.aws.proxy.spi.signing.SigningController;
 import io.trino.aws.proxy.spi.signing.SigningMetadata;
@@ -25,6 +26,7 @@ import io.trino.aws.proxy.spi.signing.SigningMetadata;
 import java.net.URI;
 import java.time.Instant;
 import java.util.Map;
+import java.util.Optional;
 
 public class TestingS3PresignController
         extends S3PresignController
@@ -38,12 +40,13 @@ public class TestingS3PresignController
     }
 
     @Override
-    public Map<String, URI> buildPresignedRemoteUrls(SigningMetadata signingMetadata, ParsedS3Request request, Instant targetRequestTimestamp, URI remoteUri)
+    public Map<String, URI> buildPresignedRemoteUrls(Optional<Identity> identity, SigningMetadata signingMetadata, ParsedS3Request request, Instant targetRequestTimestamp,
+            URI remoteUri)
     {
         if (rewriteUrisForContainers) {
             remoteUri = URI.create(TestContainerUtil.asHostUrl(remoteUri.toString()));
         }
-        return super.buildPresignedRemoteUrls(signingMetadata, request, targetRequestTimestamp, remoteUri);
+        return super.buildPresignedRemoteUrls(identity, signingMetadata, request, targetRequestTimestamp, remoteUri);
     }
 
     public void setRewriteUrisForContainers(boolean doRewrites)

@@ -22,7 +22,7 @@ import io.airlift.http.server.testing.TestingHttpServer;
 import io.airlift.node.NodeConfig;
 import io.airlift.node.NodeInfo;
 import io.trino.aws.proxy.spi.credentials.Credential;
-import io.trino.aws.proxy.spi.credentials.Credentials;
+import io.trino.aws.proxy.spi.credentials.IdentityCredential;
 import jakarta.servlet.Servlet;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3Client;
@@ -61,10 +61,11 @@ public final class TestingUtil
 {
     private TestingUtil() {}
 
-    public static final Credentials TESTING_CREDENTIALS = Credentials.build(
+    public static final IdentityCredential TESTING_IDENTITY_CREDENTIAL = new IdentityCredential(
             new Credential(UUID.randomUUID().toString(), UUID.randomUUID().toString()),
-            new Credential(UUID.randomUUID().toString(), UUID.randomUUID().toString()),
-            new TestingIdentity(UUID.randomUUID().toString(), List.of(), UUID.randomUUID().toString()));
+            Optional.of(new TestingIdentity(UUID.randomUUID().toString(), List.of(), UUID.randomUUID().toString())));
+
+    public static final Credential TESTING_REMOTE_CREDENTIAL = new Credential(UUID.randomUUID().toString(), UUID.randomUUID().toString());
 
     // Domain name with a wildcard CNAME pointing to localhost - needed to test Virtual Host style addressing
     public static final String LOCALHOST_DOMAIN = "local.gate0.net";

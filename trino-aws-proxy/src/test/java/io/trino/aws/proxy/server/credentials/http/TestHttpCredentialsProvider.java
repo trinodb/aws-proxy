@@ -23,8 +23,8 @@ import io.trino.aws.proxy.server.testing.TestingTrinoAwsProxyServer;
 import io.trino.aws.proxy.server.testing.harness.BuilderFilter;
 import io.trino.aws.proxy.server.testing.harness.TrinoAwsProxyTest;
 import io.trino.aws.proxy.spi.credentials.Credential;
-import io.trino.aws.proxy.spi.credentials.Credentials;
 import io.trino.aws.proxy.spi.credentials.CredentialsProvider;
+import io.trino.aws.proxy.spi.credentials.IdentityCredential;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -34,8 +34,6 @@ import java.util.Optional;
 import static io.trino.aws.proxy.server.credentials.http.HttpCredentialsModule.HTTP_CREDENTIALS_PROVIDER_IDENTIFIER;
 import static io.trino.aws.proxy.server.testing.TestingHttpCredentialsProviderServlet.DUMMY_EMULATED_ACCESS_KEY;
 import static io.trino.aws.proxy.server.testing.TestingHttpCredentialsProviderServlet.DUMMY_EMULATED_SECRET_KEY;
-import static io.trino.aws.proxy.server.testing.TestingHttpCredentialsProviderServlet.DUMMY_REMOTE_ACCESS_KEY;
-import static io.trino.aws.proxy.server.testing.TestingHttpCredentialsProviderServlet.DUMMY_REMOTE_SECRET_KEY;
 import static io.trino.aws.proxy.server.testing.TestingUtil.createTestingHttpServer;
 import static io.trino.aws.proxy.spi.plugin.TrinoAwsProxyServerBinding.bindIdentityType;
 import static java.util.Objects.requireNonNull;
@@ -139,10 +137,9 @@ public class TestHttpCredentialsProvider
     private void testValidCredentials(Optional<String> emulatedAccessToken, int expectedRequestCount)
     {
         Credential expectedEmulated = new Credential(DUMMY_EMULATED_ACCESS_KEY, DUMMY_EMULATED_SECRET_KEY, emulatedAccessToken);
-        Credential expectedRemote = new Credential(DUMMY_REMOTE_ACCESS_KEY, DUMMY_REMOTE_SECRET_KEY);
 
-        Credentials expected = new Credentials(expectedEmulated, Optional.of(expectedRemote), Optional.empty(), Optional.of(new TestingIdentity("test-username", ImmutableList.of(), "xyzpdq")));
-        Optional<Credentials> actual = credentialsProvider.credentials(DUMMY_EMULATED_ACCESS_KEY, emulatedAccessToken);
+        IdentityCredential expected = new IdentityCredential(expectedEmulated, new TestingIdentity("test-username", ImmutableList.of(), "xyzpdq"));
+        Optional<IdentityCredential> actual = credentialsProvider.credentials(DUMMY_EMULATED_ACCESS_KEY, emulatedAccessToken);
         assertThat(actual).contains(expected);
         assertThat(httpCredentialsServlet.getRequestCount()).isEqualTo(expectedRequestCount);
     }

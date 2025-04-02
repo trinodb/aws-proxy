@@ -16,6 +16,7 @@ package io.trino.aws.proxy.server.rest;
 import com.google.inject.Inject;
 import io.trino.aws.proxy.server.TrinoAwsProxyConfig;
 import io.trino.aws.proxy.server.rest.ResourceSecurity.S3;
+import io.trino.aws.proxy.spi.credentials.Identity;
 import io.trino.aws.proxy.spi.rest.ParsedS3Request;
 import io.trino.aws.proxy.spi.rest.Request;
 import io.trino.aws.proxy.spi.signing.SigningMetadata;
@@ -53,80 +54,90 @@ public class TrinoS3Resource
     }
 
     @GET
-    public void s3Get(@Context Request request, @Context SigningMetadata signingMetadata, @Context RequestLoggingSession requestLoggingSession, @Suspended AsyncResponse asyncResponse)
+    public void s3Get(@Context Request request, @Context Optional<Identity> identity, @Context SigningMetadata signingMetadata,
+            @Context RequestLoggingSession requestLoggingSession, @Suspended AsyncResponse asyncResponse)
     {
-        handler(request, signingMetadata, requestLoggingSession, asyncResponse);
+        handler(request, identity, signingMetadata, requestLoggingSession, asyncResponse);
     }
 
     @GET
     @Path("{path:.*}")
-    public void s3GetWithPath(@Context Request request, @Context SigningMetadata signingMetadata, @Context RequestLoggingSession requestLoggingSession, @Suspended AsyncResponse asyncResponse)
+    public void s3GetWithPath(@Context Request request, @Context Optional<Identity> identity, @Context SigningMetadata signingMetadata,
+            @Context RequestLoggingSession requestLoggingSession, @Suspended AsyncResponse asyncResponse)
     {
-        handler(request, signingMetadata, requestLoggingSession, asyncResponse);
+        handler(request, identity, signingMetadata, requestLoggingSession, asyncResponse);
     }
 
     @HEAD
-    public void s3Head(@Context Request request, @Context SigningMetadata signingMetadata, @Context RequestLoggingSession requestLoggingSession, @Suspended AsyncResponse asyncResponse)
+    public void s3Head(@Context Request request, @Context Optional<Identity> identity, @Context SigningMetadata signingMetadata,
+            @Context RequestLoggingSession requestLoggingSession, @Suspended AsyncResponse asyncResponse)
     {
-        handler(request, signingMetadata, requestLoggingSession, asyncResponse);
+        handler(request, identity, signingMetadata, requestLoggingSession, asyncResponse);
     }
 
     @HEAD
     @Path("{path:.*}")
-    public void s3HeadWithPath(@Context Request request, @Context SigningMetadata signingMetadata, @Context RequestLoggingSession requestLoggingSession, @Suspended AsyncResponse asyncResponse)
+    public void s3HeadWithPath(@Context Request request, @Context Optional<Identity> identity, @Context SigningMetadata signingMetadata,
+            @Context RequestLoggingSession requestLoggingSession, @Suspended AsyncResponse asyncResponse)
     {
-        handler(request, signingMetadata, requestLoggingSession, asyncResponse);
+        handler(request, identity, signingMetadata, requestLoggingSession, asyncResponse);
     }
 
     @PUT
-    public void s3Put(@Context Request request, @Context SigningMetadata signingMetadata, @Context RequestLoggingSession requestLoggingSession, @Suspended AsyncResponse asyncResponse)
+    public void s3Put(@Context Request request, @Context Optional<Identity> identity, @Context SigningMetadata signingMetadata,
+            @Context RequestLoggingSession requestLoggingSession, @Suspended AsyncResponse asyncResponse)
     {
-        handler(request, signingMetadata, requestLoggingSession, asyncResponse);
+        handler(request, identity, signingMetadata, requestLoggingSession, asyncResponse);
     }
 
     @PUT
     @Path("{path:.*}")
-    public void s3PutWithPath(@Context Request request, @Context SigningMetadata signingMetadata, @Context RequestLoggingSession requestLoggingSession, @Suspended AsyncResponse asyncResponse)
+    public void s3PutWithPath(@Context Request request, @Context Optional<Identity> identity, @Context SigningMetadata signingMetadata,
+            @Context RequestLoggingSession requestLoggingSession, @Suspended AsyncResponse asyncResponse)
     {
-        handler(request, signingMetadata, requestLoggingSession, asyncResponse);
+        handler(request, identity, signingMetadata, requestLoggingSession, asyncResponse);
     }
 
     @POST
-    public void s3Post(@Context Request request, @Context SigningMetadata signingMetadata, @Context RequestLoggingSession requestLoggingSession, @Suspended AsyncResponse asyncResponse)
+    public void s3Post(@Context Request request, @Context Optional<Identity> identity, @Context SigningMetadata signingMetadata,
+            @Context RequestLoggingSession requestLoggingSession, @Suspended AsyncResponse asyncResponse)
     {
-        handler(request, signingMetadata, requestLoggingSession, asyncResponse);
+        handler(request, identity, signingMetadata, requestLoggingSession, asyncResponse);
     }
 
     @POST
     @Path("{path:.*}")
-    public void s3PostWithPath(@Context Request request, @Context SigningMetadata signingMetadata, @Context RequestLoggingSession requestLoggingSession, @Suspended AsyncResponse asyncResponse)
+    public void s3PostWithPath(@Context Request request, @Context Optional<Identity> identity, @Context SigningMetadata signingMetadata,
+            @Context RequestLoggingSession requestLoggingSession, @Suspended AsyncResponse asyncResponse)
     {
-        handler(request, signingMetadata, requestLoggingSession, asyncResponse);
+        handler(request, identity, signingMetadata, requestLoggingSession, asyncResponse);
     }
 
     @DELETE
-    public void s3Delete(@Context Request request, @Context SigningMetadata signingMetadata, @Context RequestLoggingSession requestLoggingSession, @Suspended AsyncResponse asyncResponse)
+    public void s3Delete(@Context Request request, @Context Optional<Identity> identity, @Context SigningMetadata signingMetadata,
+            @Context RequestLoggingSession requestLoggingSession, @Suspended AsyncResponse asyncResponse)
     {
-        handler(request, signingMetadata, requestLoggingSession, asyncResponse);
+        handler(request, identity, signingMetadata, requestLoggingSession, asyncResponse);
     }
 
     @DELETE
     @Path("{path:.*}")
-    public void s3DeleteWithPath(@Context Request request, @Context SigningMetadata signingMetadata, @Context RequestLoggingSession requestLoggingSession, @Suspended AsyncResponse asyncResponse)
+    public void s3DeleteWithPath(@Context Request request, @Context Optional<Identity> identity, @Context SigningMetadata signingMetadata,
+            @Context RequestLoggingSession requestLoggingSession, @Suspended AsyncResponse asyncResponse)
     {
-        handler(request, signingMetadata, requestLoggingSession, asyncResponse);
+        handler(request, identity, signingMetadata, requestLoggingSession, asyncResponse);
     }
 
-    private void handler(Request request, SigningMetadata signingMetadata, RequestLoggingSession requestLoggingSession, AsyncResponse asyncResponse)
+    private void handler(Request request, Optional<Identity> identity, SigningMetadata signingMetadata, RequestLoggingSession requestLoggingSession, AsyncResponse asyncResponse)
     {
         try {
             ParsedS3Request parsedS3Request = parseRequest(request);
 
             requestLoggingSession.logProperty("request.parsed.bucket", parsedS3Request.bucketName());
             requestLoggingSession.logProperty("request.parsed.key", parsedS3Request.keyInBucket());
-            requestLoggingSession.logProperty("request.emulated.key", signingMetadata.credentials().emulated().secretKey());
+            requestLoggingSession.logProperty("request.emulated.key", signingMetadata.credential().secretKey());
 
-            proxyClient.proxyRequest(signingMetadata, parsedS3Request, asyncResponse, requestLoggingSession);
+            proxyClient.proxyRequest(identity, signingMetadata, parsedS3Request, asyncResponse, requestLoggingSession);
         }
         catch (Throwable e) {
             requestLoggingSession.logException(e);

@@ -19,7 +19,7 @@ import io.trino.aws.proxy.server.testing.TestingTrinoAwsProxyServer;
 import io.trino.aws.proxy.server.testing.TestingUtil.ForTesting;
 import io.trino.aws.proxy.server.testing.harness.BuilderFilter;
 import io.trino.aws.proxy.server.testing.harness.TrinoAwsProxyTest;
-import io.trino.aws.proxy.spi.credentials.Credentials;
+import io.trino.aws.proxy.spi.credentials.IdentityCredential;
 
 import java.net.URI;
 
@@ -51,7 +51,7 @@ public class TestGlueInS3Proxy
     }
 
     @Inject
-    public TestGlueInS3Proxy(TestingHttpServer httpServer, TrinoGlueConfig config, @ForTesting Credentials testingCredentials)
+    public TestGlueInS3Proxy(TestingHttpServer httpServer, TrinoGlueConfig config, @ForTesting IdentityCredential testingCredentials)
     {
         super(config, testingCredentials, new Context(httpServer.getBaseUrl()));
     }

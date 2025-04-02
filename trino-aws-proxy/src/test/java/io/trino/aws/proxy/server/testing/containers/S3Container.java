@@ -18,9 +18,7 @@ import com.google.inject.BindingAnnotation;
 import com.google.inject.Inject;
 import com.google.inject.Provider;
 import io.airlift.log.Logger;
-import io.trino.aws.proxy.server.testing.TestingUtil.ForTesting;
 import io.trino.aws.proxy.spi.credentials.Credential;
-import io.trino.aws.proxy.spi.credentials.Credentials;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
 import org.testcontainers.containers.Container;
@@ -93,8 +91,6 @@ public class S3Container
     private final Credential credential;
     private final Credential policyUserCredential;
 
-    private volatile Credentials sessionCredentials;
-
     @Override
     public S3Client get()
     {
@@ -107,10 +103,10 @@ public class S3Container
     public @interface ForS3Container {}
 
     @Inject
-    public S3Container(@ForS3Container List<String> initialBuckets, @ForTesting Credentials credentials)
+    public S3Container(@ForS3Container List<String> initialBuckets, @ForS3Container Credential remoteCredentials)
     {
         this.initialBuckets = requireNonNull(initialBuckets, "initialBuckets is null");
-        this.credential = requireNonNull(credentials, "credentials is null").requiredRemoteCredential();
+        this.credential = requireNonNull(remoteCredentials, "credentials is null");
 
         Transferable config = Transferable.of(CONFIG_TEMPLATE.formatted(credential.accessKey(), credential.secretKey()));
         Transferable policyFile = Transferable.of(POLICY);

@@ -19,8 +19,8 @@ import io.trino.aws.proxy.server.TrinoAwsProxyConfig;
 import io.trino.aws.proxy.server.testing.TestingCredentialsRolesProvider;
 import io.trino.aws.proxy.server.testing.TestingUtil.ForTesting;
 import io.trino.aws.proxy.server.testing.harness.TrinoAwsProxyTest;
-import io.trino.aws.proxy.spi.credentials.Credentials;
 import io.trino.aws.proxy.spi.credentials.EmulatedAssumedRole;
+import io.trino.aws.proxy.spi.credentials.IdentityCredential;
 import org.assertj.core.api.InstanceOfAssertFactories;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -44,10 +44,11 @@ public class TestAssumingRoles
 
     private final TestingCredentialsRolesProvider credentialsController;
     private final URI localS3URI;
-    private final Credentials testingCredentials;
+    private final IdentityCredential testingCredentials;
 
     @Inject
-    public TestAssumingRoles(TestingCredentialsRolesProvider credentialsController, TestingHttpServer httpServer, @ForTesting Credentials testingCredentials, TrinoAwsProxyConfig trinoS3ProxyConfig)
+    public TestAssumingRoles(TestingCredentialsRolesProvider credentialsController, TestingHttpServer httpServer, @ForTesting IdentityCredential testingCredentials,
+            TrinoAwsProxyConfig trinoS3ProxyConfig)
     {
         this.credentialsController = requireNonNull(credentialsController, "credentialsController is null");
         this.testingCredentials = requireNonNull(testingCredentials, "testingCredentials is null");
@@ -63,7 +64,8 @@ public class TestAssumingRoles
     @Test
     public void testStsSession()
     {
-        EmulatedAssumedRole emulatedAssumedRole = credentialsController.assumeEmulatedRole(testingCredentials.emulated(), "us-east-1", ARN, Optional.empty(), Optional.empty(), Optional.empty())
+        EmulatedAssumedRole emulatedAssumedRole = credentialsController.assumeEmulatedRole(testingCredentials.emulated(), "us-east-1", ARN, Optional.empty(),
+                        Optional.empty(), Optional.empty())
                 .orElseThrow(() -> new RuntimeException("Failed to assume role"));
 
         try (S3Client client = clientBuilder(localS3URI)

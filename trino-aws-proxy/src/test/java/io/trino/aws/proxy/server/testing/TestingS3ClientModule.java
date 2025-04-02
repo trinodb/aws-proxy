@@ -20,7 +20,7 @@ import io.airlift.http.server.testing.TestingHttpServer;
 import io.trino.aws.proxy.server.TrinoAwsProxyConfig;
 import io.trino.aws.proxy.server.testing.TestingUtil.ForTesting;
 import io.trino.aws.proxy.spi.credentials.Credential;
-import io.trino.aws.proxy.spi.credentials.Credentials;
+import io.trino.aws.proxy.spi.credentials.IdentityCredential;
 import jakarta.ws.rs.core.UriBuilder;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.services.s3.S3Client;
@@ -44,7 +44,7 @@ public class TestingS3ClientModule
     public @interface ForVirtualHostProxy {}
 
     @Provides
-    public S3Client getPathStyleAddressingClient(TestingHttpServer httpServer, @ForTesting Credentials credentials, TrinoAwsProxyConfig config)
+    public S3Client getPathStyleAddressingClient(TestingHttpServer httpServer, @ForTesting IdentityCredential credentials, TrinoAwsProxyConfig config)
     {
         Credential emulatedCredentials = credentials.emulated();
         AwsBasicCredentials awsBasicCredentials = AwsBasicCredentials.create(emulatedCredentials.accessKey(), emulatedCredentials.secretKey());
@@ -56,7 +56,7 @@ public class TestingS3ClientModule
 
     @Provides
     @ForVirtualHostProxy
-    public S3Client getVirtualHostAddressingClient(TestingHttpServer httpServer, @ForTesting Credentials credentials, TrinoAwsProxyConfig config)
+    public S3Client getVirtualHostAddressingClient(TestingHttpServer httpServer, @ForTesting IdentityCredential credentials, TrinoAwsProxyConfig config)
     {
         checkArgument(config.getS3HostName().isPresent(), "virtual host addressing proxy client requested but S3 hostname is not set");
         String hostname = config.getS3HostName().orElseThrow();

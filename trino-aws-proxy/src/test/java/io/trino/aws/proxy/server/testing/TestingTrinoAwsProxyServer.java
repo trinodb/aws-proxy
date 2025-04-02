@@ -30,7 +30,6 @@ import io.airlift.json.JsonModule;
 import io.airlift.log.Level;
 import io.airlift.log.Logging;
 import io.airlift.node.testing.TestingNodeModule;
-import io.trino.aws.proxy.server.testing.TestingTrinoAwsProxyServerModule.ForTestingRemoteCredentials;
 import io.trino.aws.proxy.server.testing.TestingUtil.ForTesting;
 import io.trino.aws.proxy.server.testing.containers.MetastoreContainer;
 import io.trino.aws.proxy.server.testing.containers.OpaContainer;
@@ -40,18 +39,23 @@ import io.trino.aws.proxy.server.testing.containers.PySparkContainer.PySparkV3Co
 import io.trino.aws.proxy.server.testing.containers.PySparkContainer.PySparkV4Container;
 import io.trino.aws.proxy.server.testing.containers.S3Container;
 import io.trino.aws.proxy.server.testing.containers.S3Container.ForS3Container;
-import io.trino.aws.proxy.spi.credentials.Credentials;
+import io.trino.aws.proxy.spi.credentials.Credential;
+import io.trino.aws.proxy.spi.credentials.IdentityCredential;
+import io.trino.aws.proxy.spi.remote.RemoteS3Connection;
 import io.trino.aws.proxy.spi.remote.RemoteS3Facade;
 
 import java.io.Closeable;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import static com.google.inject.multibindings.OptionalBinder.newOptionalBinder;
-import static io.trino.aws.proxy.server.testing.TestingUtil.TESTING_CREDENTIALS;
+import static io.trino.aws.proxy.server.testing.TestingUtil.TESTING_IDENTITY_CREDENTIAL;
+import static io.trino.aws.proxy.server.testing.TestingUtil.TESTING_REMOTE_CREDENTIAL;
 import static io.trino.aws.proxy.spi.plugin.TrinoAwsProxyServerBinding.assumedRoleProviderModule;
 import static io.trino.aws.proxy.spi.plugin.TrinoAwsProxyServerBinding.credentialsProviderModule;
+import static io.trino.aws.proxy.spi.plugin.TrinoAwsProxyServerBinding.remoteS3ConnectionProviderModule;
 import static io.trino.aws.proxy.spi.plugin.TrinoAwsProxyServerBinding.remoteS3Module;
 
 public final class TestingTrinoAwsProxyServer
@@ -112,7 +116,9 @@ public final class TestingTrinoAwsProxyServer
 
             modules.add(binder -> {
                 binder.bind(S3Container.class).asEagerSingleton();
-                binder.bind(Credentials.class).annotatedWith(ForTesting.class).toInstance(TESTING_CREDENTIALS);
+                binder.bind(IdentityCredential.class).annotatedWith(ForTesting.class).toInstance(TESTING_IDENTITY_CREDENTIAL);
+                binder.bind(Credential.class).annotatedWith(ForTesting.class).toInstance(TESTING_IDENTITY_CREDENTIAL.emulated());
+                binder.bind(Credential.class).annotatedWith(ForS3Container.class).toInstance(TESTING_REMOTE_CREDENTIAL);
                 newOptionalBinder(binder, Key.get(new TypeLiteral<List<String>>() {}, ForS3Container.class)).setDefault().toInstance(ImmutableList.of());
 
                 newOptionalBinder(binder, Key.get(RemoteS3Facade.class, ForTesting.class))
@@ -223,8 +229,9 @@ public final class TestingTrinoAwsProxyServer
                 withProperty("credentials-provider.type", "testing");
                 addModule(assumedRoleProviderModule("testing", TestingCredentialsRolesProvider.class, (binder) -> binder.bind(TestingCredentialsRolesProvider.class).in(Scopes.SINGLETON)));
                 withProperty("assumed-role-provider.type", "testing");
-
-                modules.add(binder -> binder.bind(Credentials.class).annotatedWith(ForTestingRemoteCredentials.class).toProvider(TestingRemoteCredentialsProvider.class));
+                addModule(remoteS3ConnectionProviderModule("testing", TestingCredentialsRolesProvider.class,
+                        binder -> binder.bind(TestingCredentialsInitializer.class).in(Scopes.SINGLETON)));
+                withProperty("remote-s3-connection-provider.type", "testing");
             }
 
             return start(modules.build(), properties.buildKeepingLast());
@@ -236,7 +243,8 @@ public final class TestingTrinoAwsProxyServer
         @Inject
         TestingCredentialsInitializer(TestingCredentialsRolesProvider credentialsController)
         {
-            credentialsController.addCredentials(TESTING_CREDENTIALS);
+            credentialsController.addCredentials(TESTING_IDENTITY_CREDENTIAL);
+            credentialsController.setDefaultRemoteConnection(new RemoteS3Connection(TESTING_REMOTE_CREDENTIAL, Optional.empty(), Optional.empty()));
         }
     }
 
