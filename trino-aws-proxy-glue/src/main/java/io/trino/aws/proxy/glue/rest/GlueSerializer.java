@@ -16,6 +16,7 @@ package io.trino.aws.proxy.glue.rest;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.databind.JsonSerializer;
 import com.fasterxml.jackson.databind.SerializerProvider;
+import software.amazon.awssdk.core.SdkBytes;
 import software.amazon.awssdk.core.SdkField;
 
 import java.io.IOException;
@@ -43,6 +44,7 @@ class GlueSerializer<T>
             Object fieldValue = sdkField.getValueOrDefault(value);
             switch (fieldValue) {
                 case Instant instant -> generator.writePOJOField(sdkField.memberName(), formatUnixTimestampInstant(instant));  // per AWS spec
+                case SdkBytes sdkBytes -> generator.writePOJOField(sdkField.memberName(), sdkBytes.asByteArray());  // per AWS spec
                 case null -> {} // do nothing
                 default -> generator.writePOJOField(sdkField.memberName(), fieldValue);
             }

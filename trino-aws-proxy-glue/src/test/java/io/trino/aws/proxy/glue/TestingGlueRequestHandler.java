@@ -22,6 +22,7 @@ import jakarta.ws.rs.WebApplicationException;
 import software.amazon.awssdk.services.glue.model.CreateDatabaseRequest;
 import software.amazon.awssdk.services.glue.model.CreateDatabaseResponse;
 import software.amazon.awssdk.services.glue.model.CreateTableRequest;
+import software.amazon.awssdk.services.glue.model.CreateTableResponse;
 import software.amazon.awssdk.services.glue.model.Database;
 import software.amazon.awssdk.services.glue.model.EntityNotFoundException;
 import software.amazon.awssdk.services.glue.model.GetDatabaseRequest;
@@ -31,6 +32,8 @@ import software.amazon.awssdk.services.glue.model.GetResourcePoliciesRequest;
 import software.amazon.awssdk.services.glue.model.GetResourcePoliciesResponse;
 import software.amazon.awssdk.services.glue.model.GluePolicy;
 import software.amazon.awssdk.services.glue.model.GlueResponse;
+import software.amazon.awssdk.services.glue.model.UpdateColumnStatisticsForTableRequest;
+import software.amazon.awssdk.services.glue.model.UpdateColumnStatisticsForTableResponse;
 
 import java.time.Instant;
 import java.util.Collection;
@@ -113,7 +116,15 @@ public class TestingGlueRequestHandler
                 assertThat(tableRequest.tableInput().description()).isEqualTo("desc1");
                 assertThat(tableRequest.tableInput().name()).isEqualTo("tableName");
                 assertThat(tableRequest.tableInput().parameters()).isEqualTo(Map.of("k1", "v1"));
-                yield CreateDatabaseResponse.builder().build();
+                yield CreateTableResponse.builder().build();
+            }
+
+            case UpdateColumnStatisticsForTableRequest columnStatisticsForTableRequest -> {
+                assertThat(columnStatisticsForTableRequest.catalogId()).isEqualTo("1");
+                assertThat(columnStatisticsForTableRequest.databaseName()).isEqualTo("database1");
+                assertThat(columnStatisticsForTableRequest.columnStatisticsList()).hasSize(1);
+                assertThat(columnStatisticsForTableRequest.columnStatisticsList().getFirst().statisticsData()).isNotNull();
+                yield  UpdateColumnStatisticsForTableResponse.builder().build();
             }
 
             default -> throw new WebApplicationException(NOT_FOUND);
