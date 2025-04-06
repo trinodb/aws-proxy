@@ -21,14 +21,20 @@ import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration;
 import software.amazon.awssdk.core.CompressionConfiguration;
+import software.amazon.awssdk.core.SdkBytes;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.glue.GlueClient;
 import software.amazon.awssdk.services.glue.model.Column;
+import software.amazon.awssdk.services.glue.model.ColumnStatistics;
+import software.amazon.awssdk.services.glue.model.ColumnStatisticsData;
+import software.amazon.awssdk.services.glue.model.ColumnStatisticsType;
 import software.amazon.awssdk.services.glue.model.CreateDatabaseRequest;
 import software.amazon.awssdk.services.glue.model.CreateTableRequest;
 import software.amazon.awssdk.services.glue.model.Database;
 import software.amazon.awssdk.services.glue.model.DatabaseIdentifier;
 import software.amazon.awssdk.services.glue.model.DatabaseInput;
+import software.amazon.awssdk.services.glue.model.DecimalColumnStatisticsData;
+import software.amazon.awssdk.services.glue.model.DecimalNumber;
 import software.amazon.awssdk.services.glue.model.EntityNotFoundException;
 import software.amazon.awssdk.services.glue.model.FederatedDatabase;
 import software.amazon.awssdk.services.glue.model.GetDatabaseRequest;
@@ -44,9 +50,11 @@ import software.amazon.awssdk.services.glue.model.PartitionIndex;
 import software.amazon.awssdk.services.glue.model.StorageDescriptor;
 import software.amazon.awssdk.services.glue.model.TableIdentifier;
 import software.amazon.awssdk.services.glue.model.TableInput;
+import software.amazon.awssdk.services.glue.model.UpdateColumnStatisticsForTableRequest;
 
 import java.net.URI;
 import java.time.temporal.ChronoUnit;
+import java.util.List;
 import java.util.Map;
 
 import static io.trino.aws.proxy.glue.TestingGlueRequestHandler.DATABASE_1;
@@ -159,6 +167,27 @@ public abstract class TestGlueBase<T extends TestingGlueContext>
                 .partitionIndexes(PartitionIndex.builder().indexName("i1").keys("k1").build())
                 .transactionId("t1")
                 .build());
+
+        glueClient.updateColumnStatisticsForTable(
+                UpdateColumnStatisticsForTableRequest.builder()
+                        .catalogId(catalogId)
+                        .databaseName(databaseName)
+                        .tableName("table1")
+                        .columnStatisticsList(
+                                List.of(ColumnStatistics.builder()
+                                        .columnName("a")
+                                        .columnType("b")
+                                        .statisticsData(ColumnStatisticsData.builder()
+                                                .type(ColumnStatisticsType.DECIMAL)
+                                                .decimalColumnStatisticsData(DecimalColumnStatisticsData.builder()
+                                                        .maximumValue(DecimalNumber.builder()
+                                                                .scale(1)
+                                                                .unscaledValue(SdkBytes.fromUtf8String("MDk="))
+                                                                .build())
+                                                        .build())
+                                                .build())
+                                        .build()))
+                        .build());
     }
 
     @Test

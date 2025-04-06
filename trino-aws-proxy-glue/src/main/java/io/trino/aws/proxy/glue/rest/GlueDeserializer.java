@@ -19,6 +19,7 @@ import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.JsonDeserializer;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import software.amazon.awssdk.core.SdkBytes;
 import software.amazon.awssdk.core.SdkField;
 
 import java.io.IOException;
@@ -68,6 +69,9 @@ class GlueDeserializer<T>
                 Type type = fieldTypeMap.get(fieldName);
                 if (type == null) {
                     return (T) context.handleUnexpectedToken(context.getContextualType(), parser);
+                }
+                if (type == SdkBytes.class) {
+                    sdkField.set(builder, SdkBytes.fromByteArray(fieldValue.binaryValue()));
                 }
                 else {
                     JavaType javaType = context.getTypeFactory().constructType(type);
