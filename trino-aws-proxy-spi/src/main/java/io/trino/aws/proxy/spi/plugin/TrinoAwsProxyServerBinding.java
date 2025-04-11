@@ -24,15 +24,15 @@ import io.trino.aws.proxy.spi.credentials.Identity;
 import io.trino.aws.proxy.spi.plugin.config.AssumedRoleProviderConfig;
 import io.trino.aws.proxy.spi.plugin.config.CredentialsProviderConfig;
 import io.trino.aws.proxy.spi.plugin.config.PluginIdentifierConfig;
-import io.trino.aws.proxy.spi.plugin.config.RemoteS3Config;
 import io.trino.aws.proxy.spi.plugin.config.RemoteS3ConnectionProviderConfig;
 import io.trino.aws.proxy.spi.plugin.config.S3RequestRewriterConfig;
 import io.trino.aws.proxy.spi.plugin.config.S3SecurityFacadeProviderConfig;
 import io.trino.aws.proxy.spi.remote.RemoteS3ConnectionProvider;
-import io.trino.aws.proxy.spi.remote.RemoteS3Facade;
+import io.trino.aws.proxy.spi.remote.RemoteS3FacadeFactory;
 import io.trino.aws.proxy.spi.rest.S3RequestRewriter;
 import io.trino.aws.proxy.spi.security.S3SecurityFacadeProvider;
 
+import static com.google.inject.multibindings.Multibinder.newSetBinder;
 import static com.google.inject.multibindings.OptionalBinder.newOptionalBinder;
 import static io.airlift.configuration.ConditionalModule.conditionalModule;
 import static io.airlift.configuration.ConfigurationAwareModule.combine;
@@ -66,9 +66,9 @@ public interface TrinoAwsProxyServerBinding
         return optionalPluginModule(S3RequestRewriterConfig.class, identifier, S3RequestRewriter.class, implementationClass, module);
     }
 
-    static Module remoteS3Module(String identifier, Class<? extends RemoteS3Facade> implementationClass, Module module)
+    static Module remoteS3FacadeFactory(Class<? extends RemoteS3FacadeFactory> factory)
     {
-        return optionalPluginModule(RemoteS3Config.class, identifier, RemoteS3Facade.class, implementationClass, module);
+        return binder -> newSetBinder(binder, RemoteS3FacadeFactory.class).addBinding().to(factory).in(Scopes.SINGLETON);
     }
 
     static <T extends Identity> void bindIdentityType(Binder binder, Class<T> type)
