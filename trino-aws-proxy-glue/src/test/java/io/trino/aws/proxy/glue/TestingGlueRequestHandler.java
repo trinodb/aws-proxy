@@ -122,9 +122,18 @@ public class TestingGlueRequestHandler
             case UpdateColumnStatisticsForTableRequest columnStatisticsForTableRequest -> {
                 assertThat(columnStatisticsForTableRequest.catalogId()).isEqualTo("1");
                 assertThat(columnStatisticsForTableRequest.databaseName()).isEqualTo("database1");
-                assertThat(columnStatisticsForTableRequest.columnStatisticsList()).hasSize(1);
+                assertThat(columnStatisticsForTableRequest.columnStatisticsList()).hasSize(2);
                 assertThat(columnStatisticsForTableRequest.columnStatisticsList().getFirst().statisticsData()).isNotNull();
-                yield  UpdateColumnStatisticsForTableResponse.builder().build();
+                assertThat(columnStatisticsForTableRequest.columnStatisticsList()
+                        .stream()
+                        .filter(columnStatistics -> columnStatistics.statisticsData().stringColumnStatisticsData() != null)
+                        .findFirst()
+                        .orElseThrow()
+                        .statisticsData()
+                        .stringColumnStatisticsData()
+                        .averageLength())
+                        .isNotNull();
+                yield UpdateColumnStatisticsForTableResponse.builder().build();
             }
 
             default -> throw new WebApplicationException(NOT_FOUND);

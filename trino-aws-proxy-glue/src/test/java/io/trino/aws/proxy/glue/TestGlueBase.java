@@ -48,13 +48,13 @@ import software.amazon.awssdk.services.glue.model.MetadataOperation;
 import software.amazon.awssdk.services.glue.model.OpenTableFormatInput;
 import software.amazon.awssdk.services.glue.model.PartitionIndex;
 import software.amazon.awssdk.services.glue.model.StorageDescriptor;
+import software.amazon.awssdk.services.glue.model.StringColumnStatisticsData;
 import software.amazon.awssdk.services.glue.model.TableIdentifier;
 import software.amazon.awssdk.services.glue.model.TableInput;
 import software.amazon.awssdk.services.glue.model.UpdateColumnStatisticsForTableRequest;
 
 import java.net.URI;
 import java.time.temporal.ChronoUnit;
-import java.util.List;
 import java.util.Map;
 
 import static io.trino.aws.proxy.glue.TestingGlueRequestHandler.DATABASE_1;
@@ -174,7 +174,7 @@ public abstract class TestGlueBase<T extends TestingGlueContext>
                         .databaseName(databaseName)
                         .tableName("table1")
                         .columnStatisticsList(
-                                List.of(ColumnStatistics.builder()
+                                ColumnStatistics.builder()
                                         .columnName("a")
                                         .columnType("b")
                                         .statisticsData(ColumnStatisticsData.builder()
@@ -186,7 +186,20 @@ public abstract class TestGlueBase<T extends TestingGlueContext>
                                                                 .build())
                                                         .build())
                                                 .build())
-                                        .build()))
+                                        .build(),
+                                ColumnStatistics.builder()
+                                        .columnName("a")
+                                        .columnType("b")
+                                        .statisticsData(ColumnStatisticsData.builder()
+                                                .type(ColumnStatisticsType.STRING)
+                                                .stringColumnStatisticsData(StringColumnStatisticsData.builder()
+                                                        .maximumLength(1L)
+//                                                        .averageLength(0D)
+                                                        .numberOfNulls(0L)
+                                                        .numberOfDistinctValues(1L)
+                                                        .build())
+                                                .build())
+                                        .build())
                         .build());
     }
 

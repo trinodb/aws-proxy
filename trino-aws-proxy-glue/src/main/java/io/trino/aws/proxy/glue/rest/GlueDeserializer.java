@@ -21,6 +21,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import software.amazon.awssdk.core.SdkBytes;
 import software.amazon.awssdk.core.SdkField;
+import software.amazon.awssdk.services.glue.model.StringColumnStatisticsData;
 
 import java.io.IOException;
 import java.lang.reflect.Field;
@@ -70,8 +71,16 @@ class GlueDeserializer<T>
                 if (type == null) {
                     return (T) context.handleUnexpectedToken(context.getContextualType(), parser);
                 }
+
                 if (type == SdkBytes.class) {
                     sdkField.set(builder, SdkBytes.fromByteArray(fieldValue.binaryValue()));
+                }
+                else if (type == StringColumnStatisticsData.class) {
+                    StringColumnStatisticsData stringColumnStatisticsData = mapper.convertValue(fieldValue, StringColumnStatisticsData.class);
+                    if (stringColumnStatisticsData.averageLength() == null) {
+                        stringColumnStatisticsData = stringColumnStatisticsData.toBuilder().averageLength(0D).build();
+                    }
+                    sdkField.set(builder, stringColumnStatisticsData);
                 }
                 else {
                     JavaType javaType = context.getTypeFactory().constructType(type);
