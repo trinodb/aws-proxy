@@ -14,7 +14,9 @@
 package io.trino.aws.proxy.server.testing;
 
 import com.google.inject.Inject;
-import io.trino.aws.proxy.server.testing.TestingUtil.ForTesting;
+import io.trino.aws.proxy.server.remote.DefaultRemoteS3Config;
+import io.trino.aws.proxy.server.remote.PathStyleRemoteS3Facade;
+import io.trino.aws.proxy.server.testing.containers.S3Container;
 import io.trino.aws.proxy.spi.remote.RemoteS3Facade;
 import jakarta.ws.rs.core.UriBuilder;
 
@@ -28,12 +30,15 @@ public class TestingRemoteS3Facade
 {
     private final AtomicReference<RemoteS3Facade> delegate = new AtomicReference<>();
 
-    public TestingRemoteS3Facade() {}
-
     @Inject
-    public TestingRemoteS3Facade(@ForTesting RemoteS3Facade delegate)
+    public TestingRemoteS3Facade(S3Container s3Container)
     {
-        setDelegate(delegate);
+        delegate.set(new PathStyleRemoteS3Facade(new DefaultRemoteS3Config()
+                .setDomain(s3Container.containerHost().getHost())
+                .setPort(s3Container.containerHost().getPort())
+                .setHttps(false)
+                .setVirtualHostStyle(false)
+                .setHostnameTemplate("${domain}")));
     }
 
     @Override

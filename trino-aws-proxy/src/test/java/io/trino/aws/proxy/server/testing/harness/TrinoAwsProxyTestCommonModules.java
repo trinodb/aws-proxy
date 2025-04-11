@@ -15,13 +15,10 @@ package io.trino.aws.proxy.server.testing.harness;
 
 import com.google.common.collect.ImmutableList;
 import com.google.inject.Key;
-import com.google.inject.Scopes;
 import com.google.inject.TypeLiteral;
-import io.trino.aws.proxy.server.testing.ContainerS3Facade;
 import io.trino.aws.proxy.server.testing.TestingTrinoAwsProxyServer;
 import io.trino.aws.proxy.server.testing.TestingUtil.ForTesting;
 import io.trino.aws.proxy.server.testing.containers.S3Container.ForS3Container;
-import io.trino.aws.proxy.spi.remote.RemoteS3Facade;
 
 import java.util.List;
 
@@ -43,20 +40,6 @@ public final class TrinoAwsProxyTestCommonModules
                     newOptionalBinder(binder, Key.get(new TypeLiteral<List<String>>() {}, ForS3Container.class))
                             .setBinding()
                             .toInstance(CONFIGURED_BUCKETS));
-        }
-    }
-
-    public static class WithVirtualHostAddressing
-            implements BuilderFilter
-    {
-        @Override
-        public TestingTrinoAwsProxyServer.Builder filter(TestingTrinoAwsProxyServer.Builder builder)
-        {
-            return builder.addModule(binder ->
-                    newOptionalBinder(binder, Key.get(RemoteS3Facade.class, ForTesting.class))
-                            .setBinding()
-                            .to(ContainerS3Facade.VirtualHostStyleContainerS3Facade.class)
-                            .in(Scopes.SINGLETON));
         }
     }
 

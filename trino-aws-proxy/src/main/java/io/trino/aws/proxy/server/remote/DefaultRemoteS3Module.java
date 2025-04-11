@@ -41,11 +41,11 @@ public class DefaultRemoteS3Module
                 DefaultRemoteS3Config.class,
                 DefaultRemoteS3Config::getVirtualHostStyle,
                 innerBinder -> newOptionalBinder(innerBinder, RemoteS3Facade.class)
-                        .setDefault()
+                        .setBinding()
                         .to(VirtualHostStyleRemoteS3Facade.class)
                         .in(Scopes.SINGLETON),
                 innerBinder -> newOptionalBinder(innerBinder, RemoteS3Facade.class)
-                        .setDefault()
+                        .setBinding()
                         .to(PathStyleRemoteS3Facade.class)
                         .in(Scopes.SINGLETON)));
     }

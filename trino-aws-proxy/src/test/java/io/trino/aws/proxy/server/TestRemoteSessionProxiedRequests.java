@@ -23,7 +23,7 @@ import io.trino.aws.proxy.server.testing.harness.TrinoAwsProxyTest;
 import io.trino.aws.proxy.server.testing.harness.TrinoAwsProxyTestCommonModules.WithConfiguredBuckets;
 import io.trino.aws.proxy.spi.credentials.Credential;
 import io.trino.aws.proxy.spi.credentials.IdentityCredential;
-import io.trino.aws.proxy.spi.remote.RemoteS3Connection;
+import io.trino.aws.proxy.spi.remote.RemoteS3Connection.StaticRemoteS3Connection;
 import io.trino.aws.proxy.spi.remote.RemoteSessionRole;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.services.s3.S3Client;
@@ -52,7 +52,7 @@ public class TestRemoteSessionProxiedRequests
         RemoteSessionRole remoteSessionRole = new RemoteSessionRole("us-east-1", "minio-doesnt-care", Optional.empty(), Optional.empty());
         IdentityCredential identityCredential = new IdentityCredential(new Credential(UUID.randomUUID().toString(), UUID.randomUUID().toString()),
                 TESTING_IDENTITY_CREDENTIAL.identity());
-        testingCredentialsRolesProvider.addCredentials(identityCredential, new RemoteS3Connection(policyUserCredential, Optional.of(remoteSessionRole), Optional.empty()));
+        testingCredentialsRolesProvider.addCredentials(identityCredential, new StaticRemoteS3Connection(policyUserCredential, remoteSessionRole));
         AwsBasicCredentials awsBasicCredentials = AwsBasicCredentials.create(identityCredential.emulated().accessKey(), identityCredential.emulated().secretKey());
         return clientBuilder(httpServer.getBaseUrl(), Optional.of(trinoAwsProxyConfig.getS3Path()))
                 .credentialsProvider(() -> awsBasicCredentials)

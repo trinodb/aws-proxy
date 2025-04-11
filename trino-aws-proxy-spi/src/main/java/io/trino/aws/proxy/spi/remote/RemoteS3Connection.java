@@ -13,23 +13,47 @@
  */
 package io.trino.aws.proxy.spi.remote;
 
-import com.google.common.collect.ImmutableMap;
 import io.trino.aws.proxy.spi.credentials.Credential;
 
-import java.util.Map;
 import java.util.Optional;
 
 import static java.util.Objects.requireNonNull;
 
-public record RemoteS3Connection(
-        Credential remoteCredential,
-        Optional<RemoteSessionRole> remoteSessionRole,
-        Optional<Map<String, String>> remoteS3FacadeConfiguration)
+public interface RemoteS3Connection
 {
-    public RemoteS3Connection
+    Credential remoteCredential();
+
+    default Optional<RemoteSessionRole> remoteSessionRole()
     {
-        requireNonNull(remoteCredential, "remoteCredential is null");
-        requireNonNull(remoteSessionRole, "remoteSessionRole is null");
-        remoteS3FacadeConfiguration = remoteS3FacadeConfiguration.map(ImmutableMap::copyOf);
+        return Optional.empty();
+    }
+
+    default Optional<RemoteS3Facade> remoteS3Facade()
+    {
+        return Optional.empty();
+    }
+
+    record StaticRemoteS3Connection(
+            Credential remoteCredential,
+            Optional<RemoteSessionRole> remoteSessionRole,
+            Optional<RemoteS3Facade> remoteS3Facade)
+            implements RemoteS3Connection
+    {
+        public StaticRemoteS3Connection
+        {
+            requireNonNull(remoteCredential, "remoteCredential is null");
+            requireNonNull(remoteSessionRole, "remoteSessionRole is null");
+            requireNonNull(remoteS3Facade, "remoteS3Facade is null");
+        }
+
+        public StaticRemoteS3Connection(Credential remoteCredential)
+        {
+            this(remoteCredential, Optional.empty(), Optional.empty());
+        }
+
+        public StaticRemoteS3Connection(Credential remoteCredential, RemoteSessionRole remoteSessionRole)
+        {
+            this(remoteCredential, Optional.of(remoteSessionRole), Optional.empty());
+        }
     }
 }
