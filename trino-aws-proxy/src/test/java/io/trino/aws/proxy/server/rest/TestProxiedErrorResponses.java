@@ -14,13 +14,13 @@
 package io.trino.aws.proxy.server.rest;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.google.inject.BindingAnnotation;
 import com.google.inject.Inject;
 import com.google.inject.Key;
 import io.airlift.http.client.HttpStatus;
 import io.airlift.http.server.testing.TestingHttpServer;
-import io.trino.aws.proxy.server.remote.PathStyleRemoteS3Facade;
-import io.trino.aws.proxy.server.testing.TestingRemoteS3Facade;
+import io.trino.aws.proxy.server.testing.TestingRemoteS3FacadeManager;
 import io.trino.aws.proxy.server.testing.TestingTrinoAwsProxyServer.Builder;
 import io.trino.aws.proxy.server.testing.harness.BuilderFilter;
 import io.trino.aws.proxy.server.testing.harness.TrinoAwsProxyTest;
@@ -36,7 +36,6 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.Target;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 
 import static com.google.common.collect.ImmutableMap.toImmutableMap;
 import static io.trino.aws.proxy.server.testing.TestingUtil.createTestingHttpServer;
@@ -95,10 +94,15 @@ public class TestProxiedErrorResponses
     }
 
     @Inject
-    public TestProxiedErrorResponses(S3Client internalClient, TestingRemoteS3Facade delegatingFacade, @ForErrorResponseTest TestingHttpServer httpErrorResponseServer)
+    public TestProxiedErrorResponses(S3Client internalClient, TestingRemoteS3FacadeManager remoteS3FacadeManager, @ForErrorResponseTest TestingHttpServer httpErrorResponseServer)
     {
         this.internalClient = requireNonNull(internalClient, "internal client is null");
-        delegatingFacade.setDelegate(new PathStyleRemoteS3Facade((_, _) -> httpErrorResponseServer.getBaseUrl().getHost(), false, Optional.of(httpErrorResponseServer.getBaseUrl().getPort())));
+        remoteS3FacadeManager.setDefaultRemoteS3Facade(remoteS3FacadeManager.createRemoteS3Facade(ImmutableMap.of(
+                "remoteS3.https", "false",
+                "remoteS3.domain", httpErrorResponseServer.getBaseUrl().getHost(),
+                "remoteS3.port", Integer.toString(httpErrorResponseServer.getPort()),
+                "remoteS3.virtual-host-style", "false",
+                "remoteS3.hostname.template", "${domain}")));
     }
 
     @Test

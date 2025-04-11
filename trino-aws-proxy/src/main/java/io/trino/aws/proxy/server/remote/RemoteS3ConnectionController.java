@@ -14,8 +14,6 @@
 package io.trino.aws.proxy.server.remote;
 
 import com.google.inject.Inject;
-import com.google.inject.Injector;
-import io.airlift.bootstrap.Bootstrap;
 import io.airlift.log.Logger;
 import io.trino.aws.proxy.spi.credentials.Credential;
 import io.trino.aws.proxy.spi.credentials.Identity;
@@ -52,6 +50,7 @@ public class RemoteS3ConnectionController
     private static final Logger log = Logger.get(RemoteS3ConnectionController.class);
 
     private final RemoteS3Facade defaultS3Facade;
+    private final RemoteS3FacadeManager remoteS3FacadeManager;
     private final RemoteS3ConnectionProvider remoteS3ConnectionProvider;
     private final Map<String, Session> remoteSessions = new ConcurrentHashMap<>();
 
@@ -122,9 +121,10 @@ public class RemoteS3ConnectionController
     }
 
     @Inject
-    public RemoteS3ConnectionController(RemoteS3Facade defaultS3Facade, RemoteS3ConnectionProvider remoteS3ConnectionProvider)
+    public RemoteS3ConnectionController(RemoteS3Facade defaultS3Facade, RemoteS3FacadeManager remoteS3FacadeManager, RemoteS3ConnectionProvider remoteS3ConnectionProvider)
     {
-        this.defaultS3Facade = requireNonNull(defaultS3Facade, "remoteUriFacade is null");
+        this.defaultS3Facade = requireNonNull(defaultS3Facade, "defaultS3Facade is null");
+        this.remoteS3FacadeManager = requireNonNull(remoteS3FacadeManager, "remoteS3FacadeManager is null");
         this.remoteS3ConnectionProvider = requireNonNull(remoteS3ConnectionProvider, "remoteS3ConnectionProvider is null");
     }
 
@@ -140,12 +140,9 @@ public class RemoteS3ConnectionController
     {
         return remoteS3ConnectionProvider.remoteConnection(signingMetadata, identity, request)
                 .flatMap(remoteConnection -> {
-                    RemoteS3Facade contextRemoteS3Facade = remoteConnection.remoteS3FacadeConfiguration().map(config -> {
-                        // TODO: This should respect the plugin installed for the RemoteS3Facade somehow
-                        Injector subInjector = new Bootstrap(new DefaultRemoteS3Module()).doNotInitializeLogging().quiet().setRequiredConfigurationProperties(config).initialize();
-                        return subInjector.getInstance(RemoteS3Facade.class);
-                    }).orElse(defaultS3Facade);
-
+                    RemoteS3Facade contextRemoteS3Facade = remoteConnection.remoteS3FacadeConfiguration()
+                            .map(remoteS3FacadeManager::createRemoteS3Facade)
+                            .orElse(defaultS3Facade);
                     return remoteConnection.remoteSessionRole()
                             .map(remoteSessionRole ->
                                     internalRemoteSession(remoteSessionRole, remoteConnection.remoteCredential())

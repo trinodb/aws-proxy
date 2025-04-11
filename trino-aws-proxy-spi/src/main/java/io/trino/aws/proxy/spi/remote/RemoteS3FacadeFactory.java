@@ -11,28 +11,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.trino.aws.proxy.spi.plugin.config;
+package io.trino.aws.proxy.spi.remote;
 
-import io.airlift.configuration.Config;
-import jakarta.validation.constraints.NotNull;
+import java.util.Map;
 
-import java.util.Optional;
-
-public class RemoteS3Config
-        implements PluginIdentifierConfig
+public interface RemoteS3FacadeFactory
 {
-    private Optional<String> identifier = Optional.empty();
+    RemoteS3Facade create(Map<String, String> configs);
 
-    @NotNull
-    @Override
-    public Optional<String> getPluginIdentifier()
-    {
-        return identifier;
-    }
-
-    @Config("remote-s3.type")
-    public void setPluginIdentifier(String identifier)
-    {
-        this.identifier = Optional.of(identifier);
-    }
+    String name();
 }

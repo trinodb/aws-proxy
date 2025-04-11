@@ -14,6 +14,7 @@
 package io.trino.aws.proxy.server;
 
 import com.google.common.collect.ImmutableList;
+import com.google.inject.Injector;
 import com.google.inject.Module;
 import io.airlift.bootstrap.Bootstrap;
 import io.airlift.http.server.HttpServerModule;
@@ -25,6 +26,7 @@ import io.airlift.log.LogJmxModule;
 import io.airlift.log.Logger;
 import io.airlift.node.NodeModule;
 import io.airlift.openmetrics.JmxOpenMetricsModule;
+import io.trino.aws.proxy.server.remote.RemoteS3FacadeManager;
 import org.weakref.jmx.guice.MBeanModule;
 
 public final class TrinoAwsProxyServer
@@ -48,7 +50,9 @@ public final class TrinoAwsProxyServer
                 .add(new MBeanModule());
 
         Bootstrap app = new Bootstrap(modules.build());
-        app.initialize();
+        Injector injector = app.initialize();
+
+        injector.getInstance(RemoteS3FacadeManager.class).loadDefaultRemoteS3Facade();
 
         log.info("======== SERVER STARTED ========");
     }
