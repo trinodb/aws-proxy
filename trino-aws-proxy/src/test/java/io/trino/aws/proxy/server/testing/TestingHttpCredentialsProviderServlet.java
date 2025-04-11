@@ -15,9 +15,8 @@ package io.trino.aws.proxy.server.testing;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
-import io.airlift.json.ObjectMapperProvider;
 import io.trino.aws.proxy.spi.credentials.Credential;
-import io.trino.aws.proxy.spi.credentials.Credentials;
+import io.trino.aws.proxy.spi.credentials.IdentityCredential;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -27,6 +26,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static io.airlift.json.JsonCodec.jsonCodec;
 import static jakarta.ws.rs.core.MediaType.APPLICATION_JSON;
 
 public class TestingHttpCredentialsProviderServlet
@@ -34,8 +34,6 @@ public class TestingHttpCredentialsProviderServlet
 {
     public static final String DUMMY_EMULATED_ACCESS_KEY = "test-emulated-access-key";
     public static final String DUMMY_EMULATED_SECRET_KEY = "test-emulated-secret-key";
-    public static final String DUMMY_REMOTE_ACCESS_KEY = "test-remote-access-key";
-    public static final String DUMMY_REMOTE_SECRET_KEY = "test-remote-secret-key";
 
     private final Map<String, String> expectedHeaders;
     private final AtomicInteger requestCounter;
@@ -73,9 +71,9 @@ public class TestingHttpCredentialsProviderServlet
         switch (emulatedAccessKey) {
             case DUMMY_EMULATED_ACCESS_KEY -> {
                 Credential emulated = new Credential(DUMMY_EMULATED_ACCESS_KEY, DUMMY_EMULATED_SECRET_KEY, sessionToken);
-                Credential remote = new Credential(DUMMY_REMOTE_ACCESS_KEY, DUMMY_REMOTE_SECRET_KEY);
-                Credentials credentials = new Credentials(emulated, Optional.of(remote), Optional.empty(), Optional.of(new TestingIdentity("test-username", ImmutableList.of(), "xyzpdq")));
-                String jsonCredentials = new ObjectMapperProvider().get().writeValueAsString(credentials);
+//                Credential remote = new Credential(DUMMY_REMOTE_ACCESS_KEY, DUMMY_REMOTE_SECRET_KEY);
+                IdentityCredential credentials = new IdentityCredential(emulated, new TestingIdentity("test-username", ImmutableList.of(), "xyzpdq"));
+                String jsonCredentials = jsonCodec(IdentityCredential.class).toJson(credentials);
                 response.setContentType(APPLICATION_JSON);
                 response.getWriter().print(jsonCredentials);
             }

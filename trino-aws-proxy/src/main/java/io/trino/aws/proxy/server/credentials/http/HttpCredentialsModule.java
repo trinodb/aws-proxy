@@ -15,7 +15,7 @@ package io.trino.aws.proxy.server.credentials.http;
 
 import com.google.inject.Binder;
 import io.airlift.configuration.AbstractConfigurationAwareModule;
-import io.trino.aws.proxy.spi.credentials.Credentials;
+import io.trino.aws.proxy.spi.credentials.IdentityCredential;
 
 import static io.airlift.configuration.ConfigBinder.configBinder;
 import static io.airlift.http.client.HttpClientBinder.httpClientBinder;
@@ -38,7 +38,7 @@ public class HttpCredentialsModule
                 innerBinder -> {
                     configBinder(innerBinder).bindConfig(HttpCredentialsProviderConfig.class);
                     httpClientBinder(innerBinder).bindHttpClient(HTTP_CREDENTIALS_PROVIDER_HTTP_CLIENT_NAME, ForHttpCredentialsProvider.class);
-                    jsonCodecBinder(innerBinder).bindJsonCodec(Credentials.class);
+                    jsonCodecBinder(innerBinder).bindJsonCodec(IdentityCredential.class);
                 }));
     }
 }

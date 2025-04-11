@@ -18,7 +18,7 @@ import io.airlift.http.server.testing.TestingHttpServer;
 import io.airlift.log.Logger;
 import io.trino.aws.proxy.server.TrinoAwsProxyConfig;
 import io.trino.aws.proxy.server.testing.TestingUtil.ForTesting;
-import io.trino.aws.proxy.spi.credentials.Credentials;
+import io.trino.aws.proxy.spi.credentials.IdentityCredential;
 import jakarta.annotation.PreDestroy;
 import org.testcontainers.containers.BindMode;
 import org.testcontainers.containers.GenericContainer;
@@ -49,7 +49,12 @@ public abstract class PySparkContainer
             extends PySparkContainer
     {
         @Inject
-        public PySparkV3Container(MetastoreContainer metastoreContainer, S3Container s3Container, TestingHttpServer httpServer, @ForTesting Credentials testingCredentials, TrinoAwsProxyConfig trinoS3ProxyConfig)
+        public PySparkV3Container(
+                MetastoreContainer metastoreContainer,
+                S3Container s3Container,
+                TestingHttpServer httpServer,
+                @ForTesting IdentityCredential testingCredentials,
+                TrinoAwsProxyConfig trinoS3ProxyConfig)
         {
             super(metastoreContainer, s3Container, httpServer, testingCredentials, trinoS3ProxyConfig, Version.VERSION_3);
         }
@@ -59,7 +64,12 @@ public abstract class PySparkContainer
             extends PySparkContainer
     {
         @Inject
-        public PySparkV4Container(MetastoreContainer metastoreContainer, S3Container s3Container, TestingHttpServer httpServer, @ForTesting Credentials testingCredentials, TrinoAwsProxyConfig trinoS3ProxyConfig)
+        public PySparkV4Container(
+                MetastoreContainer metastoreContainer,
+                S3Container s3Container,
+                TestingHttpServer httpServer,
+                @ForTesting IdentityCredential testingCredentials,
+                TrinoAwsProxyConfig trinoS3ProxyConfig)
         {
             super(metastoreContainer, s3Container, httpServer, testingCredentials, trinoS3ProxyConfig, Version.VERSION_4);
         }
@@ -76,7 +86,7 @@ public abstract class PySparkContainer
             MetastoreContainer metastoreContainer,
             S3Container s3Container,
             TestingHttpServer httpServer,
-            Credentials testingCredentials,
+            IdentityCredential testingCredentials,
             TrinoAwsProxyConfig trinoS3ProxyConfig,
             Version version)
     {

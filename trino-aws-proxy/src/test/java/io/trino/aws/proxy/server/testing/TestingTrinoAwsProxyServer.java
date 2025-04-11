@@ -30,7 +30,6 @@ import io.airlift.json.JsonModule;
 import io.airlift.log.Level;
 import io.airlift.log.Logging;
 import io.airlift.node.testing.TestingNodeModule;
-import io.trino.aws.proxy.server.testing.TestingTrinoAwsProxyServerModule.ForTestingRemoteCredentials;
 import io.trino.aws.proxy.server.testing.TestingUtil.ForTesting;
 import io.trino.aws.proxy.server.testing.containers.MetastoreContainer;
 import io.trino.aws.proxy.server.testing.containers.OpaContainer;
@@ -40,19 +39,22 @@ import io.trino.aws.proxy.server.testing.containers.PySparkContainer.PySparkV3Co
 import io.trino.aws.proxy.server.testing.containers.PySparkContainer.PySparkV4Container;
 import io.trino.aws.proxy.server.testing.containers.S3Container;
 import io.trino.aws.proxy.server.testing.containers.S3Container.ForS3Container;
-import io.trino.aws.proxy.spi.credentials.Credentials;
-import io.trino.aws.proxy.spi.remote.RemoteS3Facade;
+import io.trino.aws.proxy.spi.credentials.Credential;
+import io.trino.aws.proxy.spi.credentials.IdentityCredential;
+import io.trino.aws.proxy.spi.remote.RemoteS3Connection;
 
 import java.io.Closeable;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import static com.google.inject.multibindings.OptionalBinder.newOptionalBinder;
-import static io.trino.aws.proxy.server.testing.TestingUtil.TESTING_CREDENTIALS;
+import static io.trino.aws.proxy.server.testing.TestingUtil.TESTING_IDENTITY_CREDENTIAL;
+import static io.trino.aws.proxy.server.testing.TestingUtil.TESTING_REMOTE_CREDENTIAL;
 import static io.trino.aws.proxy.spi.plugin.TrinoAwsProxyServerBinding.assumedRoleProviderModule;
 import static io.trino.aws.proxy.spi.plugin.TrinoAwsProxyServerBinding.credentialsProviderModule;
-import static io.trino.aws.proxy.spi.plugin.TrinoAwsProxyServerBinding.remoteS3Module;
+import static io.trino.aws.proxy.spi.plugin.TrinoAwsProxyServerBinding.remoteS3ConnectionProviderModule;
 
 public final class TestingTrinoAwsProxyServer
         implements Closeable
@@ -112,17 +114,12 @@ public final class TestingTrinoAwsProxyServer
 
             modules.add(binder -> {
                 binder.bind(S3Container.class).asEagerSingleton();
-                binder.bind(Credentials.class).annotatedWith(ForTesting.class).toInstance(TESTING_CREDENTIALS);
+                binder.bind(IdentityCredential.class).annotatedWith(ForTesting.class).toInstance(TESTING_IDENTITY_CREDENTIAL);
+                binder.bind(Credential.class).annotatedWith(ForTesting.class).toInstance(TESTING_IDENTITY_CREDENTIAL.emulated());
+                binder.bind(Credential.class).annotatedWith(ForS3Container.class).toInstance(TESTING_REMOTE_CREDENTIAL);
                 newOptionalBinder(binder, Key.get(new TypeLiteral<List<String>>() {}, ForS3Container.class)).setDefault().toInstance(ImmutableList.of());
-
-                newOptionalBinder(binder, Key.get(RemoteS3Facade.class, ForTesting.class))
-                        .setDefault()
-                        .to(ContainerS3Facade.PathStyleContainerS3Facade.class)
-                        .in(Scopes.SINGLETON);
+                binder.bind(TestingRemoteS3FacadeInitializer.class).asEagerSingleton();
             });
-
-            addModule(remoteS3Module("testing", TestingRemoteS3Facade.class, (binder) -> binder.bind(TestingRemoteS3Facade.class).in(Scopes.SINGLETON)));
-            withProperty("remote-s3.type", "testing");
 
             return this;
         }
@@ -223,8 +220,9 @@ public final class TestingTrinoAwsProxyServer
                 withProperty("credentials-provider.type", "testing");
                 addModule(assumedRoleProviderModule("testing", TestingCredentialsRolesProvider.class, (binder) -> binder.bind(TestingCredentialsRolesProvider.class).in(Scopes.SINGLETON)));
                 withProperty("assumed-role-provider.type", "testing");
-
-                modules.add(binder -> binder.bind(Credentials.class).annotatedWith(ForTestingRemoteCredentials.class).toProvider(TestingRemoteCredentialsProvider.class));
+                addModule(remoteS3ConnectionProviderModule("testing", TestingCredentialsRolesProvider.class,
+                        binder -> binder.bind(TestingCredentialsRolesProvider.class).in(Scopes.SINGLETON)));
+                withProperty("remote-s3-connection-provider.type", "testing");
             }
 
             return start(modules.build(), properties.buildKeepingLast());
@@ -236,7 +234,22 @@ public final class TestingTrinoAwsProxyServer
         @Inject
         TestingCredentialsInitializer(TestingCredentialsRolesProvider credentialsController)
         {
-            credentialsController.addCredentials(TESTING_CREDENTIALS);
+            credentialsController.addCredentials(TESTING_IDENTITY_CREDENTIAL);
+            credentialsController.setDefaultRemoteConnection(new RemoteS3Connection(TESTING_REMOTE_CREDENTIAL, Optional.empty(), Optional.empty()));
+        }
+    }
+
+    static class TestingRemoteS3FacadeInitializer
+    {
+        @Inject
+        TestingRemoteS3FacadeInitializer(TestingRemoteS3FacadeManager remoteS3FacadeManager, S3Container s3Container)
+        {
+            remoteS3FacadeManager.setDefaultRemoteS3Facade(remoteS3FacadeManager.createRemoteS3Facade(ImmutableMap.of(
+                    "remoteS3.https", "false",
+                    "remoteS3.domain", s3Container.containerHost().getHost(),
+                    "remoteS3.port", Integer.toString(s3Container.containerHost().getPort()),
+                    "remoteS3.virtual-host-style", "false",
+                    "remoteS3.hostname.template", "${domain}")));
         }
     }
 

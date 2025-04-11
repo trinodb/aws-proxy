@@ -11,19 +11,28 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.trino.aws.proxy.spi.credentials;
+package io.trino.aws.proxy.spi.plugin.config;
+
+import io.airlift.configuration.Config;
+import jakarta.validation.constraints.NotNull;
 
 import java.util.Optional;
 
-// TODO: Add back file-based provider
-public interface CredentialsProvider
+public class RemoteS3ConnectionProviderConfig
+        implements PluginIdentifierConfig
 {
-    CredentialsProvider NOOP = (_, _) -> Optional.empty();
+    private Optional<String> identifier = Optional.empty();
 
-    /**
-     * Return the credentials, if any, for the given access key and session.
-     * Your implementation should have a centralized credentials mechanism, likely
-     * some type of database along with a way of registering credentials, etc.
-     */
-    Optional<IdentityCredential> credentials(String emulatedAccessKey, Optional<String> session);
+    @NotNull
+    @Override
+    public Optional<String> getPluginIdentifier()
+    {
+        return identifier;
+    }
+
+    @Config("remote-s3-connection-provider.type")
+    public void setPluginIdentifier(String identifier)
+    {
+        this.identifier = Optional.ofNullable(identifier);
+    }
 }

@@ -13,17 +13,11 @@
  */
 package io.trino.aws.proxy.spi.remote;
 
-import java.net.URI;
-import java.util.Optional;
+import java.util.Map;
 
-import static java.util.Objects.requireNonNull;
-
-public record RemoteSessionRole(String region, String roleArn, Optional<String> externalId, Optional<URI> stsEndpoint)
+public interface RemoteS3FacadeFactory
 {
-    public RemoteSessionRole
-    {
-        requireNonNull(region, "region is null");
-        requireNonNull(roleArn, "roleArn is null");
-        requireNonNull(externalId, "externalId is null");
-    }
+    RemoteS3Facade create(Map<String, String> configs);
+
+    String name();
 }

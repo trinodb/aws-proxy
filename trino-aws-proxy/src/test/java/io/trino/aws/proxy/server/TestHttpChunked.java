@@ -18,19 +18,17 @@ import io.airlift.http.client.HttpClient;
 import io.airlift.http.client.Request;
 import io.airlift.http.server.testing.TestingHttpServer;
 import io.airlift.units.Duration;
-import io.trino.aws.proxy.server.credentials.CredentialsController;
 import io.trino.aws.proxy.server.rest.RequestLoggerConfig;
 import io.trino.aws.proxy.server.rest.RequestLoggerController;
 import io.trino.aws.proxy.server.signing.InternalSigningController;
 import io.trino.aws.proxy.server.signing.SigningControllerConfig;
 import io.trino.aws.proxy.server.signing.TestingChunkSigningSession;
 import io.trino.aws.proxy.server.testing.TestingCredentialsRolesProvider;
-import io.trino.aws.proxy.server.testing.TestingRemoteS3Facade;
 import io.trino.aws.proxy.server.testing.TestingUtil.ForTesting;
 import io.trino.aws.proxy.server.testing.containers.S3Container.ForS3Container;
 import io.trino.aws.proxy.server.testing.harness.TrinoAwsProxyTest;
 import io.trino.aws.proxy.spi.credentials.Credential;
-import io.trino.aws.proxy.spi.credentials.Credentials;
+import io.trino.aws.proxy.spi.credentials.IdentityCredential;
 import io.trino.aws.proxy.spi.signing.RequestAuthorization;
 import io.trino.aws.proxy.spi.signing.SigningMetadata;
 import io.trino.aws.proxy.spi.signing.SigningServiceType;
@@ -76,7 +74,7 @@ public class TestHttpChunked
     private final URI baseUri;
     private final TestingCredentialsRolesProvider credentialsRolesProvider;
     private final HttpClient httpClient;
-    private final Credentials testingCredentials;
+    private final IdentityCredential testingCredentials;
     private final S3Client storageClient;
 
     private static final String TEST_CONTENT_TYPE = "text/plain;charset=utf-8";
@@ -85,7 +83,7 @@ public class TestHttpChunked
     @BeforeEach
     public void setupCredentials()
     {
-        credentialsRolesProvider.addCredentials(Credentials.build(VALID_CREDENTIAL, testingCredentials.requiredRemoteCredential()));
+        credentialsRolesProvider.addCredentials(new IdentityCredential(VALID_CREDENTIAL));
     }
 
     @Inject
@@ -93,7 +91,7 @@ public class TestHttpChunked
             TestingHttpServer httpServer,
             TestingCredentialsRolesProvider credentialsRolesProvider,
             @ForTesting HttpClient httpClient,
-            @ForTesting Credentials testingCredentials,
+            @ForTesting IdentityCredential testingCredentials,
             @ForS3Container S3Client storageClient,
             TrinoAwsProxyConfig trinoAwsProxyConfig)
     {
@@ -279,11 +277,11 @@ public class TestHttpChunked
         URI requestUri = UriBuilder.fromUri(baseUri).path(bucket).path(key).build();
 
         InternalSigningController signingController = new InternalSigningController(
-                new CredentialsController(new TestingRemoteS3Facade(), credentialsRolesProvider),
+                credentialsRolesProvider,
                 new SigningControllerConfig().setMaxClockDrift(new Duration(10, TimeUnit.SECONDS)),
                 new RequestLoggerController(new RequestLoggerConfig()));
-        RequestAuthorization requestAuthorization = signingController.signRequest(new SigningMetadata(SigningServiceType.S3, Credentials.build(VALID_CREDENTIAL, testingCredentials.requiredRemoteCredential()), Optional.empty()),
-                "us-east-1", requestDate, Optional.empty(), Credentials::emulated, requestUri, requestHeaderBuilder.build(), ImmutableMultiMap.empty(), "PUT").signingAuthorization();
+        RequestAuthorization requestAuthorization = signingController.signRequest(new SigningMetadata(SigningServiceType.S3, VALID_CREDENTIAL, Optional.empty()),
+                "us-east-1", requestDate, Optional.empty(), requestUri, requestHeaderBuilder.build(), ImmutableMultiMap.empty(), "PUT").signingAuthorization();
 
         requestHeaderBuilder.add("Authorization", requestAuthorization.authorization());
         Request.Builder requestBuilder = preparePut()

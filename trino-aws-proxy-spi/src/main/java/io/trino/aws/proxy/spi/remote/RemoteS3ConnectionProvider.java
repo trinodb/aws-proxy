@@ -11,28 +11,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.trino.aws.proxy.spi.plugin.config;
+package io.trino.aws.proxy.spi.remote;
 
-import io.airlift.configuration.Config;
-import jakarta.validation.constraints.NotNull;
+import io.trino.aws.proxy.spi.credentials.Identity;
+import io.trino.aws.proxy.spi.rest.ParsedS3Request;
+import io.trino.aws.proxy.spi.signing.SigningMetadata;
 
 import java.util.Optional;
 
-public class RemoteS3Config
-        implements PluginIdentifierConfig
+// TODO: This should have a config implementation (hard-coding a single set of Remote Credentials) and an HTTP implementation
+public interface RemoteS3ConnectionProvider
 {
-    private Optional<String> identifier = Optional.empty();
+    RemoteS3ConnectionProvider NOOP = (_, _, _) -> Optional.empty();
 
-    @NotNull
-    @Override
-    public Optional<String> getPluginIdentifier()
-    {
-        return identifier;
-    }
-
-    @Config("remote-s3.type")
-    public void setPluginIdentifier(String identifier)
-    {
-        this.identifier = Optional.of(identifier);
-    }
+    Optional<RemoteS3Connection> remoteConnection(SigningMetadata signingMetadata, Optional<Identity> identity, ParsedS3Request request);
 }

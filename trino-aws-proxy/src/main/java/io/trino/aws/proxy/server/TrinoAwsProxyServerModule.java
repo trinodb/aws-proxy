@@ -32,8 +32,11 @@ import io.airlift.log.Logger;
 import io.trino.aws.proxy.server.credentials.CredentialsModule;
 import io.trino.aws.proxy.server.credentials.file.FileBasedCredentialsModule;
 import io.trino.aws.proxy.server.credentials.http.HttpCredentialsModule;
-import io.trino.aws.proxy.server.remote.DefaultRemoteS3Module;
+import io.trino.aws.proxy.server.remote.DefaultRemoteS3FacadeFactory;
+import io.trino.aws.proxy.server.remote.RemoteS3ConnectionController;
+import io.trino.aws.proxy.server.remote.RemoteS3FacadeManager;
 import io.trino.aws.proxy.server.rest.LimitStreamController;
+import io.trino.aws.proxy.server.rest.ResourceSecurityDynamicFeature;
 import io.trino.aws.proxy.server.rest.RestModule;
 import io.trino.aws.proxy.server.rest.S3PresignController;
 import io.trino.aws.proxy.server.rest.ThrowableMapper;
@@ -48,10 +51,12 @@ import io.trino.aws.proxy.server.security.opa.OpaS3SecurityModule;
 import io.trino.aws.proxy.server.signing.SigningControllerConfig;
 import io.trino.aws.proxy.server.signing.SigningModule;
 import io.trino.aws.proxy.spi.plugin.TrinoAwsProxyServerPlugin;
-import io.trino.aws.proxy.spi.plugin.config.RemoteS3Config;
+import io.trino.aws.proxy.spi.plugin.config.RemoteS3ConnectionProviderConfig;
 import io.trino.aws.proxy.spi.plugin.config.S3RequestRewriterConfig;
 import io.trino.aws.proxy.spi.plugin.config.S3SecurityFacadeProviderConfig;
+import io.trino.aws.proxy.spi.remote.RemoteS3ConnectionProvider;
 import io.trino.aws.proxy.spi.remote.RemoteS3Facade;
+import io.trino.aws.proxy.spi.remote.RemoteS3FacadeFactory;
 import io.trino.aws.proxy.spi.remote.RemoteUriFacade;
 import io.trino.aws.proxy.spi.rest.S3RequestRewriter;
 import io.trino.aws.proxy.spi.security.S3SecurityFacadeProvider;
@@ -64,23 +69,17 @@ import java.util.Set;
 
 import static com.google.inject.multibindings.Multibinder.newSetBinder;
 import static com.google.inject.multibindings.OptionalBinder.newOptionalBinder;
-import static io.airlift.configuration.ConditionalModule.conditionalModule;
 import static io.airlift.configuration.ConfigBinder.configBinder;
 import static io.airlift.http.client.HttpClientBinder.httpClientBinder;
 import static io.airlift.http.server.HttpServerBinder.httpServerBinder;
 import static io.airlift.jaxrs.JaxrsBinder.jaxrsBinder;
+import static io.trino.aws.proxy.spi.plugin.TrinoAwsProxyServerBinding.remoteS3FacadeFactory;
+import static org.weakref.jmx.guice.ExportBinder.newExporter;
 
 public class TrinoAwsProxyServerModule
         extends AbstractConfigurationAwareModule
 {
     private static final Logger log = Logger.get(TrinoAwsProxyServerModule.class);
-
-    @Provides
-    @Singleton
-    public RemoteUriFacade remoteUriFacade(RemoteS3Facade remoteS3Facade)
-    {
-        return remoteS3Facade;
-    }
 
     @Override
     protected void setup(Binder binder)
@@ -105,10 +104,18 @@ public class TrinoAwsProxyServerModule
         // TODO config, etc.
         httpClientBinder(binder).bindHttpClient("ProxyClient", ForProxyClient.class);
         binder.bind(TrinoS3ProxyClient.class).in(Scopes.SINGLETON);
+        binder.bind(RemoteS3ConnectionController.class).in(Scopes.SINGLETON);
 
         HttpServerBinder httpServerBinder = httpServerBinder(binder);
         httpServerBinder.enableLegacyUriCompliance();
         httpServerBinder.enableCaseSensitiveHeaderCache();
+
+        // RemoteS3ConnectionProvider binder
+        configBinder(binder).bindConfig(RemoteS3ConnectionProviderConfig.class);
+        newOptionalBinder(binder, RemoteS3ConnectionProvider.class).setDefault().toProvider(() -> {
+            log.info("Using default %s NOOP implementation", RemoteS3ConnectionProvider.class.getSimpleName());
+            return RemoteS3ConnectionProvider.NOOP;
+        });
 
         // S3SecurityFacadeProvider binder
         configBinder(binder).bindConfig(S3SecurityFacadeProviderConfig.class);
@@ -129,13 +136,12 @@ public class TrinoAwsProxyServerModule
         install(new OpaS3SecurityModule());
         install(new HttpCredentialsModule());
 
-        // RemoteS3 binder
-        newOptionalBinder(binder, RemoteS3Facade.class);
-        // RemoteS3 provided implementation
-        install(conditionalModule(
-                RemoteS3Config.class,
-                config -> config.getPluginIdentifier().isEmpty(),
-                new DefaultRemoteS3Module()));
+        // RemoteS3Facade binder
+        newSetBinder(binder, RemoteS3FacadeFactory.class); // This isn't strictly necessary because we install the DefaultRemoteS3FacadeFactory so that creates the SetBinder,
+        // but we keep it to be explicit
+        installRemoteS3FacadeManager(binder);
+        // RemoteS3Facade provided implementation
+        install(remoteS3FacadeFactory(DefaultRemoteS3FacadeFactory.class));
 
         installSigningController(binder);
         installS3SecurityController(binder);
@@ -144,6 +150,10 @@ public class TrinoAwsProxyServerModule
         install(new TrinoAwsProxyPluginValidatorModule());
 
         addNullCollectionModule(binder);
+
+        newExporter(binder).export(RemoteS3ConnectionController.class).withGeneratedName();
+        newExporter(binder).export(ResourceSecurityDynamicFeature.class).withGeneratedName();
+        newExporter(binder).export(TrinoS3ProxyClient.class).withGeneratedName();
     }
 
     @Provides
@@ -154,6 +164,20 @@ public class TrinoAwsProxyServerModule
         xmlMapper.registerModule(new Jdk8Module());
         xmlMapper.setPropertyNamingStrategy(PropertyNamingStrategies.UPPER_CAMEL_CASE);
         return xmlMapper;
+    }
+
+    @Provides
+    @Singleton
+    public RemoteUriFacade remoteUriFacade(RemoteS3FacadeManager remoteS3FacadeManager)
+    {
+        return remoteS3FacadeManager;
+    }
+
+    @Provides
+    @Singleton
+    public RemoteS3Facade remoteS3Facade(RemoteS3FacadeManager remoteS3FacadeManager)
+    {
+        return remoteS3FacadeManager;
     }
 
     public static void bindResourceAtPath(JaxrsBinder jaxrsBinder, Class<?> resourceClass, String resourcePrefix)
@@ -173,6 +197,13 @@ public class TrinoAwsProxyServerModule
     protected void installSigningController(Binder binder)
     {
         install(new SigningModule());
+    }
+
+    @VisibleForTesting
+    protected void installRemoteS3FacadeManager(Binder binder)
+    {
+        binder.bind(RemoteS3FacadeManager.class).in(Scopes.SINGLETON);
+        binder.bind(RemoteS3Facade.class).to(RemoteS3FacadeManager.class).in(Scopes.SINGLETON);
     }
 
     private void addNullCollectionModule(Binder binder)

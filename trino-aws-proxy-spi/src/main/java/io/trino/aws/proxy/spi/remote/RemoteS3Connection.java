@@ -13,17 +13,23 @@
  */
 package io.trino.aws.proxy.spi.remote;
 
-import java.net.URI;
+import com.google.common.collect.ImmutableMap;
+import io.trino.aws.proxy.spi.credentials.Credential;
+
+import java.util.Map;
 import java.util.Optional;
 
 import static java.util.Objects.requireNonNull;
 
-public record RemoteSessionRole(String region, String roleArn, Optional<String> externalId, Optional<URI> stsEndpoint)
+public record RemoteS3Connection(
+        Credential remoteCredential,
+        Optional<RemoteSessionRole> remoteSessionRole,
+        Optional<Map<String, String>> remoteS3FacadeConfiguration)
 {
-    public RemoteSessionRole
+    public RemoteS3Connection
     {
-        requireNonNull(region, "region is null");
-        requireNonNull(roleArn, "roleArn is null");
-        requireNonNull(externalId, "externalId is null");
+        requireNonNull(remoteCredential, "remoteCredential is null");
+        requireNonNull(remoteSessionRole, "remoteSessionRole is null");
+        remoteS3FacadeConfiguration = requireNonNull(remoteS3FacadeConfiguration, "remoteS3FacadeConfiguration is null").map(ImmutableMap::copyOf);
     }
 }
