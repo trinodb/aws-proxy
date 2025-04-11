@@ -41,14 +41,12 @@ import io.trino.aws.proxy.server.testing.containers.S3Container;
 import io.trino.aws.proxy.server.testing.containers.S3Container.ForS3Container;
 import io.trino.aws.proxy.spi.credentials.Credential;
 import io.trino.aws.proxy.spi.credentials.IdentityCredential;
-import io.trino.aws.proxy.spi.remote.RemoteS3Connection;
-import io.trino.aws.proxy.spi.remote.RemoteS3Facade;
+import io.trino.aws.proxy.spi.remote.RemoteS3Connection.StaticRemoteS3Connection;
 
 import java.io.Closeable;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 
 import static com.google.inject.multibindings.OptionalBinder.newOptionalBinder;
 import static io.trino.aws.proxy.server.testing.TestingUtil.TESTING_IDENTITY_CREDENTIAL;
@@ -120,14 +118,9 @@ public final class TestingTrinoAwsProxyServer
                 binder.bind(Credential.class).annotatedWith(ForTesting.class).toInstance(TESTING_IDENTITY_CREDENTIAL.emulated());
                 binder.bind(Credential.class).annotatedWith(ForS3Container.class).toInstance(TESTING_REMOTE_CREDENTIAL);
                 newOptionalBinder(binder, Key.get(new TypeLiteral<List<String>>() {}, ForS3Container.class)).setDefault().toInstance(ImmutableList.of());
-
-                newOptionalBinder(binder, Key.get(RemoteS3Facade.class, ForTesting.class))
-                        .setDefault()
-                        .to(ContainerS3Facade.PathStyleContainerS3Facade.class)
-                        .in(Scopes.SINGLETON);
             });
 
-            addModule(remoteS3Module("testing", TestingRemoteS3Facade.class, (binder) -> binder.bind(TestingRemoteS3Facade.class).in(Scopes.SINGLETON)));
+            addModule(remoteS3Module("testing", TestingRemoteS3Facade.class, binder -> binder.bind(TestingRemoteS3Facade.class).in(Scopes.SINGLETON)));
             withProperty("remote-s3.type", "testing");
 
             return this;
@@ -244,7 +237,7 @@ public final class TestingTrinoAwsProxyServer
         TestingCredentialsInitializer(TestingCredentialsRolesProvider credentialsController)
         {
             credentialsController.addCredentials(TESTING_IDENTITY_CREDENTIAL);
-            credentialsController.setDefaultRemoteConnection(new RemoteS3Connection(TESTING_REMOTE_CREDENTIAL, Optional.empty(), Optional.empty()));
+            credentialsController.setDefaultRemoteConnection(new StaticRemoteS3Connection(TESTING_REMOTE_CREDENTIAL));
         }
     }
 

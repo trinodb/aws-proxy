@@ -21,7 +21,7 @@ import io.trino.aws.proxy.server.testing.containers.S3Container;
 import io.trino.aws.proxy.server.testing.containers.S3Container.ForS3Container;
 import io.trino.aws.proxy.spi.credentials.Credential;
 import io.trino.aws.proxy.spi.credentials.IdentityCredential;
-import io.trino.aws.proxy.spi.remote.RemoteS3Connection;
+import io.trino.aws.proxy.spi.remote.RemoteS3Connection.StaticRemoteS3Connection;
 import io.trino.aws.proxy.spi.remote.RemoteSessionRole;
 import software.amazon.awssdk.services.s3.S3Client;
 
@@ -50,6 +50,6 @@ public class TestProxiedEmulatedAndRemoteAssumedRoleRequests
         Credential policyUserCredential = s3Container.policyUserCredential();
         RemoteSessionRole remoteSessionRole = new RemoteSessionRole("us-east-1", "minio-doesnt-care", Optional.empty(), Optional.empty());
         IdentityCredential identityCredential = new IdentityCredential(CREDENTIAL, TESTING_IDENTITY_CREDENTIAL.identity());
-        credentialsController.addCredentials(identityCredential, new RemoteS3Connection(policyUserCredential, Optional.of(remoteSessionRole), Optional.empty()));
+        credentialsController.addCredentials(identityCredential, new StaticRemoteS3Connection(policyUserCredential, remoteSessionRole));
     }
 }

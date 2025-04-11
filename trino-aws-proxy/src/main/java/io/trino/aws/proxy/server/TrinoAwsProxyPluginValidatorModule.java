@@ -19,8 +19,12 @@ import io.trino.aws.proxy.spi.credentials.AssumedRoleProvider;
 import io.trino.aws.proxy.spi.credentials.CredentialsProvider;
 import io.trino.aws.proxy.spi.plugin.config.AssumedRoleProviderConfig;
 import io.trino.aws.proxy.spi.plugin.config.CredentialsProviderConfig;
+import io.trino.aws.proxy.spi.plugin.config.RemoteS3Config;
 import io.trino.aws.proxy.spi.plugin.config.RemoteS3ConnectionProviderConfig;
 import io.trino.aws.proxy.spi.remote.RemoteS3ConnectionProvider;
+import io.trino.aws.proxy.spi.remote.RemoteS3Facade;
+
+import java.util.Optional;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
@@ -36,7 +40,9 @@ public class TrinoAwsProxyPluginValidatorModule
                 AssumedRoleProviderConfig assumedRoleProviderConfig,
                 AssumedRoleProvider assumedRoleProvider,
                 RemoteS3ConnectionProvider remoteS3ConnectionProvider,
-                RemoteS3ConnectionProviderConfig remoteS3ConnectionProviderConfig)
+                RemoteS3ConnectionProviderConfig remoteS3ConnectionProviderConfig,
+                Optional<RemoteS3Facade> remoteS3Facade,
+                RemoteS3Config remoteS3Config)
         {
             boolean credentialsProviderIsNoop = credentialsProvider.equals(CredentialsProvider.NOOP);
             boolean credentialsProviderIsConfigured = credentialsProviderConfig.getPluginIdentifier().isPresent();
@@ -58,6 +64,11 @@ public class TrinoAwsProxyPluginValidatorModule
                     "%s of type \"%s\" is not registered",
                     RemoteS3ConnectionProvider.class.getSimpleName(),
                     remoteS3ConnectionProviderConfig.getPluginIdentifier().orElse("<empty>"));
+
+            if (remoteS3Facade.isEmpty()) {
+                throw new IllegalArgumentException("%s of type \"%s\" is not registered"
+                        .formatted(RemoteS3Facade.class.getSimpleName(), remoteS3Config.getPluginIdentifier().orElseThrow()));
+            }
         }
     }
 

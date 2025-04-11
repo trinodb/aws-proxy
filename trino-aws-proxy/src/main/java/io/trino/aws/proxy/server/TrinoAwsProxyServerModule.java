@@ -80,13 +80,6 @@ public class TrinoAwsProxyServerModule
 {
     private static final Logger log = Logger.get(TrinoAwsProxyServerModule.class);
 
-    @Provides
-    @Singleton
-    public RemoteUriFacade remoteUriFacade(RemoteS3Facade remoteS3Facade)
-    {
-        return remoteS3Facade;
-    }
-
     @Override
     protected void setup(Binder binder)
     {
@@ -116,6 +109,7 @@ public class TrinoAwsProxyServerModule
         httpServerBinder.enableLegacyUriCompliance();
         httpServerBinder.enableCaseSensitiveHeaderCache();
 
+        // RemoteS3ConnectionProvider binder
         configBinder(binder).bindConfig(RemoteS3ConnectionProviderConfig.class);
         newOptionalBinder(binder, RemoteS3ConnectionProvider.class).setDefault().toProvider(() -> {
             log.info("Using default %s NOOP implementation", RemoteS3ConnectionProvider.class.getSimpleName());
@@ -141,8 +135,7 @@ public class TrinoAwsProxyServerModule
         install(new OpaS3SecurityModule());
         install(new HttpCredentialsModule());
 
-        // RemoteS3 binder
-        newOptionalBinder(binder, RemoteS3Facade.class);
+        configBinder(binder).bindConfig(RemoteS3Config.class);
         // RemoteS3 provided implementation
         install(conditionalModule(
                 RemoteS3Config.class,
@@ -170,6 +163,13 @@ public class TrinoAwsProxyServerModule
         xmlMapper.registerModule(new Jdk8Module());
         xmlMapper.setPropertyNamingStrategy(PropertyNamingStrategies.UPPER_CAMEL_CASE);
         return xmlMapper;
+    }
+
+    @Provides
+    @Singleton
+    public RemoteUriFacade remoteUriFacade(RemoteS3Facade remoteS3Facade)
+    {
+        return remoteS3Facade;
     }
 
     public static void bindResourceAtPath(JaxrsBinder jaxrsBinder, Class<?> resourceClass, String resourcePrefix)
