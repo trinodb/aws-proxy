@@ -122,7 +122,7 @@ public class TestingGlueRequestHandler
             case UpdateColumnStatisticsForTableRequest columnStatisticsForTableRequest -> {
                 assertThat(columnStatisticsForTableRequest.catalogId()).isEqualTo("1");
                 assertThat(columnStatisticsForTableRequest.databaseName()).isEqualTo("database1");
-                assertThat(columnStatisticsForTableRequest.columnStatisticsList()).hasSize(1);
+                assertThat(columnStatisticsForTableRequest.columnStatisticsList()).hasSize(2);
                 assertThat(columnStatisticsForTableRequest.columnStatisticsList().getFirst().statisticsData()).isNotNull();
                 yield  UpdateColumnStatisticsForTableResponse.builder().build();
             }
