@@ -86,8 +86,9 @@ public class TrinoGlueResource
         catch (GlueException e) {
             requestLoggingSession.logException(e);
 
-            return Response.status(BAD_REQUEST)
+            return Response.status(e.statusCode() != 0 ? e.statusCode() : BAD_REQUEST.getStatusCode())
                     .header(X_AMZN_ERROR_TYPE, e.getClass().getSimpleName() + ":" + e.getMessage())
+                    .entity(e)
                     .build();
         }
         catch (Exception e) {

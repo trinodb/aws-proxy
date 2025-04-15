@@ -94,6 +94,7 @@ public class TestingGlueRequestHandler
 
             // TODO: add more cases
             case GetDatabaseRequest getDatabaseRequest -> throw EntityNotFoundException.builder()
+                    .statusCode(400)
                     .message("'%s.%s' not found".formatted(getDatabaseRequest.catalogId(), getDatabaseRequest.name()))
                     .build();
 
