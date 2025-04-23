@@ -59,7 +59,7 @@ public class TrinoGlueResource
     @Produces(MediaType.APPLICATION_JSON)
     public Response gluePost(@Context Request request, @Context SigningMetadata signingMetadata, @Context RequestLoggingSession requestLoggingSession)
     {
-        requestLoggingSession.logProperty("request.glue.emulated.key", signingMetadata.credential().secretKey());
+        requestLoggingSession.logProperty("request.glue.emulated.access-key", signingMetadata.credential().accessKey());
 
         String target = request.requestHeaders().unmodifiedHeaders().getFirst("x-amz-target")
                 .orElseThrow(() -> InvalidInputException.builder().statusCode(BAD_REQUEST.getStatusCode()).build());
