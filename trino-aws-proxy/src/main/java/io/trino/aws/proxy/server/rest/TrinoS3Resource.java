@@ -135,7 +135,7 @@ public class TrinoS3Resource
 
             requestLoggingSession.logProperty("request.parsed.bucket", parsedS3Request.bucketName());
             requestLoggingSession.logProperty("request.parsed.key", parsedS3Request.keyInBucket());
-            requestLoggingSession.logProperty("request.emulated.key", signingMetadata.credential().secretKey());
+            requestLoggingSession.logProperty("request.emulated.access-key", signingMetadata.credential().accessKey());
 
             proxyClient.proxyRequest(identity, signingMetadata, parsedS3Request, asyncResponse, requestLoggingSession);
         }
