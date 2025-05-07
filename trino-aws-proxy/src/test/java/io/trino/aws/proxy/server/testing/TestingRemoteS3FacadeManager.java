@@ -14,36 +14,46 @@
 package io.trino.aws.proxy.server.testing;
 
 import com.google.inject.Inject;
-import io.trino.aws.proxy.server.testing.TestingUtil.ForTesting;
+import io.trino.aws.proxy.server.remote.RemoteS3FacadeManager;
 import io.trino.aws.proxy.spi.remote.RemoteS3Facade;
+import io.trino.aws.proxy.spi.remote.RemoteS3FacadeFactory;
 import jakarta.ws.rs.core.UriBuilder;
 
 import java.net.URI;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
 
-import static java.util.Objects.requireNonNull;
-
-public class TestingRemoteS3Facade
-        implements RemoteS3Facade
+public class TestingRemoteS3FacadeManager
+        extends RemoteS3FacadeManager
 {
-    private final AtomicReference<RemoteS3Facade> delegate = new AtomicReference<>();
-
-    public TestingRemoteS3Facade() {}
+    private final AtomicReference<RemoteS3Facade> remoteS3Facade = new AtomicReference<>();
 
     @Inject
-    public TestingRemoteS3Facade(@ForTesting RemoteS3Facade delegate)
+    public TestingRemoteS3FacadeManager(Set<RemoteS3FacadeFactory> factories)
     {
-        setDelegate(delegate);
+        super(factories);
+    }
+
+    @Override
+    public void setDefaultRemoteS3Facade(RemoteS3Facade remoteS3Facade)
+    {
+        this.remoteS3Facade.set(remoteS3Facade);
+    }
+
+    @Override
+    public URI remoteUri(String region)
+    {
+        return remoteS3Facade.get().remoteUri(region);
     }
 
     @Override
     public URI buildEndpoint(UriBuilder uriBuilder, String path, String bucket, String region)
     {
-        return requireNonNull(delegate.get(), "delegate is null").buildEndpoint(uriBuilder, path, bucket, region);
+        return remoteS3Facade.get().buildEndpoint(uriBuilder, path, bucket, region);
     }
 
-    public void setDelegate(RemoteS3Facade delegate)
+    @Override
+    public void loadDefaultRemoteS3Facade()
     {
-        this.delegate.set(requireNonNull(delegate, "delegate is null"));
     }
 }

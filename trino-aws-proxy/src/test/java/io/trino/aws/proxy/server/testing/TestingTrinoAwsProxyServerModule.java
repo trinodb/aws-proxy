@@ -16,6 +16,7 @@ package io.trino.aws.proxy.server.testing;
 import com.google.inject.Binder;
 import com.google.inject.Scopes;
 import io.trino.aws.proxy.server.TrinoAwsProxyServerModule;
+import io.trino.aws.proxy.server.remote.RemoteS3FacadeManager;
 import io.trino.aws.proxy.server.rest.S3PresignController;
 import io.trino.aws.proxy.server.security.S3SecurityController;
 
@@ -30,5 +31,12 @@ public class TestingTrinoAwsProxyServerModule
 
         binder.bind(S3PresignController.class).to(TestingS3PresignController.class).in(Scopes.SINGLETON);
         binder.bind(TestingS3PresignController.class).in(Scopes.SINGLETON);
+    }
+
+    @Override
+    protected void installRemoteS3FacadeManager(Binder binder)
+    {
+        binder.bind(TestingRemoteS3FacadeManager.class).in(Scopes.SINGLETON);
+        binder.bind(RemoteS3FacadeManager.class).to(TestingRemoteS3FacadeManager.class).in(Scopes.SINGLETON);
     }
 }

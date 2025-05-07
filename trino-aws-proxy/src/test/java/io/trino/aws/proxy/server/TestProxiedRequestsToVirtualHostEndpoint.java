@@ -13,21 +13,33 @@
  */
 package io.trino.aws.proxy.server;
 
+import com.google.common.collect.ImmutableMap;
 import com.google.inject.Inject;
+import io.trino.aws.proxy.server.testing.TestingRemoteS3FacadeManager;
 import io.trino.aws.proxy.server.testing.TestingS3RequestRewriteController;
+import io.trino.aws.proxy.server.testing.containers.S3Container;
 import io.trino.aws.proxy.server.testing.containers.S3Container.ForS3Container;
 import io.trino.aws.proxy.server.testing.harness.TrinoAwsProxyTest;
 import io.trino.aws.proxy.server.testing.harness.TrinoAwsProxyTestCommonModules.WithConfiguredBuckets;
-import io.trino.aws.proxy.server.testing.harness.TrinoAwsProxyTestCommonModules.WithVirtualHostAddressing;
 import software.amazon.awssdk.services.s3.S3Client;
 
-@TrinoAwsProxyTest(filters = {WithConfiguredBuckets.class, WithVirtualHostAddressing.class})
+import static io.trino.aws.proxy.server.testing.TestingUtil.LOCALHOST_DOMAIN;
+
+@TrinoAwsProxyTest(filters = WithConfiguredBuckets.class)
 public class TestProxiedRequestsToVirtualHostEndpoint
         extends AbstractTestProxiedRequests
 {
     @Inject
-    public TestProxiedRequestsToVirtualHostEndpoint(S3Client s3Client, @ForS3Container S3Client storageClient, TestingS3RequestRewriteController requestRewriteController)
+    public TestProxiedRequestsToVirtualHostEndpoint(S3Client s3Client, @ForS3Container S3Client storageClient, TestingS3RequestRewriteController requestRewriteController,
+            TestingRemoteS3FacadeManager remoteS3FacadeManager, S3Container s3Container)
     {
         super(s3Client, storageClient, requestRewriteController);
+
+        remoteS3FacadeManager.setDefaultRemoteS3Facade(remoteS3FacadeManager.createRemoteS3Facade(ImmutableMap.of(
+                "remoteS3.https", "false",
+                "remoteS3.domain", LOCALHOST_DOMAIN,
+                "remoteS3.port", Integer.toString(s3Container.containerHost().getPort()),
+                "remoteS3.virtual-host-style", "true",
+                "remoteS3.hostname.template", "${bucket}.${domain}")));
     }
 }
