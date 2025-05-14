@@ -19,6 +19,7 @@ import io.trino.aws.proxy.server.testing.TestingTrinoAwsProxyServer;
 import io.trino.aws.proxy.server.testing.containers.PySparkContainer;
 import io.trino.aws.proxy.server.testing.harness.BuilderFilter;
 import io.trino.aws.proxy.server.testing.harness.TrinoAwsProxyTest;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import software.amazon.awssdk.services.s3.S3Client;
 
@@ -54,6 +55,13 @@ public class TestPySparkSql
         this.pySparkContainer = requireNonNull(pySparkContainer, "pySparkContainer is null");
     }
 
+    @BeforeAll
+    public void setupBucket()
+    {
+        // create the test bucket
+        s3Client.createBucket(r -> r.bucket("test"));
+    }
+
     @Test
     public void testSql()
             throws Exception
@@ -75,12 +83,29 @@ public class TestPySparkSql
                 "spark.sql(\"select * from %s.%s\").show()".formatted(DATABASE_NAME, TABLE_NAME)), line -> line.equals("|            c| 30|"));
     }
 
+    @Test
+    public void testParquet()
+            throws Exception
+    {
+        // upload a CSV file
+        s3Client.putObject(r -> r.bucket("test").key("test_parquet/file.csv"), Path.of(Resources.getResource("test.csv").toURI()));
+
+        // read the CSV file and write it as Parquet
+        clearInputStreamAndClose(inputToContainerStdin(pySparkContainer.containerId(), """
+                df = spark.read.csv("s3a://test/test_parquet/file.csv")
+                df.write.parquet("s3a://test/test_parquet/file.parquet")
+                """), line -> line.equals(">>> ") || line.matches(".*Write Job [\\w-]+ committed.*"));
+
+        // read the Parquet file
+        clearInputStreamAndClose(inputToContainerStdin(pySparkContainer.containerId(), """
+                parquetDF = spark.read.parquet("s3a://test/test_parquet/file.parquet")
+                parquetDF.show()
+                """), line -> line.equals("|    John Galt| 28|"));
+    }
+
     public static void createDatabaseAndTable(S3Client s3Client, PySparkContainer container)
             throws Exception
     {
-        // create the test bucket
-        s3Client.createBucket(r -> r.bucket("test"));
-
         // upload a CSV file as a potential table
         s3Client.putObject(r -> r.bucket("test").key("table/file.csv"), Path.of(Resources.getResource("test.csv").toURI()));
 
