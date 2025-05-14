@@ -626,6 +626,8 @@ class PresignAwareAmazonS3
         return getPresignedUrl("GET", getObjectRequest.getBucketName(), getObjectRequest.getKey())
                 .map(presigned -> {
                     PresignedUrlDownloadRequest presignedUrlDownloadRequest = new PresignedUrlDownloadRequest(presigned.url);
+                    Optional.ofNullable(getObjectRequest.getRange())
+                            .ifPresent(range -> presignedUrlDownloadRequest.withRange(range[0], range[1]));
                     return delegate.download(presignedUrlDownloadRequest).getS3Object();
                 })
                 .orElseGet(() -> delegate.getObject(getObjectRequest));
@@ -638,6 +640,8 @@ class PresignAwareAmazonS3
         return getPresignedUrl("GET", getObjectRequest.getBucketName(), getObjectRequest.getKey())
                 .map(presigned -> {
                     PresignedUrlDownloadRequest presignedUrlDownloadRequest = new PresignedUrlDownloadRequest(presigned.url);
+                    Optional.ofNullable(getObjectRequest.getRange())
+                            .ifPresent(range -> presignedUrlDownloadRequest.withRange(range[0], range[1]));
                     delegate.download(presignedUrlDownloadRequest, destinationFile);
                     return presigned.objectMetadata;
                 })

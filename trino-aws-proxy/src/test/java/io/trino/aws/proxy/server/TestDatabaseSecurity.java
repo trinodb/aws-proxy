@@ -103,6 +103,9 @@ public class TestDatabaseSecurity
     public void testDatabaseSecurity()
             throws Exception
     {
+        // create the test bucket
+        s3Client.createBucket(r -> r.bucket("test"));
+
         createDatabaseAndTable(s3Client, pySparkContainer);
 
         clearInputStreamAndClose(inputToContainerStdin(pySparkContainer.containerId(), "spark.sql(\"select * from %s.%s\").show()".formatted(DATABASE_NAME, TABLE_NAME)), line -> line.equals("|    John Galt| 28|"));
