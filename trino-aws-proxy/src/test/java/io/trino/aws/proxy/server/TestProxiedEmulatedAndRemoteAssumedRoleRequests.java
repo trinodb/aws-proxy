@@ -50,6 +50,6 @@ public class TestProxiedEmulatedAndRemoteAssumedRoleRequests
         Credential policyUserCredential = s3Container.policyUserCredential();
         RemoteSessionRole remoteSessionRole = new RemoteSessionRole("us-east-1", "minio-doesnt-care", Optional.empty(), Optional.empty());
         IdentityCredential identityCredential = new IdentityCredential(CREDENTIAL, TESTING_IDENTITY_CREDENTIAL.identity());
-        credentialsController.addCredentials(identityCredential, new RemoteS3Connection(policyUserCredential, Optional.of(remoteSessionRole), Optional.empty()));
+        credentialsController.addCredentials(identityCredential, RemoteS3Connection.of(policyUserCredential, remoteSessionRole));
     }
 }

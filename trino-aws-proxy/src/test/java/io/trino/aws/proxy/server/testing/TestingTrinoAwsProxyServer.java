@@ -48,7 +48,6 @@ import java.io.Closeable;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 
 import static com.google.inject.multibindings.OptionalBinder.newOptionalBinder;
 import static io.trino.aws.proxy.server.testing.TestingUtil.TESTING_IDENTITY_CREDENTIAL;
@@ -244,7 +243,7 @@ public final class TestingTrinoAwsProxyServer
         TestingCredentialsInitializer(TestingCredentialsRolesProvider credentialsController)
         {
             credentialsController.addCredentials(TESTING_IDENTITY_CREDENTIAL);
-            credentialsController.setDefaultRemoteConnection(new RemoteS3Connection(TESTING_REMOTE_CREDENTIAL, Optional.empty(), Optional.empty()));
+            credentialsController.setDefaultRemoteConnection(RemoteS3Connection.of(TESTING_REMOTE_CREDENTIAL));
         }
     }
 

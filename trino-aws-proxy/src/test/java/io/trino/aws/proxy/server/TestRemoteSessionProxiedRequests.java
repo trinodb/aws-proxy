@@ -52,7 +52,7 @@ public class TestRemoteSessionProxiedRequests
         RemoteSessionRole remoteSessionRole = new RemoteSessionRole("us-east-1", "minio-doesnt-care", Optional.empty(), Optional.empty());
         IdentityCredential identityCredential = new IdentityCredential(new Credential(UUID.randomUUID().toString(), UUID.randomUUID().toString()),
                 TESTING_IDENTITY_CREDENTIAL.identity());
-        testingCredentialsRolesProvider.addCredentials(identityCredential, new RemoteS3Connection(policyUserCredential, Optional.of(remoteSessionRole), Optional.empty()));
+        testingCredentialsRolesProvider.addCredentials(identityCredential, RemoteS3Connection.of(policyUserCredential, remoteSessionRole));
         AwsBasicCredentials awsBasicCredentials = AwsBasicCredentials.create(identityCredential.emulated().accessKey(), identityCredential.emulated().secretKey());
         return clientBuilder(httpServer.getBaseUrl(), Optional.of(trinoAwsProxyConfig.getS3Path()))
                 .credentialsProvider(() -> awsBasicCredentials)

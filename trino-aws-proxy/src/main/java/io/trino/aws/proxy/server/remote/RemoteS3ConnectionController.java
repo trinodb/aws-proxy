@@ -14,8 +14,6 @@
 package io.trino.aws.proxy.server.remote;
 
 import com.google.inject.Inject;
-import com.google.inject.Injector;
-import io.airlift.bootstrap.Bootstrap;
 import io.airlift.log.Logger;
 import io.trino.aws.proxy.spi.credentials.Credential;
 import io.trino.aws.proxy.spi.credentials.Identity;
@@ -140,12 +138,7 @@ public class RemoteS3ConnectionController
     {
         return remoteS3ConnectionProvider.remoteConnection(signingMetadata, identity, request)
                 .flatMap(remoteConnection -> {
-                    RemoteS3Facade contextRemoteS3Facade = remoteConnection.remoteS3FacadeConfiguration().map(config -> {
-                        // TODO: This should respect the plugin installed for the RemoteS3Facade somehow
-                        Injector subInjector = new Bootstrap(new DefaultRemoteS3Module()).doNotInitializeLogging().quiet().setRequiredConfigurationProperties(config).initialize();
-                        return subInjector.getInstance(RemoteS3Facade.class);
-                    }).orElse(defaultS3Facade);
-
+                    RemoteS3Facade contextRemoteS3Facade = remoteConnection.appliedRemoteS3Facade(defaultS3Facade);
                     return remoteConnection.remoteSessionRole()
                             .map(remoteSessionRole ->
                                     internalRemoteSession(remoteSessionRole, remoteConnection.remoteCredential())
