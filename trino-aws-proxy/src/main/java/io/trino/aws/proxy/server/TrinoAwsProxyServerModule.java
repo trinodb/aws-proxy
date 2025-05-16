@@ -34,6 +34,9 @@ import io.trino.aws.proxy.server.credentials.file.FileBasedCredentialsModule;
 import io.trino.aws.proxy.server.credentials.http.HttpCredentialsModule;
 import io.trino.aws.proxy.server.remote.DefaultRemoteS3Module;
 import io.trino.aws.proxy.server.remote.RemoteS3ConnectionController;
+import io.trino.aws.proxy.server.remote.provider.file.FileBasedRemoteS3ConnectionModule;
+import io.trino.aws.proxy.server.remote.provider.http.HttpRemoteS3ConnectionProviderModule;
+import io.trino.aws.proxy.server.remote.provider.preset.StaticRemoteS3ConnectionProviderModule;
 import io.trino.aws.proxy.server.rest.LimitStreamController;
 import io.trino.aws.proxy.server.rest.ResourceSecurityDynamicFeature;
 import io.trino.aws.proxy.server.rest.RestModule;
@@ -134,6 +137,9 @@ public class TrinoAwsProxyServerModule
         install(new FileBasedCredentialsModule());
         install(new OpaS3SecurityModule());
         install(new HttpCredentialsModule());
+        install(new FileBasedRemoteS3ConnectionModule());
+        install(new StaticRemoteS3ConnectionProviderModule());
+        install(new HttpRemoteS3ConnectionProviderModule());
 
         configBinder(binder).bindConfig(RemoteS3Config.class);
         // RemoteS3 provided implementation

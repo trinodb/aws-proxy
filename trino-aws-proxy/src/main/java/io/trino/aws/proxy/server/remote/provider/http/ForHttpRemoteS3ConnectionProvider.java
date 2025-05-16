@@ -11,18 +11,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.trino.aws.proxy.spi.credentials;
+package io.trino.aws.proxy.server.remote.provider.http;
 
-import java.util.Optional;
+import com.google.inject.BindingAnnotation;
 
-public interface CredentialsProvider
+import java.lang.annotation.Retention;
+import java.lang.annotation.Target;
+
+import static java.lang.annotation.ElementType.FIELD;
+import static java.lang.annotation.ElementType.METHOD;
+import static java.lang.annotation.ElementType.PARAMETER;
+import static java.lang.annotation.RetentionPolicy.RUNTIME;
+
+@BindingAnnotation
+@Target({FIELD, PARAMETER, METHOD})
+@Retention(RUNTIME)
+public @interface ForHttpRemoteS3ConnectionProvider
 {
-    CredentialsProvider NOOP = (_, _) -> Optional.empty();
-
-    /**
-     * Return the credentials, if any, for the given access key and session.
-     * Your implementation should have a centralized credentials mechanism, likely
-     * some type of database along with a way of registering credentials, etc.
-     */
-    Optional<IdentityCredential> credentials(String emulatedAccessKey, Optional<String> session);
 }
