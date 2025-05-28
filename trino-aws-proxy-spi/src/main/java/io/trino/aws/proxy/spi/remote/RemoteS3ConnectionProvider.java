@@ -24,5 +24,5 @@ public interface RemoteS3ConnectionProvider
 {
     RemoteS3ConnectionProvider NOOP = (_, _, _) -> Optional.empty();
 
-    Optional<RemoteS3Connection> remoteConnection(SigningMetadata signingMetadata, Optional<Identity> identity, ParsedS3Request request);
+    Optional<? extends RemoteS3Connection> remoteConnection(SigningMetadata signingMetadata, Optional<Identity> identity, ParsedS3Request request);
 }

@@ -17,7 +17,6 @@ import com.google.inject.Inject;
 import io.airlift.http.server.testing.TestingHttpServer;
 import io.trino.aws.proxy.server.testing.TestingCredentialsRolesProvider;
 import io.trino.aws.proxy.server.testing.TestingS3RequestRewriteController;
-import io.trino.aws.proxy.server.testing.containers.S3Container;
 import io.trino.aws.proxy.server.testing.containers.S3Container.ForS3Container;
 import io.trino.aws.proxy.server.testing.harness.TrinoAwsProxyTest;
 import io.trino.aws.proxy.server.testing.harness.TrinoAwsProxyTestCommonModules.WithConfiguredBuckets;
@@ -33,26 +32,26 @@ import java.util.UUID;
 
 import static io.trino.aws.proxy.server.testing.TestingUtil.TESTING_IDENTITY_CREDENTIAL;
 import static io.trino.aws.proxy.server.testing.TestingUtil.clientBuilder;
+import static io.trino.aws.proxy.server.testing.containers.S3Container.POLICY_USER_CREDENTIAL;
 
 @TrinoAwsProxyTest(filters = WithConfiguredBuckets.class)
 public class TestRemoteSessionProxiedRequests
         extends AbstractTestProxiedRequests
 {
     @Inject
-    public TestRemoteSessionProxiedRequests(@ForS3Container S3Client storageClient, S3Container s3Container, TestingCredentialsRolesProvider testingCredentialsRolesProvider,
+    public TestRemoteSessionProxiedRequests(@ForS3Container S3Client storageClient, TestingCredentialsRolesProvider testingCredentialsRolesProvider,
             TestingHttpServer httpServer, TrinoAwsProxyConfig trinoAwsProxyConfig, TestingS3RequestRewriteController requestRewriteController)
     {
-        super(buildClient(httpServer, trinoAwsProxyConfig, s3Container, testingCredentialsRolesProvider), storageClient, requestRewriteController);
+        super(buildClient(httpServer, trinoAwsProxyConfig, testingCredentialsRolesProvider), storageClient, requestRewriteController);
     }
 
-    private static S3Client buildClient(TestingHttpServer httpServer, TrinoAwsProxyConfig trinoAwsProxyConfig, S3Container s3Container,
+    private static S3Client buildClient(TestingHttpServer httpServer, TrinoAwsProxyConfig trinoAwsProxyConfig,
             TestingCredentialsRolesProvider testingCredentialsRolesProvider)
     {
-        Credential policyUserCredential = s3Container.policyUserCredential();
         RemoteSessionRole remoteSessionRole = new RemoteSessionRole("us-east-1", "minio-doesnt-care", Optional.empty(), Optional.empty());
         IdentityCredential identityCredential = new IdentityCredential(new Credential(UUID.randomUUID().toString(), UUID.randomUUID().toString()),
                 TESTING_IDENTITY_CREDENTIAL.identity());
-        testingCredentialsRolesProvider.addCredentials(identityCredential, new StaticRemoteS3Connection(policyUserCredential, remoteSessionRole));
+        testingCredentialsRolesProvider.addCredentials(identityCredential, new StaticRemoteS3Connection(POLICY_USER_CREDENTIAL, remoteSessionRole));
         AwsBasicCredentials awsBasicCredentials = AwsBasicCredentials.create(identityCredential.emulated().accessKey(), identityCredential.emulated().secretKey());
         return clientBuilder(httpServer.getBaseUrl(), Optional.of(trinoAwsProxyConfig.getS3Path()))
                 .credentialsProvider(() -> awsBasicCredentials)
