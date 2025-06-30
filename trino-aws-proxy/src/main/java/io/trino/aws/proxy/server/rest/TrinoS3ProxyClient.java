@@ -112,28 +112,44 @@ public class TrinoS3ProxyClient
         }
     }
 
-    public void proxyRequest(Optional<Identity> identity, SigningMetadata signingMetadata, ParsedS3Request request, AsyncResponse asyncResponse,
+    public void proxyRequest(Optional<Identity> identity, SigningMetadata signingMetadata, ParsedS3Request originalRequest, AsyncResponse asyncResponse,
             RequestLoggingSession requestLoggingSession)
     {
-        SecurityResponse securityResponse = s3SecurityController.apply(request, identity);
+        SecurityResponse securityResponse = s3SecurityController.apply(originalRequest, identity);
         if (securityResponse instanceof Failure(var error)) {
-            log.debug("SecurityController check failed. AccessKey: %s, Request: %s, SecurityResponse: %s", signingMetadata.credential().accessKey(), request, securityResponse);
+            log.debug("SecurityController check failed. AccessKey: %s, Request: %s, SecurityResponse: %s", signingMetadata.credential().accessKey(), originalRequest, securityResponse);
             requestLoggingSession.logError("request.security.fail.credentials", signingMetadata.credential());
-            requestLoggingSession.logError("request.security.fail.request", request);
+            requestLoggingSession.logError("request.security.fail.request", originalRequest);
             requestLoggingSession.logError("request.security.fail.error", error);
 
             throw new WebApplicationException(Response.Status.UNAUTHORIZED);
         }
 
-        Optional<S3RewriteResult> rewriteResult = s3RequestRewriter.rewrite(identity, signingMetadata, request);
-        String targetBucket = rewriteResult.map(S3RewriteResult::finalRequestBucket).orElse(request.bucketName());
-        String targetKey = rewriteResult
+        Optional<S3RewriteResult> rewriteResult = s3RequestRewriter.rewrite(identity, signingMetadata, originalRequest);
+        String bucket = rewriteResult.map(S3RewriteResult::finalRequestBucket).orElse(originalRequest.bucketName());
+        String key = rewriteResult
+                .map(S3RewriteResult::finalRequestKey)
+                .orElse(originalRequest.keyInBucket());
+        String path = rewriteResult
                 .map(S3RewriteResult::finalRequestKey)
                 .map(SdkHttpUtils::urlEncodeIgnoreSlashes)
-                .orElse(request.rawPath());
+                .orElse(originalRequest.rawPath());
+
+        ParsedS3Request request = new ParsedS3Request(
+                originalRequest.requestId(),
+                originalRequest.requestAuthorization(),
+                originalRequest.requestDate(),
+                bucket,
+                key,
+                originalRequest.requestHeaders(),
+                originalRequest.queryParameters(),
+                originalRequest.httpVerb(),
+                path,
+                originalRequest.rawQuery(),
+                originalRequest.requestContent());
 
         RemoteRequestWithPresignedURIs remoteRequest = remoteS3ConnectionController.withRemoteConnection(signingMetadata, identity, request, (remoteCredential, remoteS3Facade) -> {
-            URI remoteUri = remoteS3Facade.buildEndpoint(uriBuilder(request.queryParameters()), targetKey, targetBucket, request.requestAuthorization().region());
+            URI remoteUri = remoteS3Facade.buildEndpoint(uriBuilder(request.queryParameters()), request.rawPath(), request.bucketName(), request.requestAuthorization().region());
 
             Request.Builder remoteRequestBuilder = new Request.Builder()
                     .setMethod(request.httpVerb())
@@ -161,7 +177,8 @@ public class TrinoS3ProxyClient
 
             Map<String, URI> presignedUrls;
             if (generatePresignedUrlsOnHead && request.httpVerb().equalsIgnoreCase("HEAD")) {
-                presignedUrls = s3PresignController.buildPresignedRemoteUrls(identity, remoteSigningMetadata, request, targetRequestTimestamp, remoteUri);
+                // Presigned URLs are generated for the ORIGINAL key and bucket, not the rewritten ones
+                presignedUrls = s3PresignController.buildPresignedRemoteUrls(identity, remoteSigningMetadata, originalRequest, targetRequestTimestamp, remoteUri);
             }
             else {
                 presignedUrls = ImmutableMap.of();
