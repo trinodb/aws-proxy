@@ -193,13 +193,18 @@ final class RequestHeadersBuilder
             passthroughHeadersBuilder.addAll(headerName, headerValues);
         }
 
+        private String requiredContentSha256()
+        {
+            return contentSha256.orElseThrow(() -> new WebApplicationException(BAD_REQUEST));
+        }
+
         private void assertContentTypeValid(ContentType actualContentType)
         {
             if (actualContentType == ContentType.AWS_CHUNKED || actualContentType == ContentType.AWS_CHUNKED_IN_W3C_CHUNKED || actualContentType == ContentType.W3C_CHUNKED) {
                 if (decodedContentLength.isEmpty()) {
                     throw new WebApplicationException(LENGTH_REQUIRED);
                 }
-                String sha256 = contentSha256.orElseThrow(() -> new WebApplicationException(BAD_REQUEST));
+                String sha256 = requiredContentSha256();
                 if (actualContentType != ContentType.W3C_CHUNKED && !sha256.startsWith("STREAMING-")) {
                     throw new WebApplicationException(BAD_REQUEST);
                 }
@@ -213,6 +218,12 @@ final class RequestHeadersBuilder
                 case 2 -> {
                     if (!seenRequestPayloadContentTypes.containsAll(ImmutableSet.of(ContentType.AWS_CHUNKED, ContentType.W3C_CHUNKED))) {
                         throw new WebApplicationException(BAD_REQUEST);
+                    }
+                    if (requiredContentSha256().startsWith("STREAMING-UNSIGNED-PAYLOAD")) {
+                        // Some SDKs send requests with aws-chunked content encoding, in a W3C transfer encoding
+                        // but with an unsigned payload - meaning no chunks are signed.
+                        // This means those requests behave more like a standard W3C Chunked request than an aws-chunked one.
+                        yield Optional.of(ContentType.W3C_CHUNKED);
                     }
                     yield Optional.of(ContentType.AWS_CHUNKED_IN_W3C_CHUNKED);
                 }

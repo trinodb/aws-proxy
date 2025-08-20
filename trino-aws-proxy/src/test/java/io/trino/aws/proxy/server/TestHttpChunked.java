@@ -164,6 +164,8 @@ public class TestHttpChunked
     {
         String bucket = "test-http-chunked";
         String bucketTwo = "test-http-chunked-two";
+        String bucketThree = "test-http-chunked-three";
+
         storageClient.createBucket(r -> r.bucket(bucket).build());
         testHttpChunked(bucket, LOREM_IPSUM, "UNSIGNED-PAYLOAD", 1);
         testHttpChunked(bucket, LOREM_IPSUM, "UNSIGNED-PAYLOAD", 3);
@@ -173,6 +175,53 @@ public class TestHttpChunked
         testHttpChunked(bucketTwo, LOREM_IPSUM, sha256(LOREM_IPSUM), 1);
         testHttpChunked(bucketTwo, LOREM_IPSUM, sha256(LOREM_IPSUM), 3);
         testHttpChunked(bucketTwo, LOREM_IPSUM, sha256(LOREM_IPSUM), 5);
+
+        storageClient.createBucket(r -> r.bucket(bucketThree).build());
+        testHttpChunked(bucketThree, LOREM_IPSUM, "STREAMING-UNSIGNED-PAYLOAD-TRAILER", 1);
+        testHttpChunked(bucketThree, LOREM_IPSUM, "STREAMING-UNSIGNED-PAYLOAD-TRAILER", 3);
+        testHttpChunked(bucketThree, LOREM_IPSUM, "STREAMING-UNSIGNED-PAYLOAD-TRAILER", 5);
+    }
+
+    @Test
+    public void testHttpChunkedWithAwsChunkedEncodingUnsignedPayload()
+            throws IOException
+    {
+        /*
+        Requests may be received with chunked Transfer-Encoding, and aws-chunked Content-Encoding.
+        If the content hash header denotes a streaming HMAC signature is required, each chunk in the body
+        should be signed as per the aws-chunked spec. That is covered in other tests.
+
+        However, if the content hash header denotes this is a streaming unsigned payload (STREAMING-UNSIGNED-PAYLOAD-TRAILER),
+        we should not expect any signature to be provided - thus making request handling for those cases
+        behave exactly like W3C chunked, despite there being an aws-chunked indicator.
+        */
+
+        String bucket = "test-http-chunked-aws-chunked-header";
+        storageClient.createBucket(r -> r.bucket(bucket).build());
+        ImmutableMultiMap.Builder headersBuilder = ImmutableMultiMap.builder(false)
+                .add("X-Amz-Content-Sha256", "STREAMING-UNSIGNED-PAYLOAD-TRAILER");
+
+        assertThat(doHttpChunkedUpload(
+                bucket,
+                "basic-upload",
+                LOREM_IPSUM,
+                3,
+                headersBuilder.build())).isEqualTo(200);
+        assertThat(getFileFromStorage(storageClient, bucket, "basic-upload")).isEqualTo(LOREM_IPSUM);
+        assertThat(headObjectInStorage(storageClient, bucket, "basic-upload").contentEncoding()).isNullOrEmpty();
+
+        assertThat(doHttpChunkedUpload(
+                bucket,
+                "basic-upload-with-encoding",
+                LOREM_IPSUM,
+                3,
+                headersBuilder
+                        .add("Content-Encoding", "aws-chunked")
+                        .add("Content-Encoding", "gzip,compress")
+                        .build())).isEqualTo(200);
+        assertThat(getFileFromStorage(storageClient, bucket, "basic-upload-with-encoding")).isEqualTo(LOREM_IPSUM);
+        HeadObjectResponse basicUpload = headObjectInStorage(storageClient, bucket, "basic-upload-with-encoding");
+        assertThat(headObjectInStorage(storageClient, bucket, "basic-upload-with-encoding").contentEncoding()).contains("gzip,compress");
     }
 
     private void testHttpChunked(String bucket, String content, String sha256, int partitionCount)

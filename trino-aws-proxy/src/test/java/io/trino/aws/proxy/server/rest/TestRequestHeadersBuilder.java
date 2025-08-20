@@ -122,6 +122,55 @@ public class TestRequestHeadersBuilder
     }
 
     @Test
+    public void testBuildHeadersHttpAndAwsChunkedUnsignedPayloadBehavesLikeW3CChunked()
+    {
+        // Testing our corner case where we want to handle aws-chunked requests with a STREAMING-UNSIGNED-PAYLOAD hash
+        // as if they were W3C chunked, and not aws-chunked.
+        ImmutableMultiMap baseHeaders = ImmutableMultiMap.builder(false)
+                .add("Transfer-Encoding", "chunked")
+                .add("X-Amz-Decoded-Content-Length", "1000")
+                .build();
+
+        testBuildHeaders(
+                mergeMaps(
+                        baseHeaders,
+                        ImmutableMultiMap.builder(false).add("X-Amz-Content-Sha256", "UNSIGNED-PAYLOAD").build()),
+                ImmutableMultiMap.empty(), Optional.of(W3C_CHUNKED));
+
+        testBuildHeaders(
+                mergeMaps(
+                        baseHeaders,
+                        ImmutableMultiMap.builder(false)
+                                .add("X-Amz-Content-Sha256", "UNSIGNED-PAYLOAD")
+                                .add("Content-Encoding", "gzip,compress")
+                                .build()),
+                ImmutableMultiMap.builder(false)
+                        .add("Content-Encoding", "gzip,compress").build(),
+                Optional.of(W3C_CHUNKED));
+
+        testBuildHeaders(
+                mergeMaps(
+                        baseHeaders,
+                        ImmutableMultiMap.builder(false)
+                                .add("X-Amz-Content-Sha256", "STREAMING-UNSIGNED-PAYLOAD")
+                                .add("Content-Encoding", "aws-chunked")
+                                .build()),
+                ImmutableMultiMap.empty(),
+                Optional.of(W3C_CHUNKED));
+
+        testBuildHeaders(
+                mergeMaps(
+                        baseHeaders,
+                        ImmutableMultiMap.builder(false)
+                                .add("X-Amz-Content-Sha256", "STREAMING-UNSIGNED-PAYLOAD-TRAILER")
+                                .add("Content-Encoding", "aws-chunked")
+                                .add("Content-Encoding", "aws-chunked,gzip")
+                                .build()),
+                ImmutableMultiMap.builder(false).add("Content-Encoding", "gzip").build(),
+                Optional.of(W3C_CHUNKED));
+    }
+
+    @Test
     public void testBuildHeadersHttpChunked()
     {
         MultiMap baseHttpChunkedHeaders = ImmutableMultiMap.builder(false)
