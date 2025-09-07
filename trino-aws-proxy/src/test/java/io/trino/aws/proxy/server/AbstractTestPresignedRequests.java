@@ -44,6 +44,7 @@ import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.HeadObjectResponse;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectResponse;
+import software.amazon.awssdk.services.s3.model.Tag;
 import software.amazon.awssdk.services.s3.model.UploadPartRequest;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 import software.amazon.awssdk.services.s3.presigner.model.CompleteMultipartUploadPresignRequest;
@@ -65,6 +66,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.List;
 import java.util.Optional;
 
 import static io.airlift.http.client.Request.Builder.prepareDelete;
@@ -302,10 +304,54 @@ public abstract class AbstractTestPresignedRequests
     String getFileFromStorage(String bucketName, String key)
             throws IOException
     {
-        String dataFromProxy = TestingUtil.getFileFromStorage(internalClient, bucketName, key);
-        String dataFromStorage = TestingUtil.getFileFromStorage(storageClient, requestRewriteController.getTargetBucket(bucketName, key), requestRewriteController.getTargetKey(bucketName, key));
+        return getFileFromStorage(internalClient, bucketName, key, Optional.empty());
+    }
+
+    String getFileFromStorage(S3Client s3Client, String bucketName, String key, Optional<Credential> credential)
+            throws IOException
+    {
+        String dataFromProxy = TestingUtil.getFileFromStorage(s3Client, bucketName, key);
+        String dataFromStorage = credential
+                .map(actualCredential -> {
+                    try {
+                        return TestingUtil.getFileFromStorage(
+                                storageClient,
+                                requestRewriteController.getTargetBucket(actualCredential.accessKey(), bucketName, key),
+                                requestRewriteController.getTargetKey(actualCredential.accessKey(), bucketName, key));
+                    }
+                    catch (IOException e) {
+                        throw new RuntimeException(e);
+                    }
+                })
+                .orElseGet(() -> {
+                    try {
+                        return TestingUtil.getFileFromStorage(
+                                storageClient,
+                                requestRewriteController.getTargetBucket(bucketName, key),
+                                requestRewriteController.getTargetKey(bucketName, key));
+                    }
+                    catch (IOException e) {
+                        throw new RuntimeException(e);
+                    }
+                });
         assertThat(dataFromProxy).isEqualTo(dataFromStorage);
         return dataFromStorage;
+    }
+
+    List<Tag> getObjectTagging(S3Client s3Client, String bucketName, String key, Optional<Credential> credential)
+    {
+        List<Tag> tagsFromProxy = TestingUtil.getObjectTagging(s3Client, bucketName, key);
+        List<Tag> tagsFromStorage = credential
+                .map(actualCredential -> TestingUtil.getObjectTagging(
+                        storageClient,
+                        requestRewriteController.getTargetBucket(actualCredential.accessKey(), bucketName, key),
+                        requestRewriteController.getTargetKey(actualCredential.accessKey(), bucketName, key)))
+                .orElseGet(() -> TestingUtil.getObjectTagging(
+                        storageClient,
+                        requestRewriteController.getTargetBucket(bucketName, key),
+                        requestRewriteController.getTargetKey(bucketName, key)));
+        assertThat(tagsFromProxy).isEqualTo(tagsFromStorage);
+        return tagsFromStorage;
     }
 
     <T> T executeHttpRequest(SdkHttpRequest sdkRequest, ResponseHandler<T, RuntimeException> responseHandler)

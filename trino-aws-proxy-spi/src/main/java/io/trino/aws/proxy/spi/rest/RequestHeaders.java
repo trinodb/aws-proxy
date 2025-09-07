@@ -26,4 +26,9 @@ public record RequestHeaders(
         passthroughHeaders = ImmutableMultiMap.copyOfCaseInsensitive(passthroughHeaders);
         unmodifiedHeaders = ImmutableMultiMap.copyOfCaseInsensitive(unmodifiedHeaders);
     }
+
+    public RequestHeaders withPassthroughHeaders(MultiMap newPassthroughHeaders)
+    {
+        return new RequestHeaders(newPassthroughHeaders, unmodifiedHeaders);
+    }
 }
