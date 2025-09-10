@@ -56,8 +56,8 @@ final class RequestHeadersBuilder
             RequestHeaders requestHeaders,
             Optional<RequestAuthorization> requestAuthorization,
             Optional<Instant> requestDate,
-            Optional<Integer> contentLength,
-            Optional<Integer> decodedContentLength,
+            Optional<Long> contentLength,
+            Optional<Long> decodedContentLength,
             Optional<ContentType> requestPayloadContentType)
     {
         InternalRequestHeaders {
@@ -99,8 +99,8 @@ final class RequestHeadersBuilder
         private final ImmutableMultiMap.Builder passthroughHeadersBuilder = ImmutableMultiMap.builder(false);
         private Optional<RequestAuthorization> requestAuthorization = Optional.empty();
         private Optional<Instant> requestDate = Optional.empty();
-        private Optional<Integer> contentLength = Optional.empty();
-        private Optional<Integer> decodedContentLength = Optional.empty();
+        private Optional<Long> contentLength = Optional.empty();
+        private Optional<Long> decodedContentLength = Optional.empty();
         private Optional<String> contentSha256 = Optional.empty();
         private Set<ContentType> seenRequestPayloadContentTypes = new HashSet<>();
 
@@ -141,12 +141,12 @@ final class RequestHeadersBuilder
 
         private void contentLength(List<String> values)
         {
-            this.contentLength = parseHeaderValuesAsSingle(values, Integer::parseUnsignedInt);
+            this.contentLength = parseHeaderValuesAsSingle(values, Long::parseUnsignedLong);
         }
 
         private void decodedContentLength(List<String> values)
         {
-            this.decodedContentLength = parseHeaderValuesAsSingle(values, Integer::parseUnsignedInt);
+            this.decodedContentLength = parseHeaderValuesAsSingle(values, Long::parseUnsignedLong);
         }
 
         private void contentEncoding(List<String> values)

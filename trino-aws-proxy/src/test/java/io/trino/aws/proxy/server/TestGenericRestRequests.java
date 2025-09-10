@@ -294,7 +294,7 @@ public class TestGenericRestRequests
         return "%s;chunk-signature=%s\r\n%s\r\n".formatted(Integer.toString(reportedChunkSize, 16), ILLEGAL_CHUNK_SIGNATURE, dataInChunk);
     }
 
-    private void testAwsChunkedIllegalChunks(String bucket, String key, String rawContent, int decodedContentLength, int expectedStatusCode)
+    private void testAwsChunkedIllegalChunks(String bucket, String key, String rawContent, long decodedContentLength, int expectedStatusCode)
     {
         Instant requestDate = Instant.now();
         Credential validCredential = new Credential(UUID.randomUUID().toString(), UUID.randomUUID().toString());

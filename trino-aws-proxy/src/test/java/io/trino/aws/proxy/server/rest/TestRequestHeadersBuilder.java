@@ -176,8 +176,8 @@ public class TestRequestHeadersBuilder
     {
         InternalRequestHeaders constructedHeaders = doBuildHeaders(extraHeaders);
 
-        Optional<Integer> contentLength = extraHeaders.getFirst("Content-Length").map(Integer::parseInt);
-        Optional<Integer> decodedContentLength = extraHeaders.getFirst("X-Amz-Decoded-Content-Length").map(Integer::parseInt);
+        Optional<Long> contentLength = extraHeaders.getFirst("Content-Length").map(Long::parseLong);
+        Optional<Long> decodedContentLength = extraHeaders.getFirst("X-Amz-Decoded-Content-Length").map(Long::parseLong);
         assertThat(constructedHeaders.requestAuthorization()).contains(SAMPLE_PARSED_AUTHORIZATION);
         assertThat(constructedHeaders.requestDate()).contains(AwsTimestamp.fromRequestTimestamp(SAMPLE_TIMESTAMP));
         assertThat(constructedHeaders.contentLength()).isEqualTo(contentLength);

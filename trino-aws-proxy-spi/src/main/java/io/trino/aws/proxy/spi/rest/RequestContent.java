@@ -43,7 +43,7 @@ public interface RequestContent
         return Optional.empty();
     }
 
-    default Optional<Integer> contentLength()
+    default Optional<Long> contentLength()
     {
         return Optional.empty();
     }
