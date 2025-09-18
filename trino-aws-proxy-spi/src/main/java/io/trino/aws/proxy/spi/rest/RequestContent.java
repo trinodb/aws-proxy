@@ -36,7 +36,8 @@ public interface RequestContent
     }
 
     /**
-     * returns content bytes iff {@code contentType() == STANDARD}
+     * returns content bytes iff the request is not for a service that streams payloads without spooling
+     * See {@link io.trino.aws.proxy.spi.signing.SigningServiceType} and {@link io.trino.aws.proxy.spi.signing.SigningTrait} STREAM_CONTENT
      */
     default Optional<byte[]> standardBytes()
     {
