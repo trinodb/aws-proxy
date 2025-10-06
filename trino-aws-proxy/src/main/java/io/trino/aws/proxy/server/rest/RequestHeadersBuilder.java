@@ -50,7 +50,8 @@ final class RequestHeadersBuilder
             "connection",
             "amz-sdk-invocation-id",
             "amx-sdk-request",
-            "host");
+            "host",
+            "x-amz-trailer");
 
     record InternalRequestHeaders(
             RequestHeaders requestHeaders,
@@ -75,7 +76,9 @@ final class RequestHeadersBuilder
         Builder builder = new Builder();
         allRequestHeaders.forEach((headerName, headerValues) -> {
             switch (headerName) {
-                case "authorization", "x-amz-security-token" -> {} // these get handled separately
+                case "authorization", "x-amz-security-token" -> {
+                    // these get handled separately
+                }
                 case "content-length" -> builder.contentLength(headerValues);
                 case "x-amz-decoded-content-length" -> builder.decodedContentLength(headerValues);
                 case "content-encoding" -> builder.contentEncoding(headerValues);
@@ -103,6 +106,13 @@ final class RequestHeadersBuilder
         private Optional<Integer> decodedContentLength = Optional.empty();
         private Optional<String> contentSha256 = Optional.empty();
         private Set<ContentType> seenRequestPayloadContentTypes = new HashSet<>();
+
+        private static final Set<ContentType> CHUNKED_CONTENT_TYPES = Set.of(
+                ContentType.AWS_CHUNKED,
+                ContentType.AWS_CHUNKED_IN_W3C_CHUNKED,
+                ContentType.W3C_CHUNKED,
+                ContentType.AWS_CHUNKED_UNSIGNED,
+                ContentType.AWS_CHUNKED_IN_W3C_CHUNKED_UNSIGNED);
 
         private Builder() {}
 
@@ -193,14 +203,18 @@ final class RequestHeadersBuilder
             passthroughHeadersBuilder.addAll(headerName, headerValues);
         }
 
+        private String requiredContentSha256()
+        {
+            return contentSha256.orElseThrow(() -> new WebApplicationException(BAD_REQUEST));
+        }
+
         private void assertContentTypeValid(ContentType actualContentType)
         {
-            if (actualContentType == ContentType.AWS_CHUNKED || actualContentType == ContentType.AWS_CHUNKED_IN_W3C_CHUNKED || actualContentType == ContentType.W3C_CHUNKED) {
+            if (CHUNKED_CONTENT_TYPES.contains(actualContentType)) {
                 if (decodedContentLength.isEmpty()) {
                     throw new WebApplicationException(LENGTH_REQUIRED);
                 }
-                String sha256 = contentSha256.orElseThrow(() -> new WebApplicationException(BAD_REQUEST));
-                if (actualContentType != ContentType.W3C_CHUNKED && !sha256.startsWith("STREAMING-")) {
+                if (actualContentType != ContentType.W3C_CHUNKED && !requiredContentSha256().startsWith("STREAMING-")) {
                     throw new WebApplicationException(BAD_REQUEST);
                 }
             }
@@ -209,10 +223,20 @@ final class RequestHeadersBuilder
         private InternalRequestHeaders build(MultiMap allHeaders)
         {
             Optional<ContentType> applicableContentType = switch (seenRequestPayloadContentTypes.size()) {
-                case 0, 1 -> seenRequestPayloadContentTypes.stream().findFirst();
+                case 0 -> Optional.empty();
+                case 1 -> {
+                    Optional<ContentType> contentType = seenRequestPayloadContentTypes.stream().findFirst();
+                    if (contentType.get().equals(ContentType.AWS_CHUNKED) && requiredContentSha256().startsWith("STREAMING-UNSIGNED-PAYLOAD")) {
+                        yield Optional.of(ContentType.AWS_CHUNKED_UNSIGNED);
+                    }
+                    yield contentType;
+                }
                 case 2 -> {
                     if (!seenRequestPayloadContentTypes.containsAll(ImmutableSet.of(ContentType.AWS_CHUNKED, ContentType.W3C_CHUNKED))) {
                         throw new WebApplicationException(BAD_REQUEST);
+                    }
+                    if (requiredContentSha256().startsWith("STREAMING-UNSIGNED-PAYLOAD")) {
+                        yield Optional.of(ContentType.AWS_CHUNKED_IN_W3C_CHUNKED_UNSIGNED);
                     }
                     yield Optional.of(ContentType.AWS_CHUNKED_IN_W3C_CHUNKED);
                 }
