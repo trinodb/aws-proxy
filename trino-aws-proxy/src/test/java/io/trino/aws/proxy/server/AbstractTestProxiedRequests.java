@@ -252,6 +252,33 @@ public abstract class AbstractTestProxiedRequests
     }
 
     @Test
+    public void testPathsNeedingEscapingAsQueryParam()
+    {
+        String bucket = "escapes-query";
+        String targetBucket = requestRewriteController.getTargetBucket(bucket, "");
+        remoteClient.createBucket(r -> r.bucket(targetBucket));
+        internalClient.putObject(r -> r.bucket(bucket).key("a=1/b=2/1"), RequestBody.fromString("something"));
+        internalClient.putObject(r -> r.bucket(bucket).key("a=1%2Fb=2/2"), RequestBody.fromString("else"));
+
+        assertThat(listFilesInS3Bucket(remoteClient, targetBucket, requestRewriteController.getTargetKey(bucket, "a=1/b=2")))
+                .containsExactlyInAnyOrder(requestRewriteController.getTargetKey(bucket, "a=1/b=2/1"));
+        // Provide target key prefix - rewriting query parameters is not supported
+        assertThat(listFilesInS3Bucket(internalClient, bucket, requestRewriteController.getTargetKey(bucket, "a=1/b=2")))
+                .containsExactlyInAnyOrder(requestRewriteController.getTargetKey(bucket, "a=1/b=2/1"));
+
+        assertThat(listFilesInS3Bucket(remoteClient, targetBucket, requestRewriteController.getTargetKey(bucket, "a=1%2Fb=2")))
+                .containsExactlyInAnyOrder(requestRewriteController.getTargetKey(bucket, "a=1%2Fb=2/2"));
+        // Provide target key prefix - rewriting query parameters is not supported
+        assertThat(listFilesInS3Bucket(internalClient, bucket, requestRewriteController.getTargetKey(bucket, "a=1%2Fb=2")))
+                .containsExactlyInAnyOrder(requestRewriteController.getTargetKey(bucket, "a=1%2Fb=2/2"));
+
+        internalClient.deleteObject(r -> r.bucket(bucket).key("a=1/b=2/1"));
+        internalClient.deleteObject(r -> r.bucket(bucket).key("a=1%2Fb=2/2"));
+        assertThat(listFilesInS3Bucket(internalClient, bucket)).isEmpty();
+        internalClient.deleteBucket(r -> r.bucket(bucket));
+    }
+
+    @Test
     public void testKeyOrBucketDoesNotExist()
     {
         assertFileNotInS3(internalClient, UUID.randomUUID().toString(), UUID.randomUUID().toString());

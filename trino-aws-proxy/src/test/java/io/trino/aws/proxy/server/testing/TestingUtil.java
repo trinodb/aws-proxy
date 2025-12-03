@@ -150,6 +150,11 @@ public final class TestingUtil
         return storageClient.listObjects(request -> request.bucket(bucket)).contents().stream().map(S3Object::key).collect(toImmutableList());
     }
 
+    public static List<String> listFilesInS3Bucket(S3Client storageClient, String bucket, String prefix)
+    {
+        return storageClient.listObjects(request -> request.bucket(bucket).prefix(prefix)).contents().stream().map(S3Object::key).collect(toImmutableList());
+    }
+
     @SuppressWarnings("UnstableApiUsage")
     public static String sha256(String content)
     {

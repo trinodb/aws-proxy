@@ -60,6 +60,8 @@ import static java.lang.annotation.ElementType.METHOD;
 import static java.lang.annotation.ElementType.PARAMETER;
 import static java.lang.annotation.RetentionPolicy.RUNTIME;
 import static java.util.Objects.requireNonNull;
+import static org.glassfish.jersey.uri.UriComponent.Type.QUERY_PARAM;
+import static org.glassfish.jersey.uri.UriComponent.encode;
 
 public class TrinoS3ProxyClient
 {
@@ -238,7 +240,7 @@ public class TrinoS3ProxyClient
     private static UriBuilder uriBuilder(MultiMap queryParameters)
     {
         UriBuilder uriBuilder = UriBuilder.newInstance();
-        queryParameters.forEachEntry(uriBuilder::queryParam);
+        queryParameters.forEachEntry((name, value) -> uriBuilder.queryParam(name, encode(value, QUERY_PARAM)));
         return uriBuilder;
     }
 
