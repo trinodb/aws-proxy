@@ -49,8 +49,8 @@ public class S3Container
 
     public static final String POLICY_NAME = "managedPolicy";
 
-    private static final String IMAGE_NAME = "minio/minio";
-    private static final String IMAGE_TAG = "RELEASE.2024-07-15T19-02-30Z";
+    // Keep in sync with dep.minio.version in pom.xml
+    private static final String IMAGE = "cgr.dev/chainguard/minio@sha256:66bd82c8fe5e75868ae7d0b2e102d9a0dcf971b270a41bd060a9e6a643476ff8";
 
     private static final String CONFIG_TEMPLATE = """
             {
@@ -111,7 +111,7 @@ public class S3Container
         Transferable config = Transferable.of(CONFIG_TEMPLATE.formatted(credential.accessKey(), credential.secretKey()));
         Transferable policyFile = Transferable.of(POLICY);
 
-        container = new MinIOContainer(DockerImageName.parse(IMAGE_NAME).withTag(IMAGE_TAG))
+        container = new MinIOContainer(DockerImageName.parse(IMAGE).asCompatibleSubstituteFor("minio/minio"))
                 .withUserName(credential.accessKey())
                 .withPassword(credential.secretKey())
                 .withEnv("MC_CONFIG_DIR", "/root/.mc/")
@@ -120,6 +120,8 @@ public class S3Container
                 .withCopyToContainer(policyFile, "/root/policy.json");
 
         container.withEnv("MINIO_DOMAIN", LOCALHOST_DOMAIN);
+        // Required to create buckets externally
+        container.withCreateContainerCmdModifier(cmd -> cmd.withUser("root"));
         container.start();
 
         log.info("S3 container started on port: %s", container.getFirstMappedPort());

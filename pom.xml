@@ -55,7 +55,8 @@
         <dep.airlift-units.version>1.10</dep.airlift-units.version>
         <dep.jersey.version>3.1.9</dep.jersey.version>
         <dep.testcontainers.version>1.19.8</dep.testcontainers.version>
-        <dep.minio.version>8.5.9</dep.minio.version>
+        <!-- in sync with container cgr.dev/chainguard/minio in S3Container -->
+        <dep.minio.version>8.6.0</dep.minio.version>
         <dep.docker.version>3.3.6</dep.docker.version>
         <dep.awaitility.version>4.1.1</dep.awaitility.version>
         <dep.caffeine.version>3.1.8</dep.caffeine.version>
