@@ -18,7 +18,6 @@ import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.JsonDeserializer;
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import software.amazon.awssdk.core.SdkBytes;
 import software.amazon.awssdk.core.SdkField;
 
@@ -54,9 +53,7 @@ class GlueDeserializer<T>
     {
         Object builder = serializerCommon.newBuilder();
 
-        // recommended by claude.ai
-        ObjectMapper mapper = (ObjectMapper) parser.getCodec();
-        JsonNode node = mapper.readTree(parser);
+        JsonNode node = context.readTree(parser);
 
         Iterator<String> fieldNames = node.fieldNames();
         while (fieldNames.hasNext()) {
@@ -75,7 +72,7 @@ class GlueDeserializer<T>
                 }
                 else {
                     JavaType javaType = context.getTypeFactory().constructType(type);
-                    sdkField.set(builder, mapper.convertValue(fieldValue, javaType));
+                    sdkField.set(builder, context.readTreeAsValue(fieldValue, javaType));
                 }
             }
         }
