@@ -142,6 +142,13 @@ public class ImmutableMultiMap
         return builder.build();
     }
 
+    public Builder toBuilder()
+    {
+        Builder builder = builder(isCaseSensitiveKeys());
+        forEach(builder::addAll);
+        return builder;
+    }
+
     public static class Builder
     {
         private final Multimap<String, String> data;

@@ -16,6 +16,7 @@ package io.trino.aws.proxy.server;
 import com.fasterxml.jackson.dataformat.xml.XmlMapper;
 import com.google.inject.Inject;
 import io.airlift.http.client.HttpClient;
+import io.airlift.http.client.StatusResponseHandler;
 import io.airlift.http.client.StringResponseHandler;
 import io.airlift.http.server.testing.TestingHttpServer;
 import io.trino.aws.proxy.server.testing.RequestRewriteUtil;
@@ -27,27 +28,40 @@ import io.trino.aws.proxy.server.testing.harness.TrinoAwsProxyTestCommonModules.
 import io.trino.aws.proxy.server.testing.harness.TrinoAwsProxyTestCommonModules.WithTestingHttpClient;
 import io.trino.aws.proxy.spi.credentials.IdentityCredential;
 import org.junit.jupiter.api.Test;
+import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
+import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignRequest;
 import software.amazon.awssdk.services.s3.presigner.model.PresignedGetObjectRequest;
+import software.amazon.awssdk.services.s3.presigner.model.PresignedPutObjectRequest;
+import software.amazon.awssdk.services.s3.presigner.model.PutObjectPresignRequest;
 
 import java.io.IOException;
+import java.net.URI;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.time.Duration;
+import java.util.Optional;
 
+import static io.airlift.http.client.StatusResponseHandler.createStatusResponseHandler;
 import static io.airlift.http.client.StringResponseHandler.createStringResponseHandler;
 import static io.trino.aws.proxy.server.testing.RequestRewriteUtil.CREDENTIAL_TO_REDIRECT;
 import static io.trino.aws.proxy.server.testing.RequestRewriteUtil.TEST_CREDENTIAL_REDIRECT_BUCKET;
 import static io.trino.aws.proxy.server.testing.RequestRewriteUtil.TEST_CREDENTIAL_REDIRECT_KEY;
+import static io.trino.aws.proxy.server.testing.RequestRewriteUtil.TEST_REWRITTEN_TAGS;
 import static io.trino.aws.proxy.server.testing.TestingUtil.TEST_FILE;
+import static io.trino.aws.proxy.server.testing.TestingUtil.clientBuilder;
 import static org.assertj.core.api.Assertions.assertThat;
 
 @TrinoAwsProxyTest(filters = {WithConfiguredBuckets.class, WithTestingHttpClient.class, RequestRewriteUtil.Filter.class})
 public class TestPresignedRequestsWithRewrite
         extends AbstractTestPresignedRequests
 {
+    private final URI baseUri;
+    private final String relativePath;
+
     @Inject
     public TestPresignedRequestsWithRewrite(
             @ForTesting HttpClient httpClient,
@@ -60,6 +74,8 @@ public class TestPresignedRequestsWithRewrite
             TestingS3RequestRewriteController requestRewriteController)
     {
         super(httpClient, internalClient, storageClient, testingCredentials, httpServer, s3ProxyConfig, xmlMapper, requestRewriteController);
+        this.baseUri = httpServer.getBaseUrl();
+        this.relativePath = s3ProxyConfig.getS3Path();
     }
 
     @Test
@@ -83,6 +99,39 @@ public class TestPresignedRequestsWithRewrite
             StringResponseHandler.StringResponse response = executeHttpRequest(presignedRequest.httpRequest(), createStringResponseHandler());
             assertThat(response.getStatusCode()).isEqualTo(200);
             assertThat(response.getBody()).isEqualTo(Files.readString(TEST_FILE));
+        }
+    }
+
+    @Test
+    public void testPresignedUploadRedirectAndModifyHeadersBasedOnIdentity()
+            throws IOException
+    {
+        String testBucket = "two";
+        String testKey = "does-not-matter";
+        String fileContents = Files.readString(TEST_FILE, StandardCharsets.UTF_8);
+
+        try (
+                S3Presigner presigner = buildPresigner(CREDENTIAL_TO_REDIRECT);
+                S3Client testS3Client = clientBuilder(baseUri, Optional.of(relativePath))
+                        .credentialsProvider(() -> AwsBasicCredentials.create(CREDENTIAL_TO_REDIRECT.accessKey(), CREDENTIAL_TO_REDIRECT.secretKey()))
+                        .build()) {
+            PutObjectRequest request = PutObjectRequest
+                    .builder()
+                    .bucket(testBucket)
+                    .key(testKey)
+                    .contentEncoding("gzip")
+                    .contentType("text/plain;charset=UTF-8")
+                    .build();
+            PutObjectPresignRequest presignRequest = PutObjectPresignRequest.builder()
+                    .signatureDuration(Duration.ofDays(1))
+                    .putObjectRequest(request)
+                    .build();
+            PresignedPutObjectRequest presignedRequest = presigner.presignPutObject(presignRequest);
+
+            StatusResponseHandler.StatusResponse response = executeHttpRequest(presignedRequest.httpRequest(), fileContents, createStatusResponseHandler());
+            assertThat(response.getStatusCode()).isEqualTo(200);
+            assertThat(getFileFromStorage(testS3Client, testBucket, testKey, Optional.of(CREDENTIAL_TO_REDIRECT))).isEqualTo(fileContents);
+            assertThat(getObjectTagging(testS3Client, testBucket, testKey, Optional.of(CREDENTIAL_TO_REDIRECT))).isEqualTo(TEST_REWRITTEN_TAGS);
         }
     }
 }
