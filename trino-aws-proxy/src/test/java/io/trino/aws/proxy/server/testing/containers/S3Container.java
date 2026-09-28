@@ -50,7 +50,8 @@ public class S3Container
     public static final String POLICY_NAME = "managedPolicy";
 
     // Keep in sync with dep.minio.version in pom.xml
-    private static final String IMAGE = "cgr.dev/chainguard/minio@sha256:f767919bd003062ac69713cdce920eb922c9fa3388efe96264e78b763342ca1a";
+    // cgr.dev/chainguard/minio RELEASE.2026-09-22T19-25-18Z
+    private static final String IMAGE = "cgr.dev/chainguard/minio@sha256:6a1d0b45c8669726bba580ced0bfa4cb9fdeed1ed636dfabd81d1577beb6937b";
 
     public static final Credential POLICY_USER_CREDENTIAL = new Credential(UUID.randomUUID().toString(), UUID.randomUUID().toString());
 
