@@ -42,10 +42,10 @@ class AwsChunkedInputStream
     private State state = State.FIRST_CHUNK;
     private boolean delegateIsDone;
     private int bytesRemainingInChunk;
-    private int bytesAccountedFor;
-    private final int decodedContentLength;
+    private long bytesAccountedFor;
+    private final long decodedContentLength;
 
-    AwsChunkedInputStream(InputStream delegate, ChunkSigningSession chunkSigningSession, int decodedContentLength)
+    AwsChunkedInputStream(InputStream delegate, ChunkSigningSession chunkSigningSession, long decodedContentLength)
     {
         this.delegate = requireNonNull(delegate, "delegate is null");
         this.chunkSigningSession = requireNonNull(chunkSigningSession, "chunkSigningSession is null");

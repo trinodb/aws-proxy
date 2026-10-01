@@ -155,7 +155,7 @@ public class TrinoS3ProxyClient
             // Use now for the remote request
             remoteRequestHeadersBuilder.putOrReplaceSingle("X-Amz-Date", AwsTimestamp.toRequestFormat(targetRequestTimestamp));
 
-            request.requestContent().contentLength().ifPresent(length -> remoteRequestHeadersBuilder.putOrReplaceSingle("content-length", Integer.toString(length)));
+            request.requestContent().contentLength().ifPresent(length -> remoteRequestHeadersBuilder.putOrReplaceSingle("content-length", Long.toString(length)));
             // All SigV4 requests require an x-amz-content-sha256
             remoteRequestHeadersBuilder.putOrReplaceSingle("x-amz-content-sha256", "UNSIGNED-PAYLOAD");
 

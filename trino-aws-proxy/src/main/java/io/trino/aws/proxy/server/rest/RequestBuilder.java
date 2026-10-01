@@ -24,6 +24,8 @@ import io.trino.aws.proxy.spi.rest.RequestContent;
 import io.trino.aws.proxy.spi.rest.RequestContent.ContentType;
 import io.trino.aws.proxy.spi.rest.RequestHeaders;
 import io.trino.aws.proxy.spi.signing.RequestAuthorization;
+import io.trino.aws.proxy.spi.signing.SigningServiceType;
+import io.trino.aws.proxy.spi.signing.SigningTrait;
 import io.trino.aws.proxy.spi.util.ImmutableMultiMap;
 import io.trino.aws.proxy.spi.util.MultiMap;
 import jakarta.ws.rs.WebApplicationException;
@@ -41,7 +43,6 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Supplier;
 
-import static com.google.common.io.ByteStreams.toByteArray;
 import static io.trino.aws.proxy.server.signing.SigningQueryParameters.splitQueryParameters;
 import static jakarta.ws.rs.core.Response.Status.BAD_REQUEST;
 
@@ -51,12 +52,12 @@ class RequestBuilder
 
     private RequestBuilder() {}
 
-    static Request fromRequest(ContainerRequest request)
+    static Request fromRequest(ContainerRequest request, SigningServiceType signingServiceType)
     {
         InternalRequestHeaders requestHeaders = RequestHeadersBuilder.parseHeaders(ImmutableMultiMap.copyOfCaseInsensitive(request.getHeaders().entrySet()));
         Optional<Instant> requestTimestamp;
 
-        RequestContent requestContent = request.hasEntity() ? buildRequestContent(request.getEntityStream(), requestHeaders) : RequestContent.EMPTY;
+        RequestContent requestContent = request.hasEntity() ? buildRequestContent(request.getEntityStream(), requestHeaders, signingServiceType) : RequestContent.EMPTY;
         SigningQueryParameters signingQueryParameters = splitQueryParameters(ImmutableMultiMap.copyOf(request.getUriInfo().getQueryParameters(true).entrySet()));
 
         Optional<RequestAuthorization> requestAuthorization = requestHeaders.requestAuthorization();
@@ -129,44 +130,58 @@ class RequestBuilder
         return URLDecoder.decode(component, StandardCharsets.UTF_8);
     }
 
+    private record RequestContentPayload(Supplier<InputStream> inputStreamSupplier, Supplier<Optional<byte[]>> standardBytesSupplier) {}
+
+    private static RequestContentPayload getRequestContentPayloadStreaming(InputStream inputStream)
+    {
+        return new RequestContentPayload(() -> inputStream, Optional::empty);
+    }
+
+    private static RequestContentPayload getRequestContentPayloadInMemory(InputStream inputStream)
+    {
+        Supplier<Optional<byte[]>> standardBytesSupplier = Suppliers.memoize(() -> {
+            try {
+                return Optional.of(inputStream.readAllBytes());
+            }
+            catch (IOException e) {
+                throw new WebApplicationException(BAD_REQUEST);
+            }
+        });
+        return new RequestContentPayload(() -> new ByteArrayInputStream(standardBytesSupplier.get().orElseThrow()), standardBytesSupplier);
+    }
+
     @SuppressWarnings("SwitchStatementWithTooFewBranches")
-    private static RequestContent buildRequestContent(InputStream requestEntityStream, InternalRequestHeaders requestHeaders)
+    private static RequestContent buildRequestContent(InputStream requestEntityStream, InternalRequestHeaders requestHeaders, SigningServiceType signingServiceType)
     {
         ContentType contentType = requestHeaders.requestPayloadContentType().orElse(ContentType.STANDARD);
 
-        Supplier<Optional<byte[]>> bytesSupplier = switch (contentType) {
-            case STANDARD -> Suppliers.memoize(() -> {
-                try {
-                    return Optional.of(toByteArray(requestEntityStream));
-                }
-                catch (IOException e) {
-                    throw new WebApplicationException(BAD_REQUEST);
-                }
-            });
-
-            default -> Optional::empty;
-        };
-
-        Supplier<Optional<Integer>> contentLengthSupplier = switch (contentType) {
-            case STANDARD -> () -> bytesSupplier.get().map(bytes -> bytes.length);
+        Supplier<Optional<Long>> contentLengthSupplier = switch (contentType) {
+            case STANDARD -> () -> Optional.of(requestHeaders.contentLength().orElseThrow(() -> new WebApplicationException(BAD_REQUEST)));
 
             // AWS does not mandate x-amz-decoded-content length is required for chunked transfer encoding
             // But we require it for simplicity (Content-Length is needed since we don't do chunking on outbound requests)
             case AWS_CHUNKED, W3C_CHUNKED, AWS_CHUNKED_IN_W3C_CHUNKED -> () -> {
-                int contentLength = requestHeaders.decodedContentLength()
+                long contentLength = requestHeaders.decodedContentLength()
                         .orElseThrow(() -> new WebApplicationException(BAD_REQUEST));
                 return Optional.of(contentLength);
             };
 
             default -> Optional::empty;
         };
+        RequestContentPayload requestContentPayload = signingServiceType.hasTrait(SigningTrait.STREAM_CONTENT) ? getRequestContentPayloadStreaming(requestEntityStream) : getRequestContentPayloadInMemory(requestEntityStream);
 
         return new RequestContent()
         {
             @Override
-            public Optional<Integer> contentLength()
+            public Optional<Long> contentLength()
             {
                 return contentLengthSupplier.get();
+            }
+
+            @Override
+            public Optional<byte[]> standardBytes()
+            {
+                return requestContentPayload.standardBytesSupplier().get();
             }
 
             @Override
@@ -176,17 +191,9 @@ class RequestBuilder
             }
 
             @Override
-            public Optional<byte[]> standardBytes()
-            {
-                return bytesSupplier.get();
-            }
-
-            @Override
             public Optional<InputStream> inputStream()
             {
-                return standardBytes()
-                        .map(bytes -> (InputStream) new ByteArrayInputStream(bytes))
-                        .or(() -> Optional.of(requestEntityStream));
+                return Optional.of(requestContentPayload.inputStreamSupplier().get());
             }
         };
     }
