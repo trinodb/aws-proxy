@@ -15,6 +15,7 @@ package io.trino.aws.proxy.server.testing;
 
 import io.trino.aws.proxy.spi.credentials.Identity;
 import io.trino.aws.proxy.spi.rest.ParsedS3Request;
+import io.trino.aws.proxy.spi.rest.RequestHeaders;
 import io.trino.aws.proxy.spi.rest.S3RequestRewriter;
 import io.trino.aws.proxy.spi.signing.SigningMetadata;
 
@@ -24,13 +25,13 @@ import java.util.Optional;
 public interface TestingS3RequestRewriter
         extends S3RequestRewriter
 {
-    TestingS3RequestRewriter NOOP = (_, _, _) -> Optional.empty();
+    TestingS3RequestRewriter NOOP = (_, _, _, _) -> Optional.empty();
 
-    Optional<S3RewriteResult> testRewrite(String accessKey, String bucketName, String keyName);
+    Optional<S3RewriteResult> testRewrite(String accessKey, String bucketName, String keyName, Optional<RequestHeaders> requestHeaders);
 
     @Override
     default Optional<S3RewriteResult> rewrite(Optional<Identity> identity, SigningMetadata signingMetadata, ParsedS3Request request)
     {
-        return testRewrite(signingMetadata.credential().accessKey(), request.bucketName(), request.keyInBucket());
+        return testRewrite(signingMetadata.credential().accessKey(), request.bucketName(), request.keyInBucket(), Optional.of(request.requestHeaders()));
     }
 }

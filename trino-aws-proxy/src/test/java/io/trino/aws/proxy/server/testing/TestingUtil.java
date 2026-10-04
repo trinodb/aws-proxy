@@ -30,11 +30,13 @@ import software.amazon.awssdk.services.s3.S3ClientBuilder;
 import software.amazon.awssdk.services.s3.model.Delete;
 import software.amazon.awssdk.services.s3.model.DeleteBucketRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
+import software.amazon.awssdk.services.s3.model.GetObjectTaggingRequest;
 import software.amazon.awssdk.services.s3.model.HeadObjectRequest;
 import software.amazon.awssdk.services.s3.model.HeadObjectResponse;
 import software.amazon.awssdk.services.s3.model.ObjectIdentifier;
 import software.amazon.awssdk.services.s3.model.S3Exception;
 import software.amazon.awssdk.services.s3.model.S3Object;
+import software.amazon.awssdk.services.s3.model.Tag;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -110,6 +112,13 @@ public final class TestingUtil
         ByteArrayOutputStream readContents = new ByteArrayOutputStream();
         storageClient.getObject(getObjectRequest).transferTo(readContents);
         return readContents.toString();
+    }
+
+    public static List<Tag> getObjectTagging(S3Client storageClient, String bucketName, String key)
+    {
+        GetObjectTaggingRequest getObjectTaggingRequest = GetObjectTaggingRequest
+                .builder().bucket(bucketName).key(key).build();
+        return storageClient.getObjectTagging(getObjectTaggingRequest).tagSet();
     }
 
     public static HeadObjectResponse headObjectInStorage(S3Client storageClient, String bucketName, String key)
