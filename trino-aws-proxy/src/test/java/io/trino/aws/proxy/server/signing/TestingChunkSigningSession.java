@@ -26,7 +26,9 @@ import software.amazon.awssdk.regions.Region;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.util.Arrays;
 import java.util.Locale;
+import java.util.Optional;
 import java.util.UUID;
 
 import static com.google.common.base.Preconditions.checkArgument;
@@ -90,7 +92,7 @@ public class TestingChunkSigningSession
     }
 
     @SuppressWarnings("UnstableApiUsage")
-    public String generateChunkedStream(String content, int partitions)
+    public String generateChunkedStream(String content, int partitions, Optional<String> trailerHeaders)
     {
         checkArgument(partitions > 1, "partitions must be greater than 1");
 
@@ -112,7 +114,16 @@ public class TestingChunkSigningSession
         }
 
         String thisSignature = chunkSigner.signChunk(Hashing.sha256().newHasher().hash(), previousSignature);
-        chunkedStream.append("0;chunk-signature=").append(thisSignature).append("\r\n\r\n");
+        chunkedStream.append("0;chunk-signature=").append(thisSignature).append("\r\n");
+
+        trailerHeaders.ifPresent(headers -> {
+            chunkedStream.append(headers);
+            String trailerSignature = getChunkSignature(Arrays.stream(headers.split("\r\n")).reduce("", (prev, next) -> prev + next), thisSignature);
+            chunkedStream.append("x-amz-trailer-signature:").append(trailerSignature).append("\r\n");
+        });
+
+        // Mark end of entire Streaming
+        chunkedStream.append("\r\n");
 
         return chunkedStream.toString();
     }

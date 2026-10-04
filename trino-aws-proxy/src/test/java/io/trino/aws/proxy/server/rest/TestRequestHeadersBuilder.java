@@ -25,6 +25,8 @@ import org.junit.jupiter.api.Test;
 
 import java.util.Optional;
 
+import static io.trino.aws.proxy.spi.rest.RequestContent.ContentType.AWS_CHUNKED_IN_W3C_CHUNKED_UNSIGNED;
+import static io.trino.aws.proxy.spi.rest.RequestContent.ContentType.AWS_CHUNKED_UNSIGNED;
 import static io.trino.aws.proxy.spi.rest.RequestContent.ContentType.W3C_CHUNKED;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -83,9 +85,9 @@ public class TestRequestHeadersBuilder
     private void testBuildHeadersAwsChunkedPayload(MultiMap baseHeaders, ContentType expectedContentType)
     {
         assertThatThrownBy(() -> doBuildHeaders(mergeMaps(baseHeaders, ImmutableMultiMap.builder(false)
-                        .add("X-Amz-Content-Sha256", "UNSIGNED-PAYLOAD")
-                        .add("Content-Encoding", "aws-chunked")
-                        .build()))).isInstanceOf(WebApplicationException.class);
+                .add("X-Amz-Content-Sha256", "UNSIGNED-PAYLOAD")
+                .add("Content-Encoding", "aws-chunked")
+                .build()))).isInstanceOf(WebApplicationException.class);
 
         testBuildHeaders(
                 mergeMaps(
@@ -122,6 +124,52 @@ public class TestRequestHeadersBuilder
     }
 
     @Test
+    public void testBuildHeadersHttpAndAwsChunkedUnsignedPayload()
+    {
+        // Testing our corner case where we want to handle aws-chunked requests with a STREAMING-UNSIGNED-PAYLOAD hash
+        // as if they were W3C chunked, and not aws-chunked.
+        ImmutableMultiMap baseHeaders = ImmutableMultiMap.builder(false)
+                .add("transfer-encoding", "chunked")
+                .add("content-encoding", "aws-chunked")
+                .add("Content-Encoding", "gzip")
+                .add("x-amz-trailer", "x-amz-checksum-crc32")
+                .add("x-amz-content-sha256", "STREAMING-UNSIGNED-PAYLOAD-TRAILER")
+                .add("x-amz-decoded-content-length", "1234")
+                .build();
+
+        testBuildHeaders(
+                mergeMaps(
+                        baseHeaders,
+                        ImmutableMultiMap.builder(false)
+                                .build()),
+                ImmutableMultiMap.builder(false).add("Content-Encoding", "gzip").build(),
+                Optional.of(AWS_CHUNKED_IN_W3C_CHUNKED_UNSIGNED));
+    }
+
+    @Test
+    public void testBuildHeadersAwsChunkedUnsignedPayload()
+    {
+        // Testing our corner case where we want to handle aws-chunked requests with a STREAMING-UNSIGNED-PAYLOAD hash
+        // as if they were W3C chunked, and not aws-chunked.
+        ImmutableMultiMap baseHeaders = ImmutableMultiMap.builder(false)
+                .add("content-encoding", "aws-chunked")
+                .add("Content-Encoding", "gzip")
+                .add("x-amz-trailer", "x-amz-checksum-crc32")
+                .add("x-amz-content-sha256", "STREAMING-UNSIGNED-PAYLOAD-TRAILER")
+                .add("Content-Length", "1234")
+                .add("X-Amz-Decoded-Content-Length", "1234")
+                .build();
+
+        testBuildHeaders(
+                mergeMaps(
+                        baseHeaders,
+                        ImmutableMultiMap.builder(false)
+                                .build()),
+                ImmutableMultiMap.builder(false).add("Content-Encoding", "gzip").build(),
+                Optional.of(AWS_CHUNKED_UNSIGNED));
+    }
+
+    @Test
     public void testBuildHeadersHttpChunked()
     {
         MultiMap baseHttpChunkedHeaders = ImmutableMultiMap.builder(false)
@@ -129,13 +177,6 @@ public class TestRequestHeadersBuilder
                 .add("Transfer-Encoding", "chunked")
                 .add("X-Amz-Decoded-Content-Length", "1000")
                 .build();
-        testBuildHeaders(baseHttpChunkedHeaders, ImmutableMultiMap.empty(), Optional.of(W3C_CHUNKED));
-
-        MultiMap metadataHeaders = ImmutableMultiMap.builder(false).add("X-Amz-Some-Metadata", "foo").build();
-        testBuildHeaders(
-                mergeMaps(baseHttpChunkedHeaders, metadataHeaders),
-                metadataHeaders,
-                Optional.of(W3C_CHUNKED));
 
         testBuildHeaders(
                 mergeMaps(

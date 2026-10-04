@@ -29,6 +29,8 @@ import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
+import java.util.List;
+import java.util.Optional;
 import java.util.stream.Stream;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
@@ -68,35 +70,51 @@ public class TestAwsChunkedInputStream
             throws IOException
     {
         TestingChunkSigningSession session = goodTestSigningSession();
-        String chunkedStream = session.generateChunkedStream(GOOD_CONTENT, 3);
+        String chunkedStream = session.generateChunkedStream(GOOD_CONTENT, 3, Optional.empty());
 
-        assertThat(readChunked(chunkedStream, session)).isEqualTo(GOOD_CONTENT.getBytes(UTF_8));
+        assertThat(readChunked(chunkedStream, session, ImmutableList.of())).isEqualTo(GOOD_CONTENT.getBytes(UTF_8));
     }
 
     @Test
     public void testRecreateSessionValidatesGoodPayload()
             throws IOException
     {
-        String chunkedStream = goodTestSigningSession().generateChunkedStream(GOOD_CONTENT, 3);
+        String chunkedStream = goodTestSigningSession().generateChunkedStream(GOOD_CONTENT, 3, Optional.empty());
 
-        assertThat(readChunked(chunkedStream, goodTestSigningSession())).isEqualTo(GOOD_CONTENT.getBytes(UTF_8));
+        assertThat(readChunked(chunkedStream, goodTestSigningSession(), ImmutableList.of())).isEqualTo(GOOD_CONTENT.getBytes(UTF_8));
+    }
+
+    @Test
+    public void testRecreateSessionValidatesGoodPayloadWithTrailerHeader()
+            throws IOException
+    {
+        String chunkedStream = goodTestSigningSession().generateChunkedStream(GOOD_CONTENT, 3, Optional.of("x-amz-header1:foo\r\n"));
+        assertThat(readChunked(chunkedStream, goodTestSigningSession(), ImmutableList.of("x-amz-header1", "x-amz-trailer-signature"))).isEqualTo(GOOD_CONTENT.getBytes(UTF_8));
+    }
+
+    @Test
+    public void testRecreateSessionValidatesGoodPayloadWithTrailerHeaders()
+            throws IOException
+    {
+        String chunkedStream = goodTestSigningSession().generateChunkedStream(GOOD_CONTENT, 3, Optional.of("x-amz-header2:foo\r\nx-amz-header1:foo\r\n"));
+        assertThat(readChunked(chunkedStream, goodTestSigningSession(), ImmutableList.of("x-amz-header1", "x-amz-header2", "x-amz-trailer-signature"))).isEqualTo(GOOD_CONTENT.getBytes(UTF_8));
     }
 
     @Test
     public void testBadSeed()
     {
-        String chunkedStream = goodTestSigningSession().generateChunkedStream(GOOD_CONTENT, 3);
+        String chunkedStream = goodTestSigningSession().generateChunkedStream(GOOD_CONTENT, 3, Optional.empty());
 
-        assertThatThrownBy(() -> readChunked(chunkedStream, TestingChunkSigningSession.build(GOOD_CREDENTIAL, BAD_SEED)))
+        assertThatThrownBy(() -> readChunked(chunkedStream, TestingChunkSigningSession.build(GOOD_CREDENTIAL, BAD_SEED), ImmutableList.of()))
                 .isInstanceOf(WebApplicationException.class);
     }
 
     @Test
     public void testBadCredential()
     {
-        String chunkedStream = goodTestSigningSession().generateChunkedStream(GOOD_CONTENT, 3);
+        String chunkedStream = goodTestSigningSession().generateChunkedStream(GOOD_CONTENT, 3, Optional.empty());
 
-        assertThatThrownBy(() -> readChunked(chunkedStream, TestingChunkSigningSession.build(BAD_CREDENTIAL, BAD_SEED)))
+        assertThatThrownBy(() -> readChunked(chunkedStream, TestingChunkSigningSession.build(BAD_CREDENTIAL, BAD_SEED), ImmutableList.of()))
                 .isInstanceOf(WebApplicationException.class);
     }
 
@@ -104,10 +122,10 @@ public class TestAwsChunkedInputStream
     public void testMultipleExtensions()
             throws IOException
     {
-        String chunkedStream = goodTestSigningSession().generateChunkedStream(GOOD_CONTENT, 3);
+        String chunkedStream = goodTestSigningSession().generateChunkedStream(GOOD_CONTENT, 3, Optional.empty());
         chunkedStream = chunkedStream.replace(";chunk-signature=", ";foo=bar;chunk-signature=");
 
-        assertThat(readChunked(chunkedStream, goodTestSigningSession())).isEqualTo(GOOD_CONTENT.getBytes(UTF_8));
+        assertThat(readChunked(chunkedStream, goodTestSigningSession(), ImmutableList.of())).isEqualTo(GOOD_CONTENT.getBytes(UTF_8));
     }
 
     @Test
@@ -251,7 +269,7 @@ public class TestAwsChunkedInputStream
             throws IOException
     {
         int remainingBytes = decodedContentLength;
-        try (InputStream in = new AwsChunkedInputStream(new ByteArrayInputStream(chunkedData.getBytes(UTF_8)), signingSession, decodedContentLength)) {
+        try (InputStream in = new AwsChunkedInputStream(new ByteArrayInputStream(chunkedData.getBytes(UTF_8)), Optional.of(signingSession), decodedContentLength, ImmutableList.of())) {
             while (remainingBytes > 0) {
                 byte[] readBytes = new byte[bytesToReadAtATime];
                 int count = in.read(readBytes, 0, bytesToReadAtATime);
@@ -268,7 +286,7 @@ public class TestAwsChunkedInputStream
             throws IOException
     {
         int remainingBytes = decodedContentLength;
-        try (InputStream in = new AwsChunkedInputStream(new ByteArrayInputStream(chunkedData.getBytes(UTF_8)), signingSession, decodedContentLength)) {
+        try (InputStream in = new AwsChunkedInputStream(new ByteArrayInputStream(chunkedData.getBytes(UTF_8)), Optional.of(signingSession), decodedContentLength, ImmutableList.of())) {
             while (remainingBytes-- > 0) {
                 int readByte = in.read();
                 if (readByte == -1) {
@@ -286,10 +304,10 @@ public class TestAwsChunkedInputStream
         assertThat(testOutput.toByteArray().length).isLessThan(decodedContentLength);
     }
 
-    private static byte[] readChunked(String chunkedStream, TestingChunkSigningSession signingSession)
+    private static byte[] readChunked(String chunkedStream, TestingChunkSigningSession signingSession, List<String> trailerHeaders)
             throws IOException
     {
-        try (InputStream in = new AwsChunkedInputStream(new ByteArrayInputStream(chunkedStream.getBytes(UTF_8)), signingSession, chunkedStream.length())) {
+        try (InputStream in = new AwsChunkedInputStream(new ByteArrayInputStream(chunkedStream.getBytes(UTF_8)), Optional.of(signingSession), chunkedStream.length(), ImmutableList.copyOf(trailerHeaders))) {
             return ByteStreams.toByteArray(in);
         }
     }
@@ -308,7 +326,7 @@ public class TestAwsChunkedInputStream
     {
         byte[] rawBytes = CHUNKED_INPUT.getBytes(UTF_8);
         ByteArrayInputStream inputStream = new ByteArrayInputStream(rawBytes);
-        InputStream in = new AwsChunkedInputStream(inputStream, new DummyChunkSigningSession(), rawBytes.length);
+        InputStream in = new AwsChunkedInputStream(inputStream, Optional.of(new DummyChunkSigningSession()), rawBytes.length, ImmutableList.of());
         byte[] buffer = new byte[300];
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         int len;
@@ -331,7 +349,7 @@ public class TestAwsChunkedInputStream
     {
         byte[] rawBytes = CHUNKED_INPUT.getBytes(UTF_8);
         ByteArrayInputStream inputStream = new ByteArrayInputStream(rawBytes);
-        InputStream in = new AwsChunkedInputStream(inputStream, new DummyChunkSigningSession(), rawBytes.length);
+        InputStream in = new AwsChunkedInputStream(inputStream, Optional.of(new DummyChunkSigningSession()), rawBytes.length, ImmutableList.of());
 
         byte[] buffer = new byte[7];
         ByteArrayOutputStream out = new ByteArrayOutputStream();
@@ -354,7 +372,7 @@ public class TestAwsChunkedInputStream
         String s = "5;chunk-signature=0\r\n01234\r\n5;chunk-signature=0\r\n56789\r\n0;chunk-signature=0\r\n\r\n";
         byte[] rawBytes = s.getBytes(UTF_8);
         ByteArrayInputStream inputStream = new ByteArrayInputStream(rawBytes);
-        InputStream in = new AwsChunkedInputStream(inputStream, new DummyChunkSigningSession(), rawBytes.length);
+        InputStream in = new AwsChunkedInputStream(inputStream, Optional.of(new DummyChunkSigningSession()), rawBytes.length, ImmutableList.of());
         int ch;
         int i = '0';
         while ((ch = in.read()) != -1) {
@@ -374,7 +392,7 @@ public class TestAwsChunkedInputStream
         String s = "5;chunk-signature=0\r\n01234\r\n";
         byte[] rawBytes = s.getBytes(UTF_8);
         ByteArrayInputStream inputStream = new ByteArrayInputStream(rawBytes);
-        InputStream in = new AwsChunkedInputStream(inputStream, new DummyChunkSigningSession(), rawBytes.length);
+        InputStream in = new AwsChunkedInputStream(inputStream, Optional.of(new DummyChunkSigningSession()), rawBytes.length, ImmutableList.of());
         byte[] tmp = new byte[5];
         // altered from original test. Our AwsChunkedInputStream is improved and throws when the final chunk is missing or bad
         assertThrows(WebApplicationException.class, () -> in.read(tmp));
@@ -390,7 +408,7 @@ public class TestAwsChunkedInputStream
                 .forEach(s -> {
                     byte[] rawBytes = s.getBytes(UTF_8);
                     ByteArrayInputStream inputStream = new ByteArrayInputStream(rawBytes);
-                    InputStream in = new AwsChunkedInputStream(inputStream, new DummyChunkSigningSession(), rawBytes.length);
+                    InputStream in = new AwsChunkedInputStream(inputStream, Optional.of(new DummyChunkSigningSession()), rawBytes.length, ImmutableList.of());
                     byte[] tmp = new byte[5];
                     // altered from original test. Our AwsChunkedInputStream is improved and throws when the final chunk is missing or bad
                     assertThrows(WebApplicationException.class, () -> in.read(tmp));
@@ -410,7 +428,7 @@ public class TestAwsChunkedInputStream
         String s = "5;chunk-signature=0\r\n012345\r\n56789\r\n0;chunk-signature=0\r\n\r\n";
         byte[] rawBytes = s.getBytes(UTF_8);
         ByteArrayInputStream inputStream = new ByteArrayInputStream(rawBytes);
-        InputStream in = new AwsChunkedInputStream(inputStream, new DummyChunkSigningSession(), rawBytes.length);
+        InputStream in = new AwsChunkedInputStream(inputStream, Optional.of(new DummyChunkSigningSession()), rawBytes.length, ImmutableList.of());
         byte[] buffer = new byte[300];
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         assertThrows(WebApplicationException.class, () -> {
@@ -430,7 +448,7 @@ public class TestAwsChunkedInputStream
         String s = "5;chunk-signature=0\r01234\r\n5;chunk-signature=0\r\n56789\r\n0;chunk-signature=0\r\n\r\n";
         byte[] rawBytes = s.getBytes(UTF_8);
         ByteArrayInputStream inputStream = new ByteArrayInputStream(rawBytes);
-        InputStream in = new AwsChunkedInputStream(inputStream, new DummyChunkSigningSession(), rawBytes.length);
+        InputStream in = new AwsChunkedInputStream(inputStream, Optional.of(new DummyChunkSigningSession()), rawBytes.length, ImmutableList.of());
         assertThrows(WebApplicationException.class, in::read);
         in.close();
     }
@@ -443,7 +461,7 @@ public class TestAwsChunkedInputStream
         String s = "whatever;chunk-signature=0\r\n01234\r\n5;chunk-signature=0\r\n56789\r\n0;chunk-signature=0\r\n\r\n";
         byte[] rawBytes = s.getBytes(UTF_8);
         ByteArrayInputStream inputStream = new ByteArrayInputStream(rawBytes);
-        InputStream in = new AwsChunkedInputStream(inputStream, new DummyChunkSigningSession(), rawBytes.length);
+        InputStream in = new AwsChunkedInputStream(inputStream, Optional.of(new DummyChunkSigningSession()), rawBytes.length, ImmutableList.of());
         assertThrows(WebApplicationException.class, in::read);
         in.close();
     }
@@ -456,7 +474,7 @@ public class TestAwsChunkedInputStream
         String s = "-5;chunk-signature=0\r\n01234\r\n5;chunk-signature=0\r\n56789\r\n0;chunk-signature=0\r\n\r\n";
         byte[] rawBytes = s.getBytes(UTF_8);
         ByteArrayInputStream inputStream = new ByteArrayInputStream(rawBytes);
-        InputStream in = new AwsChunkedInputStream(inputStream, new DummyChunkSigningSession(), rawBytes.length);
+        InputStream in = new AwsChunkedInputStream(inputStream, Optional.of(new DummyChunkSigningSession()), rawBytes.length, ImmutableList.of());
         assertThrows(WebApplicationException.class, in::read);
         in.close();
     }
@@ -469,7 +487,7 @@ public class TestAwsChunkedInputStream
         String s = "3;chunk-signature=0\r\n12";
         byte[] rawBytes = s.getBytes(UTF_8);
         ByteArrayInputStream inputStream = new ByteArrayInputStream(rawBytes);
-        InputStream in = new AwsChunkedInputStream(inputStream, new DummyChunkSigningSession(), rawBytes.length);
+        InputStream in = new AwsChunkedInputStream(inputStream, Optional.of(new DummyChunkSigningSession()), rawBytes.length, ImmutableList.of());
         byte[] buffer = new byte[300];
         assertEquals(2, in.read(buffer));
         assertThrows(WebApplicationException.class, () -> in.read(buffer));
@@ -482,7 +500,7 @@ public class TestAwsChunkedInputStream
         String s = "whatever;chunk-signature=0\r\n01234\r\n5;chunk-signature=0\r\n56789\r\n0;chunk-signature=0\r\n\r\n";
         byte[] rawBytes = s.getBytes(UTF_8);
         ByteArrayInputStream inputStream = new ByteArrayInputStream(rawBytes);
-        InputStream in = new AwsChunkedInputStream(inputStream, new DummyChunkSigningSession(), rawBytes.length);
+        InputStream in = new AwsChunkedInputStream(inputStream, Optional.of(new DummyChunkSigningSession()), rawBytes.length, ImmutableList.of());
         assertThrows(WebApplicationException.class, in::read);
     }
 
@@ -493,7 +511,7 @@ public class TestAwsChunkedInputStream
         String s = "0;chunk-signature=0\r\n\r\n";
         byte[] rawBytes = s.getBytes(UTF_8);
         ByteArrayInputStream inputStream = new ByteArrayInputStream(rawBytes);
-        InputStream in = new AwsChunkedInputStream(inputStream, new DummyChunkSigningSession(), rawBytes.length);
+        InputStream in = new AwsChunkedInputStream(inputStream, Optional.of(new DummyChunkSigningSession()), rawBytes.length, ImmutableList.of());
         byte[] buffer = new byte[300];
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         int len;
@@ -511,7 +529,7 @@ public class TestAwsChunkedInputStream
     {
         byte[] rawBytes = "499602D2;chunk-signature=0\r\n01234567".getBytes(UTF_8);
         ByteArrayInputStream inputStream = new ByteArrayInputStream(rawBytes);
-        InputStream in = new AwsChunkedInputStream(inputStream, new DummyChunkSigningSession(), 1234567890);
+        InputStream in = new AwsChunkedInputStream(inputStream, Optional.of(new DummyChunkSigningSession()), 1234567890, ImmutableList.of());
 
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         for (int i = 0; i < 8; ++i) {
@@ -520,6 +538,238 @@ public class TestAwsChunkedInputStream
 
         String result = out.toString(UTF_8);
         assertEquals("01234567", result);
+    }
+
+    @Test
+    public void testChunkedInputStreamWithTrailerHeaderChunk()
+            throws IOException
+    {
+        String s = "5;chunk-signature=0\r\n01234\r\n5;chunk-signature=0\r\n56789\r\n0;chunk-signature=0\r\nx-amz-header1:foo\r\nx-amz-trailer-signature:0\r\n\r\n";
+        byte[] rawBytes = s.getBytes(UTF_8);
+        ByteArrayInputStream inputStream = new ByteArrayInputStream(rawBytes);
+        InputStream in = new AwsChunkedInputStream(inputStream, Optional.of(new DummyChunkSigningSession()), rawBytes.length, ImmutableList.of("x-amz-header1", "x-amz-trailer-signature"));
+
+        byte[] buffer = new byte[7];
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        int len;
+        while ((len = in.read(buffer)) > 0) {
+            out.write(buffer, 0, len);
+        }
+        assertEquals(-1, in.read(buffer));
+        assertEquals(-1, in.read(buffer));
+
+        String result = out.toString(UTF_8);
+        assertEquals("0123456789", result);
+
+        in.close();
+    }
+
+    @Test
+    public void testChunkedInputStreamWithTrailerHeaderChunkMultipleTrailers()
+            throws IOException
+    {
+        String s = "5;chunk-signature=0\r\n01234\r\n5;chunk-signature=0\r\n56789\r\n0;chunk-signature=0\r\nx-amz-header1:foo\r\nx-amz-header2:foo\r\nx-amz-trailer-signature:0\r\n\r\n";
+        byte[] rawBytes = s.getBytes(UTF_8);
+        ByteArrayInputStream inputStream = new ByteArrayInputStream(rawBytes);
+        InputStream in = new AwsChunkedInputStream(inputStream, Optional.of(new DummyChunkSigningSession()), rawBytes.length, ImmutableList.of("x-amz-header1", "x-amz-header2", "x-amz-trailer-signature"));
+
+        byte[] buffer = new byte[7];
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        int len;
+        while ((len = in.read(buffer)) > 0) {
+            out.write(buffer, 0, len);
+        }
+        assertEquals(-1, in.read(buffer));
+        assertEquals(-1, in.read(buffer));
+
+        String result = out.toString(UTF_8);
+        assertEquals("0123456789", result);
+
+        in.close();
+    }
+
+    @Test
+    public void testCorruptChunkedInputStreamWithTrailerHeaderChunkNoneExpected()
+            throws IOException
+    {
+        String s = "5;chunk-signature=0\r\n01234\r\n5;chunk-signature=0\r\n56789\r\n0;chunk-signature=0\r\nx-amz-header1:foo\r\nx-amz-trailer-signature:0\r\n\r\n";
+        byte[] rawBytes = s.getBytes(UTF_8);
+        ByteArrayInputStream inputStream = new ByteArrayInputStream(rawBytes);
+        InputStream in = new AwsChunkedInputStream(inputStream, Optional.of(new DummyChunkSigningSession()), rawBytes.length, ImmutableList.of());
+
+        byte[] buffer = new byte[7];
+        assertThrows(WebApplicationException.class, () -> {
+            while (in.read(buffer) > 0) {
+                // do nothing
+            }
+        });
+        in.close();
+    }
+
+    @Test
+    public void testCorruptChunkedInputStreamWithTrailerHeaderSignatureBeforeHeader()
+            throws IOException
+    {
+        String s = "5;chunk-signature=0\r\n01234\r\n5;chunk-signature=0\r\n56789\r\n0;chunk-signature=0\r\nx-amz-trailer-signature:0\r\nx-amz-header1:foo\r\n\r\n";
+        byte[] rawBytes = s.getBytes(UTF_8);
+        ByteArrayInputStream inputStream = new ByteArrayInputStream(rawBytes);
+        InputStream in = new AwsChunkedInputStream(inputStream, Optional.of(new DummyChunkSigningSession()), rawBytes.length, ImmutableList.of("x-amz-trailer-signature", "x-amz-header1"));
+
+        byte[] buffer = new byte[7];
+        assertThrows(WebApplicationException.class, () -> {
+            while (in.read(buffer) > 0) {
+                // do nothing
+            }
+        });
+        in.close();
+    }
+
+    @Test
+    public void testCorruptChunkedInputStreamWithTrailerHeaderChunkNoSignature()
+            throws IOException
+    {
+        String s = "5;chunk-signature=0\r\n01234\r\n5;chunk-signature=0\r\n56789\r\n0;chunk-signature=0\r\nx-amz-header1:foo\r\n\r\n";
+        byte[] rawBytes = s.getBytes(UTF_8);
+        ByteArrayInputStream inputStream = new ByteArrayInputStream(rawBytes);
+        InputStream in = new AwsChunkedInputStream(inputStream, Optional.of(new DummyChunkSigningSession()), rawBytes.length, ImmutableList.of("x-amz-header1"));
+
+        byte[] buffer = new byte[7];
+        assertThrows(WebApplicationException.class, () -> {
+            while (in.read(buffer) > 0) {
+                // do nothing
+            }
+        });
+        in.close();
+    }
+
+    @Test
+    public void testChunkedInputStreamUnsigned()
+            throws IOException
+    {
+        String s = "5\r\n01234\r\n5\r\n56789\r\n0\r\n\r\n";
+        byte[] rawBytes = s.getBytes(UTF_8);
+        ByteArrayInputStream inputStream = new ByteArrayInputStream(rawBytes);
+        InputStream in = new AwsChunkedInputStream(inputStream, Optional.empty(), rawBytes.length, ImmutableList.of());
+
+        byte[] buffer = new byte[7];
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        int len;
+        while ((len = in.read(buffer)) > 0) {
+            out.write(buffer, 0, len);
+        }
+        assertEquals(-1, in.read(buffer));
+        assertEquals(-1, in.read(buffer));
+
+        String result = out.toString(UTF_8);
+        assertEquals("0123456789", result);
+
+        in.close();
+    }
+
+    @Test
+    public void testChunkedInputStreamUnsignedWithTrailerHeaderChunk1Header()
+            throws IOException
+    {
+        String s = "5\r\n01234\r\n5\r\n56789\r\n0\r\nx-amz-header1:val\r\n\r\n";
+        byte[] rawBytes = s.getBytes(UTF_8);
+        ByteArrayInputStream inputStream = new ByteArrayInputStream(rawBytes);
+        InputStream in = new AwsChunkedInputStream(inputStream, Optional.empty(), rawBytes.length, ImmutableList.of("x-amz-header1"));
+
+        byte[] buffer = new byte[7];
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        int len;
+        while ((len = in.read(buffer)) > 0) {
+            out.write(buffer, 0, len);
+        }
+        assertEquals(-1, in.read(buffer));
+        assertEquals(-1, in.read(buffer));
+
+        String result = out.toString(UTF_8);
+        assertEquals("0123456789", result);
+
+        in.close();
+    }
+
+    @Test
+    public void testChunkedInputStreamUnsignedWithTrailerHeaderChunkMultipleHeader()
+            throws IOException
+    {
+        String s = "5\r\n01234\r\n5\r\n56789\r\n0\r\nx-amz-header1:val\r\nx-amz-header2:val\r\n\r\n";
+        byte[] rawBytes = s.getBytes(UTF_8);
+        ByteArrayInputStream inputStream = new ByteArrayInputStream(rawBytes);
+        InputStream in = new AwsChunkedInputStream(inputStream, Optional.empty(), rawBytes.length, ImmutableList.of("x-amz-header1", "x-amz-header2"));
+
+        byte[] buffer = new byte[7];
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        int len;
+        while ((len = in.read(buffer)) > 0) {
+            out.write(buffer, 0, len);
+        }
+        assertEquals(-1, in.read(buffer));
+        assertEquals(-1, in.read(buffer));
+
+        String result = out.toString(UTF_8);
+        assertEquals("0123456789", result);
+
+        in.close();
+    }
+
+    @Test
+    public void testChunkedInputStreamUnsignedWithTrailerHeaderChunkMultipleHeaderOutOfOrder()
+            throws IOException
+    {
+        String s = "5\r\n01234\r\n5\r\n56789\r\n0\r\nx-amz-header1:val\r\nx-amz-header2:val\r\n\r\n";
+        byte[] rawBytes = s.getBytes(UTF_8);
+        ByteArrayInputStream inputStream = new ByteArrayInputStream(rawBytes);
+        InputStream in = new AwsChunkedInputStream(inputStream, Optional.empty(), rawBytes.length, ImmutableList.of("x-amz-header2", "x-amz-header1"));
+
+        byte[] buffer = new byte[7];
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        int len;
+        while ((len = in.read(buffer)) > 0) {
+            out.write(buffer, 0, len);
+        }
+        assertEquals(-1, in.read(buffer));
+        assertEquals(-1, in.read(buffer));
+
+        String result = out.toString(UTF_8);
+        assertEquals("0123456789", result);
+
+        in.close();
+    }
+
+    @Test
+    public void testCorruptUnsignedChunkedInputStreamTrailerHeadersWithNoneExpected()
+            throws IOException
+    {
+        String s = "5\r\n01234\r\n5\r\n56789\r\n0\r\nx-amz-trailer:val\r\n\r\n";
+        byte[] rawBytes = s.getBytes(UTF_8);
+        ByteArrayInputStream inputStream = new ByteArrayInputStream(rawBytes);
+        InputStream in = new AwsChunkedInputStream(inputStream, Optional.empty(), rawBytes.length, ImmutableList.of());
+        byte[] buffer = new byte[7];
+        assertThrows(WebApplicationException.class, () -> {
+            while (in.read(buffer) > 0) {
+                // do nothing
+            }
+        });
+        in.close();
+    }
+
+    @Test
+    public void testCorruptUnsignedChunkedInputStreamMissingTrailerHeaderChunk()
+            throws IOException
+    {
+        String s = "5\r\n01234\r\n5\r\n56789\r\n0\r\n\r\n";
+        byte[] rawBytes = s.getBytes(UTF_8);
+        ByteArrayInputStream inputStream = new ByteArrayInputStream(rawBytes);
+        InputStream in = new AwsChunkedInputStream(inputStream, Optional.empty(), rawBytes.length, ImmutableList.of("x-amz-trailer-foo"));
+        byte[] buffer = new byte[7];
+        assertThrows(WebApplicationException.class, () -> {
+            while (in.read(buffer) > 0) {
+                // do nothing
+            }
+        });
+        in.close();
     }
 
     private static class DummyChunkSigningSession
