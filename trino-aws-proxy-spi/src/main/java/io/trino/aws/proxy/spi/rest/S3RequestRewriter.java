@@ -15,6 +15,8 @@ package io.trino.aws.proxy.spi.rest;
 
 import io.trino.aws.proxy.spi.credentials.Identity;
 import io.trino.aws.proxy.spi.signing.SigningMetadata;
+import io.trino.aws.proxy.spi.util.ImmutableMultiMap;
+import io.trino.aws.proxy.spi.util.MultiMap;
 
 import java.util.Optional;
 
@@ -24,12 +26,24 @@ public interface S3RequestRewriter
 {
     S3RequestRewriter NOOP = (_, _, _) -> Optional.empty();
 
-    record S3RewriteResult(String finalRequestBucket, String finalRequestKey)
+    record S3RewriteResult(
+            String finalRequestBucket,
+            String finalRequestKey,
+            Optional<RequestHeaders> finalRequestHeaders,
+            Optional<MultiMap> finalQueryParameters)
     {
+        public S3RewriteResult(String finalRequestBucket, String finalRequestKey)
+        {
+            this(finalRequestBucket, finalRequestKey, Optional.empty(), Optional.empty());
+        }
+
         public S3RewriteResult
         {
             requireNonNull(finalRequestBucket, "finalRequestBucket is null");
             requireNonNull(finalRequestKey, "finalRequestKey is null");
+            requireNonNull(finalRequestHeaders, "finalRequestHeaders is null");
+            requireNonNull(finalQueryParameters, "finalQueryParameters is null");
+            finalQueryParameters = finalQueryParameters.map(ImmutableMultiMap::copyOf);
         }
     }
 

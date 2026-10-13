@@ -18,6 +18,8 @@ import io.trino.aws.proxy.server.testing.TestingUtil.ForTesting;
 import io.trino.aws.proxy.spi.credentials.Credential;
 import io.trino.aws.proxy.spi.rest.S3RequestRewriter.S3RewriteResult;
 
+import java.util.Optional;
+
 import static java.util.Objects.requireNonNull;
 
 public class TestingS3RequestRewriteController
@@ -34,7 +36,7 @@ public class TestingS3RequestRewriteController
 
     private S3RewriteResult rewriteOrNoop(String accessKey, String bucket, String key)
     {
-        return s3RequestRewriter.testRewrite(accessKey, bucket, key).orElseGet(() -> new S3RewriteResult(bucket, key));
+        return s3RequestRewriter.testRewrite(accessKey, bucket, key, Optional.empty()).orElseGet(() -> new S3RewriteResult(bucket, key));
     }
 
     public String getTargetBucket(String accessKey, String bucket, String key)

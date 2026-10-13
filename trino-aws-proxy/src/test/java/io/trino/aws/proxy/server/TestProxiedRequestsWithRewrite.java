@@ -23,6 +23,8 @@ import io.trino.aws.proxy.server.testing.harness.TrinoAwsProxyTestCommonModules.
 import org.junit.jupiter.api.Test;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.ListObjectsV2Request;
+import software.amazon.awssdk.services.s3.model.ListObjectsV2Response;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectResponse;
 
@@ -34,10 +36,14 @@ import java.util.Optional;
 import static io.trino.aws.proxy.server.testing.RequestRewriteUtil.CREDENTIAL_TO_REDIRECT;
 import static io.trino.aws.proxy.server.testing.RequestRewriteUtil.TEST_CREDENTIAL_REDIRECT_BUCKET;
 import static io.trino.aws.proxy.server.testing.RequestRewriteUtil.TEST_CREDENTIAL_REDIRECT_KEY;
+import static io.trino.aws.proxy.server.testing.RequestRewriteUtil.TEST_REWRITE_PREFIX_QUERY_PARAM_BUCKET;
+import static io.trino.aws.proxy.server.testing.RequestRewriteUtil.TEST_REWRITTEN_PREFIX_QUERY_PARAM;
+import static io.trino.aws.proxy.server.testing.RequestRewriteUtil.TEST_REWRITTEN_TAGS;
 import static io.trino.aws.proxy.server.testing.TestingUtil.TEST_FILE;
 import static io.trino.aws.proxy.server.testing.TestingUtil.assertFileNotInS3;
 import static io.trino.aws.proxy.server.testing.TestingUtil.clientBuilder;
 import static io.trino.aws.proxy.server.testing.TestingUtil.getFileFromStorage;
+import static io.trino.aws.proxy.server.testing.TestingUtil.getObjectTagging;
 import static org.assertj.core.api.Assertions.assertThat;
 
 @TrinoAwsProxyTest(filters = {WithConfiguredBuckets.class, RequestRewriteUtil.Filter.class})
@@ -74,8 +80,26 @@ public class TestProxiedRequestsWithRewrite
             assertThat(uploadResponse.sdkHttpResponse().statusCode()).isEqualTo(200);
 
             assertThat(getFileFromStorage(testS3Client, testBucket, testKey)).isEqualTo(Files.readString(TEST_FILE));
+            assertThat(getObjectTagging(testS3Client, testBucket, testKey)).isEqualTo(TEST_REWRITTEN_TAGS);
         }
         assertThat(getFileFromStorage(remoteClient, TEST_CREDENTIAL_REDIRECT_BUCKET, TEST_CREDENTIAL_REDIRECT_KEY)).isEqualTo(Files.readString(TEST_FILE));
+        assertThat(getObjectTagging(remoteClient, TEST_CREDENTIAL_REDIRECT_BUCKET, TEST_CREDENTIAL_REDIRECT_KEY)).isEqualTo(TEST_REWRITTEN_TAGS);
         assertFileNotInS3(remoteClient, testBucket, testKey);
+    }
+
+    @Test
+    public void testRewriteRequestParamsBasedOnIdentity()
+    {
+        try (S3Client testS3Client = clientBuilder(baseUri, Optional.of(relativePath))
+                .credentialsProvider(() -> AwsBasicCredentials.create(CREDENTIAL_TO_REDIRECT.accessKey(), CREDENTIAL_TO_REDIRECT.secretKey()))
+                .build()) {
+            ListObjectsV2Request listObjectsV2Request = ListObjectsV2Request.builder()
+                    .bucket(TEST_REWRITE_PREFIX_QUERY_PARAM_BUCKET)
+                    .prefix("original-prefix/")
+                    .build();
+            ListObjectsV2Response listObjectsV2Response = testS3Client.listObjectsV2(listObjectsV2Request);
+            assertThat(listObjectsV2Response.sdkHttpResponse().statusCode()).isEqualTo(200);
+            assertThat(listObjectsV2Response.prefix()).isEqualTo(TEST_REWRITTEN_PREFIX_QUERY_PARAM);
+        }
     }
 }

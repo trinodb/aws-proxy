@@ -25,6 +25,7 @@ import io.trino.aws.proxy.server.security.S3SecurityController;
 import io.trino.aws.proxy.spi.credentials.Identity;
 import io.trino.aws.proxy.spi.rest.ParsedS3Request;
 import io.trino.aws.proxy.spi.rest.RequestContent;
+import io.trino.aws.proxy.spi.rest.RequestHeaders;
 import io.trino.aws.proxy.spi.rest.S3RequestRewriter;
 import io.trino.aws.proxy.spi.rest.S3RequestRewriter.S3RewriteResult;
 import io.trino.aws.proxy.spi.security.SecurityResponse;
@@ -133,9 +134,15 @@ public class TrinoS3ProxyClient
                 .map(S3RewriteResult::finalRequestKey)
                 .map(SdkHttpUtils::urlEncodeIgnoreSlashes)
                 .orElse(request.rawPath());
+        RequestHeaders rewrittenRequestHeaders = rewriteResult
+                .flatMap(S3RewriteResult::finalRequestHeaders)
+                .orElse(request.requestHeaders());
+        MultiMap rewrittenQueryParameters = rewriteResult
+                .flatMap(S3RewriteResult::finalQueryParameters)
+                .orElse(request.queryParameters());
 
         RemoteRequestWithPresignedURIs remoteRequest = remoteS3ConnectionController.withRemoteConnection(signingMetadata, identity, request, (remoteCredential, remoteS3Facade) -> {
-            URI remoteUri = remoteS3Facade.buildEndpoint(uriBuilder(request.queryParameters()), targetKey, targetBucket, request.requestAuthorization().region());
+            URI remoteUri = remoteS3Facade.buildEndpoint(uriBuilder(rewrittenQueryParameters), targetKey, targetBucket, request.requestAuthorization().region());
 
             Request.Builder remoteRequestBuilder = new Request.Builder()
                     .setMethod(request.httpVerb())
@@ -149,7 +156,7 @@ public class TrinoS3ProxyClient
 
             ImmutableMultiMap.Builder remoteRequestHeadersBuilder = ImmutableMultiMap.builder(false);
             Instant targetRequestTimestamp = Instant.now();
-            request.requestHeaders().passthroughHeaders().forEach(remoteRequestHeadersBuilder::addAll);
+            rewrittenRequestHeaders.passthroughHeaders().forEach(remoteRequestHeadersBuilder::addAll);
             remoteRequestHeadersBuilder.putOrReplaceSingle("Host", buildRemoteHost(remoteUri));
 
             // Use now for the remote request
@@ -184,7 +191,7 @@ public class TrinoS3ProxyClient
                     Optional.empty(),
                     remoteUri,
                     remoteRequestHeaders,
-                    request.queryParameters(),
+                    rewrittenQueryParameters,
                     request.httpVerb()).signingAuthorization().authorization();
 
             // remoteRequestHeaders now has correct values, copy to the remote request
