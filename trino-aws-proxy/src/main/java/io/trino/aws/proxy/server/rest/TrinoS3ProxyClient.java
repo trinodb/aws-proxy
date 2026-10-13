@@ -214,8 +214,16 @@ public class TrinoS3ProxyClient
     {
         return switch (requestContent.contentType()) {
             case AWS_CHUNKED, AWS_CHUNKED_IN_W3C_CHUNKED -> requestContent.inputStream()
-                    .map(inputStream -> new AwsChunkedInputStream(limitStreamController.wrap(inputStream), signingMetadata.requiredSigningContext().chunkSigningSession(), requestContent.contentLength().orElseThrow()));
-
+                    .map(inputStream -> new AwsChunkedInputStream(limitStreamController.wrap(inputStream),
+                            Optional.of(signingMetadata.requiredSigningContext().chunkSigningSession()),
+                            requestContent.contentLength().orElseThrow(),
+                            requestContent.trailerHeaders()));
+            case AWS_CHUNKED_UNSIGNED, AWS_CHUNKED_IN_W3C_CHUNKED_UNSIGNED -> requestContent.inputStream()
+                    .map(inputStream -> new AwsChunkedInputStream(
+                            limitStreamController.wrap(inputStream),
+                            Optional.empty(),
+                            requestContent.contentLength().orElseThrow(),
+                            requestContent.trailerHeaders()));
             case STANDARD, W3C_CHUNKED -> requestContent.inputStream().map(inputStream -> {
                 SigningContext signingContext = signingMetadata.requiredSigningContext();
                 return signingContext.contentHash()

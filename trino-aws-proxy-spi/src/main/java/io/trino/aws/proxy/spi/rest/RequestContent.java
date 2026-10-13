@@ -13,7 +13,10 @@
  */
 package io.trino.aws.proxy.spi.rest;
 
+import com.google.common.collect.ImmutableList;
+
 import java.io.InputStream;
+import java.util.List;
 import java.util.Optional;
 
 @FunctionalInterface
@@ -27,7 +30,9 @@ public interface RequestContent
         STANDARD,
         W3C_CHUNKED,
         AWS_CHUNKED,
+        AWS_CHUNKED_UNSIGNED,
         AWS_CHUNKED_IN_W3C_CHUNKED,
+        AWS_CHUNKED_IN_W3C_CHUNKED_UNSIGNED,
     }
 
     default ContentType contentType()
@@ -46,6 +51,11 @@ public interface RequestContent
     default Optional<Integer> contentLength()
     {
         return Optional.empty();
+    }
+
+    default List<String> trailerHeaders()
+    {
+        return ImmutableList.of();
     }
 
     Optional<InputStream> inputStream();

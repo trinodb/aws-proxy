@@ -14,11 +14,13 @@
 package io.trino.aws.proxy.server.rest;
 
 import com.google.common.base.Splitter;
+import com.google.common.collect.ImmutableList;
 import io.trino.aws.proxy.spi.signing.ChunkSigningSession;
 import jakarta.ws.rs.WebApplicationException;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -30,7 +32,7 @@ class AwsChunkedInputStream
         extends InputStream
 {
     private final InputStream delegate;
-    private final ChunkSigningSession chunkSigningSession;
+    private final Optional<ChunkSigningSession> chunkSigningSession;
 
     private enum State
     {
@@ -44,12 +46,14 @@ class AwsChunkedInputStream
     private int bytesRemainingInChunk;
     private int bytesAccountedFor;
     private final int decodedContentLength;
+    private final List<String> trailerHeaders;
 
-    AwsChunkedInputStream(InputStream delegate, ChunkSigningSession chunkSigningSession, int decodedContentLength)
+    AwsChunkedInputStream(InputStream delegate, Optional<ChunkSigningSession> chunkSigningSession, int decodedContentLength, List<String> trailerHeaders)
     {
         this.delegate = requireNonNull(delegate, "delegate is null");
         this.chunkSigningSession = requireNonNull(chunkSigningSession, "chunkSigningSession is null");
         this.decodedContentLength = decodedContentLength;
+        this.trailerHeaders = requireNonNull(ImmutableList.copyOf(trailerHeaders), "trailerHeaders is null");
     }
 
     @Override
@@ -65,7 +69,7 @@ class AwsChunkedInputStream
             throw new WebApplicationException("Unexpected end of stream", BAD_REQUEST);
         }
 
-        chunkSigningSession.write((byte) (i & 0xff));
+        chunkSigningSession.ifPresent(chunkSigningSession -> chunkSigningSession.write((byte) (i & 0xff)));
         updateBytesRemaining(1);
 
         return i;
@@ -86,7 +90,7 @@ class AwsChunkedInputStream
             throw new WebApplicationException("Unexpected end of stream", BAD_REQUEST);
         }
 
-        chunkSigningSession.write(b, off, count);
+        chunkSigningSession.ifPresent(chunkSigningSession -> chunkSigningSession.write(b, off, count));
         updateBytesRemaining(count);
 
         return count;
@@ -155,9 +159,6 @@ class AwsChunkedInputStream
         boolean success = false;
         do {
             List<String> parts = Splitter.on(';').trimResults().limit(2).splitToList(header);
-            if (parts.size() != 2) {
-                break;
-            }
 
             int chunkSize;
             try {
@@ -170,23 +171,41 @@ class AwsChunkedInputStream
                 break;
             }
 
-            Optional<String> chunkSignature = Splitter.on(';').trimResults().withKeyValueSeparator('=').split(parts.get(1))
-                    .entrySet()
-                    .stream()
-                    .filter(entry -> entry.getKey().equalsIgnoreCase("chunk-signature"))
-                    .map(Map.Entry::getValue)
-                    .findFirst();
+            if (chunkSigningSession.isPresent()) {
+                if (parts.size() != 2) {
+                    break;
+                }
 
-            if (chunkSignature.isEmpty()) {
-                break;
+                Optional<String> chunkSignature = Splitter.on(';').trimResults().withKeyValueSeparator('=').split(parts.get(1))
+                        .entrySet()
+                        .stream()
+                        .filter(entry -> entry.getKey().equalsIgnoreCase("chunk-signature"))
+                        .map(Map.Entry::getValue)
+                        .findFirst();
+
+                if (chunkSignature.isEmpty()) {
+                    break;
+                }
+
+                chunkSigningSession.get().startChunk(chunkSignature.get());
+            }
+            else {
+                if (parts.size() != 1) {
+                    break;
+                }
             }
 
-            chunkSigningSession.startChunk(chunkSignature.get());
             bytesRemainingInChunk = chunkSize;
 
             if (chunkSize == 0) {
-                readEmptyLine();
-                chunkSigningSession.complete();
+                if (trailerHeaders.isEmpty()) {
+                    readEmptyLine();
+                    chunkSigningSession.ifPresent(ChunkSigningSession::complete);
+                }
+                else {
+                    readTrailingHeaders();
+                    readEmptyLine();
+                }
                 state = State.LAST_CHUNK;
             }
             bytesAccountedFor += chunkSize;
@@ -236,4 +255,44 @@ class AwsChunkedInputStream
 
         return line.toString();
     }
+
+    private TrailerHeaderChunk readTrailingHeadersChunk()
+            throws IOException
+    {
+        Optional<String> signature = Optional.empty();
+        StringBuilder trailerHeadersChunkBuilder = new StringBuilder();
+        for (int i = 0; i < this.trailerHeaders.size(); i++) {
+            String trailerHeaders = readLine();
+            List<String> trailerHeadersValues = Splitter.on(":").trimResults().limit(2).splitToList(trailerHeaders);
+            String trailerHeaderName = trailerHeadersValues.getFirst();
+            if ((trailerHeadersValues.size() != 2) || !this.trailerHeaders.contains(trailerHeaderName)) {
+                throw new WebApplicationException("Trailer header is invalid: " + trailerHeaders, BAD_REQUEST);
+            }
+            if (trailerHeaderName.equals("x-amz-trailer-signature")) {
+                signature = Optional.of(trailerHeadersValues.getLast());
+                break;
+            }
+            else {
+                trailerHeadersChunkBuilder.append(trailerHeaders);
+            }
+        }
+        return new TrailerHeaderChunk(trailerHeadersChunkBuilder.toString(), signature);
+    }
+
+    private void readTrailingHeaders()
+            throws IOException
+    {
+        TrailerHeaderChunk trailerHeaderChunk = readTrailingHeadersChunk();
+        chunkSigningSession.ifPresent(chunkSigningSession -> {
+            if (trailerHeaderChunk.signature.isEmpty()) {
+                throw new WebApplicationException("Expected x-amz-trailer-signature, none found", BAD_REQUEST);
+            }
+            chunkSigningSession.startChunk(trailerHeaderChunk.signature.get());
+            byte[] trailerHeaderContent = trailerHeaderChunk.trailerHeaders.getBytes(StandardCharsets.UTF_8);
+            chunkSigningSession.write(trailerHeaderContent, 0, trailerHeaderContent.length);
+            chunkSigningSession.complete();
+        });
+    }
+
+    private record TrailerHeaderChunk(String trailerHeaders, Optional<String> signature) {}
 }

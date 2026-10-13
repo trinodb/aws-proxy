@@ -248,7 +248,7 @@ public class TestGenericRestRequests
 
         URI requestUri = UriBuilder.fromUri(baseUri).path(bucket).path(key).build();
         RequestAuthorization requestAuthorization = signRequest(requestSigningCredential, requestUri, requestDate, "PUT", requestHeaderBuilder.build());
-        String chunkedContent = chunkedPayloadMutator.apply(TestingChunkSigningSession.build(chunkSigningCredential, requestAuthorization.signature(), requestDate).generateChunkedStream(contentToUpload, partitionCount));
+        String chunkedContent = chunkedPayloadMutator.apply(TestingChunkSigningSession.build(chunkSigningCredential, requestAuthorization.signature(), requestDate).generateChunkedStream(contentToUpload, partitionCount, Optional.empty()));
         Request.Builder requestBuilder = preparePut().setUri(requestUri);
 
         requestHeaderBuilder.add("Authorization", requestAuthorization.authorization());

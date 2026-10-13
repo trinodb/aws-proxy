@@ -15,6 +15,7 @@ package io.trino.aws.proxy.server.rest;
 
 import com.google.common.base.Splitter;
 import com.google.common.base.Suppliers;
+import com.google.common.collect.ImmutableList;
 import io.airlift.log.Logger;
 import io.trino.aws.proxy.server.rest.RequestHeadersBuilder.InternalRequestHeaders;
 import io.trino.aws.proxy.server.signing.SigningQueryParameters;
@@ -152,7 +153,7 @@ class RequestBuilder
 
             // AWS does not mandate x-amz-decoded-content length is required for chunked transfer encoding
             // But we require it for simplicity (Content-Length is needed since we don't do chunking on outbound requests)
-            case AWS_CHUNKED, W3C_CHUNKED, AWS_CHUNKED_IN_W3C_CHUNKED -> () -> {
+            case AWS_CHUNKED, AWS_CHUNKED_UNSIGNED, W3C_CHUNKED, AWS_CHUNKED_IN_W3C_CHUNKED, AWS_CHUNKED_IN_W3C_CHUNKED_UNSIGNED -> () -> {
                 int contentLength = requestHeaders.decodedContentLength()
                         .orElseThrow(() -> new WebApplicationException(BAD_REQUEST));
                 return Optional.of(contentLength);
@@ -187,6 +188,12 @@ class RequestBuilder
                 return standardBytes()
                         .map(bytes -> (InputStream) new ByteArrayInputStream(bytes))
                         .or(() -> Optional.of(requestEntityStream));
+            }
+
+            @Override
+            public List<String> trailerHeaders()
+            {
+                return ImmutableList.copyOf(requestHeaders.requestHeaders().unmodifiedHeaders().get("x-amz-trailer"));
             }
         };
     }
