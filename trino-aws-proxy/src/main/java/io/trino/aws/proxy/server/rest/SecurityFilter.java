@@ -65,7 +65,7 @@ public class SecurityFilter
                 throw new WebApplicationException(INTERNAL_SERVER_ERROR);
             }
 
-            Request request = RequestBuilder.fromRequest(containerRequest);
+            Request request = RequestBuilder.fromRequest(containerRequest, signingServiceType);
             containerRequest.setProperty(Request.class.getName(), request);
 
             RequestLoggingSession requestLoggingSession = requestLoggerController.newRequestSession(request, signingServiceType);

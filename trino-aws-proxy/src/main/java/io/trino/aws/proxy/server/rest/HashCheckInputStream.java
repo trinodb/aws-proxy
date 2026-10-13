@@ -34,13 +34,13 @@ class HashCheckInputStream
 
     private final InputStream delegate;
     private final String expectedHash;
-    private final Optional<Integer> expectedLength;
+    private final Optional<Long> expectedLength;
     private final Hasher hasher;
 
     private boolean hasBeenValidated;
     private int bytesRead;
 
-    HashCheckInputStream(InputStream delegate, String expectedHash, Optional<Integer> expectedLength)
+    HashCheckInputStream(InputStream delegate, String expectedHash, Optional<Long> expectedLength)
     {
         this.delegate = requireNonNull(delegate, "delegate is null");
         this.expectedHash = requireNonNull(expectedHash, "expectedHash is null");
