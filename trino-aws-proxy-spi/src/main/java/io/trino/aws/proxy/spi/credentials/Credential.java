@@ -15,6 +15,9 @@ package io.trino.aws.proxy.spi.credentials;
 
 import java.util.Optional;
 
+import static io.trino.aws.proxy.spi.util.Redaction.maskAccessKey;
+import static io.trino.aws.proxy.spi.util.Redaction.redact;
+import static io.trino.aws.proxy.spi.util.Redaction.redactWithHash;
 import static java.util.Objects.requireNonNull;
 
 public record Credential(String accessKey, String secretKey, Optional<String> session)
@@ -29,5 +32,11 @@ public record Credential(String accessKey, String secretKey, Optional<String> se
     public Credential(String accessKey, String secretKey)
     {
         this(accessKey, secretKey, Optional.empty());
+    }
+
+    @Override
+    public String toString()
+    {
+        return "Credential[accessKey=%s, secretKey=%s, session=%s]".formatted(maskAccessKey(accessKey), redact(secretKey), redactWithHash(session));
     }
 }

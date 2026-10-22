@@ -26,6 +26,9 @@ import java.util.Set;
 
 import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
+import static io.trino.aws.proxy.spi.util.Redaction.maskAccessKey;
+import static io.trino.aws.proxy.spi.util.Redaction.maskSignature;
+import static io.trino.aws.proxy.spi.util.Redaction.redactWithHash;
 import static java.util.Objects.requireNonNull;
 
 public record RequestAuthorization(String accessKey, String region, String keyPath, Set<String> lowercaseSignedHeaders, String signature,
@@ -56,6 +59,19 @@ public record RequestAuthorization(String accessKey, String region, String keyPa
         checkState(expiry.isEmpty(), "authorization cannot be computed for an expiring request");
 
         return "%s=%s/%s, SignedHeaders=%s, Signature=%s".formatted(CREDENTIAL_HEADER, accessKey, keyPath, String.join(";", lowercaseSignedHeaders), signature);
+    }
+
+    @Override
+    public String toString()
+    {
+        return "RequestAuthorization[accessKey=%s, region=%s, keyPath=%s, lowercaseSignedHeaders=%s, signature=%s, expiry=%s, securityToken=%s]".formatted(
+                maskAccessKey(accessKey),
+                region,
+                keyPath,
+                lowercaseSignedHeaders,
+                maskSignature(signature),
+                expiry,
+                redactWithHash(securityToken));
     }
 
     public static RequestAuthorization parse(String authorization)
