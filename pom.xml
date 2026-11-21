@@ -5,7 +5,7 @@
     <parent>
         <groupId>io.airlift</groupId>
         <artifactId>airbase</artifactId>
-        <version>198</version>
+        <version>287</version>
     </parent>
 
     <groupId>io.trino</groupId>
@@ -41,19 +41,23 @@
     </scm>
 
     <properties>
-        <project.build.targetJdk>22</project.build.targetJdk>
+        <project.build.targetJdk>25</project.build.targetJdk>
 
-        <air.java.version>22.0.0</air.java.version>
+        <air.java.version>25.0.1</air.java.version>
         <air.main.basedir>${project.basedir}</air.main.basedir>
         <air.check.skip-spotbugs>true</air.check.skip-spotbugs>
         <air.check.skip-pmd>true</air.check.skip-pmd>
         <air.modernizer.java-version>8</air.modernizer.java-version>
         <air.check.skip-modernizer>true</air.check.skip-modernizer>
 
-        <dep.airlift.version>284</dep.airlift.version>
+        <!-- Java 25 support: newer than airbase 287 defaults -->
+        <dep.plugin.dependency.version>3.9.0</dep.plugin.dependency.version>
+        <dep.plugin.enforcer-extra.version>1.11.0</dep.plugin.enforcer-extra.version>
+
+        <dep.airlift.version>347</dep.airlift.version>
         <dep.aws-sdk.version>2.25.32</dep.aws-sdk.version>
         <dep.airlift-units.version>1.10</dep.airlift-units.version>
-        <dep.jersey.version>3.1.9</dep.jersey.version>
+        <dep.jersey.version>3.1.11</dep.jersey.version>
         <dep.testcontainers.version>1.21.4</dep.testcontainers.version>
         <!-- in sync with container cgr.dev/chainguard/minio in S3Container -->
         <dep.minio.version>9.0.3</dep.minio.version>

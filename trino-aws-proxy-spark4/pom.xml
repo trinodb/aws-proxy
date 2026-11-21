@@ -8,6 +8,7 @@
     </parent>
 
     <artifactId>trino-aws-proxy-spark4</artifactId>
+    <description>Trino AWS Proxy - Spark 4 support</description>
 
     <properties>
         <air.main.basedir>${project.parent.basedir}</air.main.basedir>
