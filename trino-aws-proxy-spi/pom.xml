@@ -8,6 +8,7 @@
     </parent>
 
     <artifactId>trino-aws-proxy-spi</artifactId>
+    <description>Trino AWS Proxy - Service Provider Interface (SPI)</description>
 
     <properties>
         <air.main.basedir>${project.parent.basedir}</air.main.basedir>
@@ -22,6 +23,7 @@
         <dependency>
             <groupId>com.google.inject</groupId>
             <artifactId>guice</artifactId>
+            <classifier>classes</classifier>
         </dependency>
 
         <dependency>

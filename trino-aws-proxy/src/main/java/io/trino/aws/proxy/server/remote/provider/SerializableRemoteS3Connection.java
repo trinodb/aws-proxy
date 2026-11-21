@@ -16,6 +16,7 @@ package io.trino.aws.proxy.server.remote.provider;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.inject.ConfigurationException;
+import io.airlift.configuration.ConfigPropertyMetadata;
 import io.airlift.configuration.ConfigurationFactory;
 import io.trino.aws.proxy.server.remote.DefaultRemoteS3Config;
 import io.trino.aws.proxy.server.remote.PathStyleRemoteS3Facade;
@@ -29,6 +30,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
+import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static com.google.common.collect.Sets.difference;
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
@@ -61,7 +63,10 @@ public record SerializableRemoteS3Connection(
             catch (ConfigurationException e) {
                 throw new IllegalArgumentException("Failed create RemoteS3Facade from RemoteS3FacadeConfiguration", e);
             }
-            Set<String> unusedProperties = difference(configurationFactory.getProperties().keySet(), configurationFactory.getUsedProperties());
+            Set<String> usedProperties = configurationFactory.getUsedProperties().stream()
+                    .map(ConfigPropertyMetadata::name)
+                    .collect(toImmutableSet());
+            Set<String> unusedProperties = difference(configurationFactory.getProperties().keySet(), usedProperties);
             if (!unusedProperties.isEmpty()) {
                 throw new IllegalArgumentException(format("Failed to create RemoteS3Facade from RemoteS3FacadeConfiguration. Unused properties when instantiating " +
                         "DefaultRemoteS3Config: %s", unusedProperties));
